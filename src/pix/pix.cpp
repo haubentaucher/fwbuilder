@@ -57,7 +57,9 @@
 
 #include <QCoreApplication>
 #include <QStringList>
-#include <QTextCodec>
+#if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
+    #include <QTextCodec>
+#endif
 
 #include "../common/init.cpp"
 
@@ -74,13 +76,13 @@ class UpgradePredicate: public XMLTools::UpgradePredicate
     public:
     virtual bool operator()(const string &msg) const 
     { 
-        msg.size();  // to make compiler happy about unused parameter
+        (void)msg.size();  // to make compiler happy about unused parameter
 	cout << "Data file has been created in the old version of Firewall Builder.\nLoad it in the GUI to convert it to the new version." << endl;
 	return false;
     }
 };
 
-    
+
 void usage(const char *name)
 {
     cout << "Firewall Builder:  policy compiler for Cisco PIX firewall (with support for FWSM)" << endl;
@@ -95,7 +97,9 @@ int main(int argc, char **argv)
     QCoreApplication app(argc, argv, false);
 
     // compilers always write file names into manifest in Utf8
+#if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
     QTextCodec::setCodecForLocale(QTextCodec::codecForName("Utf8"));
+#endif
     
     QStringList args = app.arguments();
 

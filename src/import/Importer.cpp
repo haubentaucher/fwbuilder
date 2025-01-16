@@ -58,7 +58,7 @@
 
 #include <QString>
 #include <QStringList>
-#include <QRegExp>
+#include <QRegularExpression>
 #include <QtDebug>
 
 
@@ -68,7 +68,10 @@ using namespace libfwbuilder;
 using namespace std;
 
 // a functor to join list<string> into a string with separator sep
-class join : public std::unary_function<std::string, void>
+class join
+#if __cplusplus < 201103L
+    : public std::unary_function<std::string, void>
+#endif
 {
     std::string *result;
     std::string  separator;
@@ -325,7 +328,7 @@ void Importer::addInterfaceAddress(const std::string &label,
 void Importer::setInterfaceComment(const std::string &descr)
 {
     // current_interface can be nullptr if parser encountered command
-    // that looked like interface description but in reality was 
+    // that looked like interface description but in reality was
     // description of something else. For example this happens when
     // it finds command "description" under "controller" in Cisco router
     // configuration.
@@ -358,9 +361,10 @@ void Importer::setInterfaceParametes(const std::string &phys_intf_or_label,
         // "nameif ethernet0 outside security0"
         Interface *intf = all_interfaces[phys_intf_or_label];
         intf->setLabel(label);
-        QRegExp pix6_sec_level("security(\\d+)");
-        if (pix6_sec_level.indexIn(sec_level.c_str()) > -1)
-            intf->setSecurityLevel(pix6_sec_level.cap(1).toInt());
+        QRegularExpression pix6_sec_level("security(\\d+)");
+        QRegularExpressionMatch match;
+        if (QString::fromStdString(sec_level).indexOf(pix6_sec_level, 0, &match) > -1)
+            intf->setSecurityLevel(match.captured(1).toInt());
     } else
     {
         // since first arg is not physical interface name, it must be a label
@@ -488,7 +492,7 @@ void Importer::newUnidirRuleSet(const string &ruleset_name,
 /*
  * Grammar must ensure the call to setDefaultAction() happens
  * after the call to newUnidirRuleSet()
- * 
+ *
  */
 void Importer::setDefaultAction(const std::string &iptables_action_name)
 {
@@ -602,7 +606,7 @@ void Importer::setSrcSelf()
 void Importer::setDstSelf()
 {
     dst_a = "self";
-}    
+}
 
 FWObject* Importer::makeAddressObj(const std::string addr, const std::string netm)
 {
@@ -611,7 +615,7 @@ FWObject* Importer::makeAddressObj(const std::string addr, const std::string net
         return getFirewallObject();
     }
 
-    if ( (addr=="" && netm=="") || 
+    if ( (addr=="" && netm=="") ||
          (addr==InetAddr::getAny().toString() &&
           netm==InetAddr::getAny().toString()))
         return nullptr;  // this is 'any'
@@ -619,7 +623,7 @@ FWObject* Importer::makeAddressObj(const std::string addr, const std::string net
     ObjectSignature sig(error_tracker);
     sig.type_name = Address::TYPENAME;
     sig.setAddress(addr.c_str());
-    if (netm=="") 
+    if (netm=="")
         sig.setNetmask(InetAddr::getAllOnes().toString().c_str(),
                        address_maker->getInvertedNetmasks());
     else
@@ -986,7 +990,7 @@ void Importer::rearrangeVlanInterfaces()
     {
         Interface *intf = Interface::cast(*it);
         FWOptions *ifopt = intf->getOptionsObject();
-        
+
         if (int_prop->looksLikeVlanInterface(intf->getName().c_str()) &&
             ifopt->getStr("type")=="8021q")
         {
