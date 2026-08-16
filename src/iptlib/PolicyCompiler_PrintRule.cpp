@@ -144,7 +144,7 @@ string PolicyCompiler_ipt::PrintRule::_createChain(const string &chain)
             opt_wait = "";
 
         if(options->getBool("use_iptables_translate")) {
-            res = (ipt_comp->ipv6) ? "$IP6TABLES_TRANSLATE " : "$($IPTABLES_TRANSLATE ";
+            res = (ipt_comp->ipv6) ? "$($IP6TABLES_TRANSLATE " : "$($IPTABLES_TRANSLATE ";
         } else {
             res = (ipt_comp->ipv6) ? "$IP6TABLES " : "$IPTABLES ";
         }
@@ -164,7 +164,7 @@ string PolicyCompiler_ipt::PrintRule::_startRuleLine()
 
     string res;// = (ipt_comp->ipv6) ? "$IP6TABLES " : "$IPTABLES ";
     if(options->getBool("use_iptables_translate")) {
-    	res = (ipt_comp->ipv6) ? "$IP6TABLES_TRANSLATE " : "$($IPTABLES_TRANSLATE ";
+    	res = (ipt_comp->ipv6) ? "$($IP6TABLES_TRANSLATE " : " $($IPTABLES_TRANSLATE ";
     } else {
     	res = (ipt_comp->ipv6) ? "$IP6TABLES " : "$IPTABLES ";
     }
@@ -185,14 +185,13 @@ string PolicyCompiler_ipt::PrintRule::_startRuleLine()
 }
 
 string PolicyCompiler_ipt::PrintRule::_endRuleLine()
-{            
+{
 	PolicyCompiler_ipt *ipt_comp = dynamic_cast<PolicyCompiler_ipt*>(compiler);
 	FWOptions* options = ipt_comp->fw->getOptionsObject();
 
 	string res;
 	if(options->getBool("use_iptables_translate")) {
-	   	res = " | sed 's/\\\\//g')\n"; // | sed 's/^add/\\nnft add/g')\n";
-		//res = ")\n";
+	   	res = " | sed 's/\\\\//g' | sed 's/^add/\; add/g')\n";
 	} else {
 	   	res = "\n";
 	}
