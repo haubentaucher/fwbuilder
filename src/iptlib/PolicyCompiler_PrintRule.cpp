@@ -191,7 +191,8 @@ string PolicyCompiler_ipt::PrintRule::_endRuleLine()
 
 	string res;
 	if(options->getBool("use_iptables_translate")) {
-	   	res = " | sed 's/\\\\//g')\n";
+	   	res = " | sed 's/\\\\//g')\n"; // | sed 's/^add/\\nnft add/g')\n";
+		//res = ")\n";
 	} else {
 	   	res = "\n";
 	}
