@@ -1,0 +1,197 @@
+## -*- mode: shell-script; -*-
+## Native nftables: every set modification is one nft -f transaction.
+## This configlet is intentionally independent of linux24/ipset.
+
+{{if using_ipset}}
+
+check_module_ipset() {
+    : # Native nftables sets do not require the separate ipset utility.
+}
+
+fwb_nft_valid_set_name() {
+    case "$1" in
+        ''|[0-9]*|*[!a-zA-Z0-9_]*) return 1 ;;
+    esac
+    return 0
+}
+
+# Emit commands ONLY to an already staged transaction file. Nothing is
+# installed until nft -f has validated and atomically committed the batch.
+# Strict input avoids nft grammar injection from address-table data files.
+fwb_nft_append_address_elements() (
+    fwb_set=$1
+    fwb_file=$2
+    fwb_txn=$3
+    fwb_nft_valid_set_name "$fwb_set" || return 1
+    test -r "$fwb_file" && test -f "$fwb_file" || return 1
+    awk -v set_name="$fwb_set" '
+        /^[[:space:]]*([#;]|$)/ { next }
+        {
+            if (NF != 1 || $1 !~ /^[0-9a-fA-F.:]+(\/[0-9]+)?$/) {
+                printf "Invalid nft address-table entry on line %d\n", NR > "/dev/stderr"
+                bad=1; exit 1
+            }
+            if (index($1, ":") && $1 ~ /\./) {
+                # IPv4-mapped IPv6 addresses are deliberately rejected.
+                bad=1; exit 1
+            }
+            family=(index($1, ":") ? "ip6" : "ip")
+            if (family=="ip" && $1 !~ /^[0-9.]+(\/[0-9]+)?$/) {
+                bad=1; exit 1
+            }
+            for (i=1; i<=3; i++) {
+                table=(i==1 ? "fwb_filter" : (i==2 ? "fwb_mangle" : "fwb_nat"))
+                printf "add element %s %s %s { %s }\n", family, table, set_name, $1
+            }
+        }
+        END { if (bad) exit 1 }
+    ' "$fwb_file" >> "$fwb_txn"
+)
+
+fwb_nft_stage_one_address_table() {
+    fwb_name=$1
+    fwb_file=$2
+    fwb_nft_valid_set_name "$fwb_name" || return 1
+    test -r "$fwb_file" && test -f "$fwb_file" || return 1
+    for fwb_family in ip ip6; do
+        for fwb_table in fwb_filter fwb_mangle fwb_nat; do
+            if [ "$fwb_family" = ip ]; then
+                fwb_type=ipv4_addr
+            else
+                fwb_type=ipv6_addr
+            fi
+            printf 'add set %s %s %s { type %s; flags interval; }\n' \
+                "$fwb_family" "$fwb_table" "$fwb_name" "$fwb_type" >> "$FWB_NFT_TXN" || return 1
+        done
+    done
+    fwb_nft_append_address_elements "$fwb_name" "$fwb_file" "$FWB_NFT_TXN"
+}
+
+fwb_nft_stage_address_tables() {
+    test -n "${FWB_NFT_TXN:-}" && test -f "$FWB_NFT_TXN" || return 1
+    # The policy configlet omits its own add-table commands in set mode.
+    # Declare ALL FWB-owned tables, then all sets/elements, then policy rules.
+    for fwb_family in ip ip6; do
+        for fwb_table in fwb_filter fwb_mangle fwb_nat; do
+            printf 'add table %s %s\n' "$fwb_family" "$fwb_table" >> "$FWB_NFT_TXN" || return 1
+        done
+    done
+    {{$load_files_commands}}
+}
+
+# Replace membership in all managed tables/families simultaneously.  No
+# intermediate empty set becomes visible to readers of the live firewall.
+fwb_nft_atomic_replace_address_table() (
+    fwb_name=$1
+    fwb_file=$2
+    fwb_nft_valid_set_name "$fwb_name" || return 1
+    test -r "$fwb_file" && test -f "$fwb_file" || return 1
+    fwb_batch=$(mktemp "${TMPDIR:-/tmp}/fwb-set.XXXXXXXX") || return 1
+    for fwb_family in ip ip6; do
+        for fwb_table in fwb_filter fwb_mangle fwb_nat; do
+            printf 'flush set %s %s %s\n' "$fwb_family" "$fwb_table" "$fwb_name" >> "$fwb_batch" || {
+                rm -f "$fwb_batch"; return 1;
+            }
+        done
+    done
+    if ! fwb_nft_append_address_elements "$fwb_name" "$fwb_file" "$fwb_batch"; then
+        rm -f "$fwb_batch"
+        return 1
+    fi
+    "$NFT" -f "$fwb_batch"
+    fwb_result=$?
+    rm -f "$fwb_batch"
+    return "$fwb_result"
+)
+
+reload_address_table() {
+    [ "$#" -eq 2 ] && [ -n "$1" ] && [ -n "$2" ] || return 2
+    fwb_nft_atomic_replace_address_table "$1" "$2"
+}
+
+# For on-disk changes, prepare a same-directory replacement before touching
+# the kernel. If rename fails after nft succeeds, restore the previous kernel
+# membership from the still-existing original file (compensating batch).
+fwb_nft_edit_address_file() {
+    [ "$#" -eq 4 ] || return 2
+    fwb_name=$1; fwb_file=$2; fwb_addr=$3; fwb_op=$4
+    fwb_nft_valid_set_name "$fwb_name" || return 2
+    [ -f "$fwb_file" ] && [ -r "$fwb_file" ] && [ -w "$fwb_file" ] || return 2
+    case "$fwb_addr" in
+        ''|*[!0-9a-fA-F.:/]*) return 2 ;;
+    esac
+    fwb_lock="${fwb_file}.fwb-lock"
+    mkdir "$fwb_lock" 2>/dev/null || { echo 'Address table busy' >&2; return 1; }
+    fwb_stage=$(mktemp "${fwb_file}.fwb.XXXXXXXX") || {
+        rmdir "$fwb_lock"; return 1;
+    }
+    if ! cp -p "$fwb_file" "$fwb_stage"; then
+        rm -f "$fwb_stage"; rmdir "$fwb_lock"; return 1
+    fi
+    case "$fwb_op" in
+        add)
+            printf '%s\n' "$fwb_addr" >> "$fwb_stage" || {
+                rm -f "$fwb_stage"; rmdir "$fwb_lock"; return 1;
+            }
+            ;;
+        remove)
+            fwb_rows=$(mktemp "${fwb_file}.rows.XXXXXXXX") || {
+                rm -f "$fwb_stage"; rmdir "$fwb_lock"; return 1;
+            }
+            if ! awk -v needle="$fwb_addr" '
+                /^[[:space:]]*([#;]|$)/ { print; next }
+                $1 != needle { print }
+            ' "$fwb_stage" > "$fwb_rows" || ! cat "$fwb_rows" > "$fwb_stage"; then
+                rm -f "$fwb_rows" "$fwb_stage"; rmdir "$fwb_lock"; return 1
+            fi
+            rm -f "$fwb_rows"
+            ;;
+        *) rm -f "$fwb_stage"; rmdir "$fwb_lock"; return 2 ;;
+    esac
+    if ! fwb_nft_atomic_replace_address_table "$fwb_name" "$fwb_stage"; then
+        rm -f "$fwb_stage"; rmdir "$fwb_lock"; return 1
+    fi
+    if ! mv -f "$fwb_stage" "$fwb_file"; then
+        echo 'Address-table disk commit failed; restoring kernel membership' >&2
+        fwb_nft_atomic_replace_address_table "$fwb_name" "$fwb_file" || \
+            echo 'CRITICAL: kernel rollback failed; manual recovery required' >&2
+        rm -f "$fwb_stage"; rmdir "$fwb_lock"
+        return 1
+    fi
+    rmdir "$fwb_lock"
+}
+
+add_to_address_table() {
+    [ "$#" -eq 3 ] || return 2
+    fwb_nft_edit_address_file "$1" "$2" "$3" add
+}
+remove_from_address_table() {
+    [ "$#" -eq 3 ] || return 2
+    fwb_nft_edit_address_file "$1" "$2" "$3" remove
+}
+test_address_table() {
+    [ "$#" -eq 2 ] || return 2
+    fwb_nft_valid_set_name "$1" || return 2
+    case "$2" in
+        ''|*[!0-9a-fA-F.:/]*) return 2 ;;
+    esac
+    case "$2" in
+        *:*) fwb_family=ip6 ;;
+        *) fwb_family=ip ;;
+    esac
+    "$NFT" get element "$fwb_family" fwb_filter "$1" "{" "$2" "}" >/dev/null 2>&1
+}
+
+{{endif}}
+
+check_file() {
+    test -r "$2" && test -f "$2" || {
+        echo "Missing address-table file for $1: $2" >&2
+        return 1
+    }
+}
+
+check_run_time_address_table_files() {
+    :
+    {{$check_files_commands}}
+}

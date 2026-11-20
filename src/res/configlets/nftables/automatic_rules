@@ -1,0 +1,49 @@
+## -*- mode: shell-script; -*-
+## Native nftables automatic policy rules. A rule line is a native add rule
+## command in atomic mode, or a $NFT-prefixed command in shell mode.
+{{if accept_established}}
+{{$begin_rule}}INPUT ct state { established, related } accept{{$end_rule}}
+{{$begin_rule}}OUTPUT ct state { established, related } accept{{$end_rule}}
+{{$begin_rule}}FORWARD ct state { established, related } accept{{$end_rule}}
+{{endif}}
+{{if mgmt_access}}
+{{$begin_rule}}INPUT {{$addr_family}} saddr {{$ssh_management_address}} tcp dport 22 ct state { new, established } accept{{$end_rule}}
+{{$begin_rule}}OUTPUT {{$addr_family}} daddr {{$ssh_management_address}} tcp sport 22 ct state { established, related } accept{{$end_rule}}
+{{endif}}
+{{if drop_new_tcp_with_no_syn}}
+{{$begin_rule}}INPUT tcp flags & (syn|rst|ack) != syn ct state new drop{{$end_rule}}
+{{$begin_rule}}OUTPUT tcp flags & (syn|rst|ack) != syn ct state new drop{{$end_rule}}
+{{if ipforw}}
+{{$begin_rule}}FORWARD tcp flags & (syn|rst|ack) != syn ct state new drop{{$end_rule}}
+{{endif}}
+{{endif}}
+{{if add_rules_for_ipv6_neighbor_discovery}}
+{{$begin_rule}}INPUT icmpv6 type { nd-router-solicit, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert } ip6 hoplimit 255 accept{{$end_rule}}
+{{$begin_rule}}OUTPUT icmpv6 type { nd-router-solicit, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert } ip6 hoplimit 255 accept{{$end_rule}}
+{{if bridging_firewall}}
+{{$begin_rule}}FORWARD icmpv6 type { nd-router-solicit, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert } ip6 hoplimit 255 accept{{$end_rule}}
+{{endif}}
+{{endif}}
+{{if drop_invalid}}
+{{$begin_rule}}INPUT ct state invalid drop{{$end_rule}}
+{{$begin_rule}}OUTPUT ct state invalid drop{{$end_rule}}
+{{if ipforw}}
+{{$begin_rule}}FORWARD ct state invalid drop{{$end_rule}}
+{{endif}}
+{{endif}}
+{{if drop_invalid_and_log}}
+{{if use_ulog}}
+{{$begin_rule}}INPUT ct state invalid log group {{$nlgroup}} prefix {{$invalid_match_log_prefix}}{{$nflog_options}} drop{{$end_rule}}
+{{$begin_rule}}OUTPUT ct state invalid log group {{$nlgroup}} prefix {{$invalid_match_log_prefix}}{{$nflog_options}} drop{{$end_rule}}
+{{if ipforw}}
+{{$begin_rule}}FORWARD ct state invalid log group {{$nlgroup}} prefix {{$invalid_match_log_prefix}}{{$nflog_options}} drop{{$end_rule}}
+{{endif}}
+{{endif}}
+{{if not_use_ulog}}
+{{$begin_rule}}INPUT ct state invalid log prefix {{$invalid_match_log_prefix}} level debug drop{{$end_rule}}
+{{$begin_rule}}OUTPUT ct state invalid log prefix {{$invalid_match_log_prefix}} level debug drop{{$end_rule}}
+{{if ipforw}}
+{{$begin_rule}}FORWARD ct state invalid log prefix {{$invalid_match_log_prefix}} level debug drop{{$end_rule}}
+{{endif}}
+{{endif}}
+{{endif}}
