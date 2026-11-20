@@ -245,7 +245,7 @@ namespace fwcompiler {
             PrintCompleteACLs(const std::string &n) : PrintRule(n) {}
             virtual bool processNext();
 
-            struct printRulesForACL : public std::unary_function<libfwbuilder::Rule*, void>
+            struct printRulesForACL
             {
                 ciscoACL *acl;
                 std::stringstream *output;
