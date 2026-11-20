@@ -610,7 +610,8 @@ class FWObjectTypedChildIterator
  * name is obtained by calling getName() method.
  * This class could be used in STL Algoriths find_if, and others.
  */
-class FWObjectNameEQPredicate: public std::unary_function<FWObject*, bool>
+// std::unary_function/binary_function were removed in C++17; keep call operators.
+class FWObjectNameEQPredicate
 {
     std::string n;
     
@@ -624,15 +625,14 @@ class FWObjectNameEQPredicate: public std::unary_function<FWObject*, bool>
     }
 };
 
-struct FWObjectNameCmpPredicate :
-    public std::binary_function<FWObject*, FWObject*, bool>
+struct FWObjectNameCmpPredicate
 {
     bool follow_references;
     FWObjectNameCmpPredicate(bool follow_refs=false);
     bool operator()(FWObject *a,FWObject *b);
 };
 
-class findFWObjectIDPredicate : public std::unary_function<FWObject*, bool>
+class findFWObjectIDPredicate
 {
     int _id;
     public:
@@ -646,7 +646,7 @@ class findFWObjectIDPredicate : public std::unary_function<FWObject*, bool>
  * name is obtained by calling getTypeName() method.
  * This class could be used in STL Algoriths find_if, and others.
  */
-class FWObjectTypeNameEQPredicate: public std::unary_function<FWObject*, bool>
+class FWObjectTypeNameEQPredicate
 {
     std::string n;
     

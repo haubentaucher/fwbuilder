@@ -28,6 +28,7 @@
 #include <QFileInfo>
 #include <QFile>
 #include <QTextStream>
+#include <memory>
 
 using namespace std;
 using namespace libfwbuilder;
@@ -131,7 +132,7 @@ QString CompilerDriver_junosacl::run(const string &cluster_id,
 
         string platform = fw->getStr("platform");
 
-        std::auto_ptr<OSConfigurator_junos> oscnf(new OSConfigurator_junos(objdb, fw, false));
+        std::unique_ptr<OSConfigurator_junos> oscnf(new OSConfigurator_junos(objdb, fw, false));
 
         oscnf->prolog();
         oscnf->processFirewallOptions();
@@ -186,7 +187,7 @@ QString CompilerDriver_junosacl::run(const string &cluster_id,
             }
             if (policy_count)
             {
-                std::auto_ptr<Preprocessor> prep(new Preprocessor(objdb, fw, false));
+                std::unique_ptr<Preprocessor> prep(new Preprocessor(objdb, fw, false));
                 if (inTestMode()) prep->setTestMode();
                 if (inEmbeddedMode()) prep->setEmbeddedMode();
                 prep->compile();

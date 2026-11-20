@@ -80,7 +80,7 @@ void TableFactory::detach()
     // dbroot->remove(persistent_tables, false);
 }
 
-struct joinIDs : public unary_function<string, void>
+struct joinIDs
 {
     string    out, sep;
     joinIDs(const string& _sep) { sep=_sep; };

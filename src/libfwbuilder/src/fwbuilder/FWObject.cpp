@@ -495,7 +495,7 @@ FWObject& FWObject::shallowDuplicate(const FWObject *x, bool preserve_id)
     return *this;
 }
 
-class InheritsFWOptions: public std::unary_function<FWObject*, bool>
+class InheritsFWOptions
 {
     public:
     InheritsFWOptions() {}
