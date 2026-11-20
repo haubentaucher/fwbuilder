@@ -18,6 +18,8 @@ SUBDIRS  =  libfwbuilder \
 			compiler_lib \
 			iptlib \
 			ipt \
+			nftlib \
+			nft \
 			pflib \
 			pf \
 			ipf \
