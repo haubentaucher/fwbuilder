@@ -144,7 +144,7 @@ void AttachedNetworksDialog::validate(bool *result)
 
 void AttachedNetworksDialog::applyChanges()
 {
-    std::auto_ptr<FWCmdChange> cmd( new FWCmdChange(m_project, obj));
+    std::unique_ptr<FWCmdChange> cmd( new FWCmdChange(m_project, obj));
     FWObject* new_state = cmd->getNewState();
 
 #ifndef NDEBUG
