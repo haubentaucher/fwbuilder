@@ -111,6 +111,20 @@ string OSConfigurator_linux24::getInterfaceVarName(FWObject *iface, bool v6)
     return ostr.str();
 }
 
+bool OSConfigurator_linux24::usesIpSet() const
+{
+    return using_ipset;
+}
+
+void OSConfigurator_linux24::setUsingIpSet(bool enabled)
+{
+    using_ipset = enabled;
+}
+
+const map<string,string>& OSConfigurator_linux24::getAddressTableObjects() const
+{
+    return address_table_objects;
+}
 void OSConfigurator_linux24::setConfigletMacroForOptionStr(
     const string &s, Configlet *c, const char *option_name)
 {
@@ -384,6 +398,7 @@ string OSConfigurator_linux24::printShellFunctions(bool have_ipv6)
 
     if (options->getBool("configure_bonding_interfaces"))
     {
+
         Configlet conf(fw, "linux24", "update_bonding");
         output.push_back(conf.expand());
     }

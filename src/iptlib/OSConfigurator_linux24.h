@@ -77,6 +77,12 @@ namespace fwcompiler {
             QStringList &update_addresses,
             QStringList &ignore_addresses);
 
+protected:
+        // Read-only access needed by the native nftables configurator.
+        bool usesIpSet() const;
+        void setUsingIpSet(bool enabled);
+        const std::map<std::string,std::string>& getAddressTableObjects() const;
+
 public:
 
 	virtual ~OSConfigurator_linux24();
