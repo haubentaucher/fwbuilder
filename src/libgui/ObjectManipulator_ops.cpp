@@ -186,7 +186,7 @@ void ObjectManipulator::autorenameVlans(list<FWObject*> &obj_list)
         assert(fw);
         QString obj_name = QString::fromUtf8(obj->getName().c_str());
 
-        std::auto_ptr<interfaceProperties> int_prop(
+        std::unique_ptr<interfaceProperties> int_prop(
             interfacePropertiesObjectFactory::getInterfacePropertiesObject(fw));
 
         if (int_prop->looksLikeVlanInterface(obj_name))
@@ -444,7 +444,7 @@ void ObjectManipulator::lockObject()
             // lock objects inside because they won't be able to unlock them.
             if (lib->getId()!=FWObjectDatabase::STANDARD_LIB_ID)
             {
-                std::auto_ptr<FWCmdLockObject> cmd(
+                std::unique_ptr<FWCmdLockObject> cmd(
                     new FWCmdLockObject(m_project, obj, tr("Lock object ") +
                                         QString::fromUtf8(obj->getName().c_str())));
                 FWObject* new_state = cmd->getNewState();
@@ -482,7 +482,7 @@ void ObjectManipulator::unlockObject()
             FWObject *lib = obj->getLibrary();
             if (lib->getId()!=FWObjectDatabase::STANDARD_LIB_ID)
             {
-                std::auto_ptr<FWCmdLockObject> cmd(
+                std::unique_ptr<FWCmdLockObject> cmd(
                     new FWCmdLockObject(m_project, obj, tr("Unlock object ") +
                                         QString::fromUtf8(obj->getName().c_str())));
                 FWObject* new_state = cmd->getNewState();
