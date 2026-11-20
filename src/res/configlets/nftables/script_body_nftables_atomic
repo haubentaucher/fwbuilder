@@ -1,0 +1,33 @@
+## -*- mode: shell-script; -*-
+## Atomic nftables ruleset loading; do not use iptables-restore syntax.
+{{if have_script}}
+{{if filter_or_auto}}
+{{if not_using_ipset}}add table {{if ipv4}}ip{{endif}}{{if ipv6}}ip6{{endif}} fwb_filter{{endif}}
+add chain {{if ipv4}}ip{{endif}}{{if ipv6}}ip6{{endif}} fwb_filter INPUT { type filter hook input priority 0; policy drop; }
+add chain {{if ipv4}}ip{{endif}}{{if ipv6}}ip6{{endif}} fwb_filter OUTPUT { type filter hook output priority 0; policy drop; }
+add chain {{if ipv4}}ip{{endif}}{{if ipv6}}ip6{{endif}} fwb_filter FORWARD { type filter hook forward priority 0; policy drop; }
+{{$filter_auto_script}}
+{{$filter_script}}
+{{endif}}
+{{if mangle_or_auto}}
+{{if not_using_ipset}}add table {{if ipv4}}ip{{endif}}{{if ipv6}}ip6{{endif}} fwb_mangle{{endif}}
+# Declare the mangle base chains before any automatic or user rules.
+add chain {{if ipv4}}ip{{endif}}{{if ipv6}}ip6{{endif}} fwb_mangle PREROUTING { type filter hook prerouting priority -150; policy accept; }
+add chain {{if ipv4}}ip{{endif}}{{if ipv6}}ip6{{endif}} fwb_mangle INPUT { type filter hook input priority -150; policy accept; }
+add chain {{if ipv4}}ip{{endif}}{{if ipv6}}ip6{{endif}} fwb_mangle FORWARD { type filter hook forward priority -150; policy accept; }
+add chain {{if ipv4}}ip{{endif}}{{if ipv6}}ip6{{endif}} fwb_mangle OUTPUT { type route hook output priority -150; policy accept; }
+add chain {{if ipv4}}ip{{endif}}{{if ipv6}}ip6{{endif}} fwb_mangle POSTROUTING { type filter hook postrouting priority -150; policy accept; }
+{{$mangle_auto_script}}
+{{$mangle_script}}
+{{endif}}
+{{if nat}}
+{{if not_using_ipset}}add table {{if ipv4}}ip{{endif}}{{if ipv6}}ip6{{endif}} fwb_nat{{endif}}
+# Standard NAT chains are considered pre-existing by NATCompiler_nft.
+# The hook priorities are the native dstnat (-100) and srcnat (100).
+add chain {{if ipv4}}ip{{endif}}{{if ipv6}}ip6{{endif}} fwb_nat PREROUTING { type nat hook prerouting priority -100; policy accept; }
+add chain {{if ipv4}}ip{{endif}}{{if ipv6}}ip6{{endif}} fwb_nat INPUT { type nat hook input priority 100; policy accept; }
+add chain {{if ipv4}}ip{{endif}}{{if ipv6}}ip6{{endif}} fwb_nat OUTPUT { type nat hook output priority -100; policy accept; }
+add chain {{if ipv4}}ip{{endif}}{{if ipv6}}ip6{{endif}} fwb_nat POSTROUTING { type nat hook postrouting priority 100; policy accept; }
+{{$nat_script}}
+{{endif}}
+{{endif}}

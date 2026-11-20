@@ -1,0 +1,11 @@
+## -*- mode: shell-script; -*-
+## Native nftables command mode. Commands carry their own $NFT prefix.
+{{if have_script}}
+{{if auto}}
+{{$filter_auto_script}}
+{{$mangle_auto_script}}
+{{endif}}
+{{if filter}}{{$filter_script}}{{endif}}
+{{if mangle}}{{$mangle_script}}{{endif}}
+{{if nat}}{{$nat_script}}{{endif}}
+{{endif}}

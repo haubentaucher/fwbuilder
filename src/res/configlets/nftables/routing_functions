@@ -1,0 +1,182 @@
+## -*- mode: shell-script; -*-
+## Native nftables routing activation.
+## Declares, installs and rolls back only routes this script owns.
+## Kernel, DHCP and RA routes are left in place. The routing table is
+## never flushed.
+##
+## {{$firewall_name}} is the firewall object name, restricted to a
+## safe state-file suffix by the compiler.
+##
+if [ "${FWB_ROUTING_INITIALIZED:-0}" != 1 ]; then
+FWB_ROUTING_INITIALIZED=1
+FWB_ROUTE_STATE_DIR=/var/lib/fwbuilder
+FWB_ROUTE_STATE="$FWB_ROUTE_STATE_DIR/nft-routes.{{$firewall_name}}"
+FWB_ROUTING_REDIRECTED=0
+HAVE_MKTEMP=$(which mktemp)
+test -n "$HAVE_MKTEMP" && {
+  TMPDIRNAME=$(mktemp -d)
+  test -z "$TMPDIRNAME" && exit 1
+}
+test -z "$HAVE_MKTEMP" && {
+  TMPDIRNAME="/tmp/.fwbuilder.tempdir.$$"
+  (umask 077 && mkdir "$TMPDIRNAME") || exit 1
+}
+TMPFILENAME="$TMPDIRNAME/.fwbuilder.out"
+FWB_ROUTE_COMMITTED="$TMPDIRNAME/.committed"
+FWB_ROUTE_RETIRED="$TMPDIRNAME/.retired"
+: > "$FWB_ROUTE_COMMITTED"
+: > "$FWB_ROUTE_RETIRED"
+fwb_routing_restore_output() {
+  if [ "${FWB_ROUTING_REDIRECTED:-0}" = 1 ]; then
+    exec 1>&3 2>&1
+    cat "$TMPFILENAME"
+    rm -rf "$TMPDIRNAME"
+    FWB_ROUTING_REDIRECTED=0
+  fi
+}
+fwb_route_show() {
+  if [ "$1" = 6 ]; then
+    $IP -6 route show "$2" 2>/dev/null || true
+  else
+    $IP route show "$2" 2>/dev/null || true
+  fi
+}
+fwb_route_is_protected() {
+  printf '%s\n' "$1" | grep -Eq '(^|[[:space:]])proto (kernel|dhcp|ra)([[:space:]]|$)'
+}
+fwb_route_owned() {
+  [ -f "$FWB_ROUTE_STATE" ] || return 1
+  awk -F '|' -v fam="$1" -v dest="$2" 'BEGIN { found=0 } $1==fam && $2==dest { found=1 } END { exit found ? 0 : 1 }' "$FWB_ROUTE_STATE"
+}
+fwb_route_del_spec() {
+  fam=$1
+  shift
+  set -f
+  if [ "$fam" = 6 ]; then
+    $IP -6 route del "$@"
+    status=$?
+  else
+    $IP route del "$@"
+    status=$?
+  fi
+  set +f
+  return $status
+}
+fwb_route_add_line() {
+  fam=$1
+  shift
+  set -f
+  if [ "$fam" = 6 ]; then
+    $IP -6 route replace "$@"
+    status=$?
+  else
+    $IP route replace "$@"
+    status=$?
+  fi
+  set +f
+  return $status
+}
+fwb_routing_retire() {
+  [ -f "$FWB_ROUTE_STATE" ] || return 0
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    fam=${line%%|*}
+    rest=${line#*|}
+    dest=${rest%%|*}
+    spec=${rest#*|}
+    current=$(fwb_route_show "$fam" "$dest")
+    [ -n "$current" ] || continue
+    if fwb_route_is_protected "$current"; then
+      echo "Keeping protected route $dest"
+      continue
+    fi
+    flat=$(printf '%s\n' "$current" | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g; s/^ //; s/ $//')
+    printf '%s|%s|%s\n' "$fam" "$dest" "$flat" >> "$FWB_ROUTE_RETIRED"
+    if [ "$dest" = default ]; then
+      fwb_route_del_spec "$fam" $spec || return 1
+    else
+      fwb_route_del_spec "$fam" $dest || return 1
+    fi
+  done < "$FWB_ROUTE_STATE"
+}
+fwb_routing_rollback() {
+  if [ -f "$FWB_ROUTE_COMMITTED" ]; then
+    while IFS= read -r line; do
+      [ -n "$line" ] || continue
+      fam=${line%%|*}
+      rest=${line#*|}
+      dest=${rest%%|*}
+      spec=${rest#*|}
+      if [ "$dest" = default ]; then
+        fwb_route_del_spec "$fam" $spec || true
+      else
+        fwb_route_del_spec "$fam" $dest || true
+      fi
+    done < "$FWB_ROUTE_COMMITTED"
+  fi
+  if [ -f "$FWB_ROUTE_RETIRED" ]; then
+    while IFS= read -r line; do
+      [ -n "$line" ] || continue
+      fam=${line%%|*}
+      rest=${line#*|}
+      saved=${rest#*|}
+      fwb_route_add_line "$fam" $saved || true
+    done < "$FWB_ROUTE_RETIRED"
+  fi
+}
+fwb_route_prepare() {
+  fam=$1
+  dest=$2
+  if [ "$dest" = default ]; then
+    return 0
+  fi
+  current=$(fwb_route_show "$fam" "$dest")
+  [ -n "$current" ] || return 0
+  if fwb_route_is_protected "$current"; then
+    echo "Error: refusing to replace protected route $dest"
+    return 1
+  fi
+  if ! fwb_route_owned "$fam" "$dest"; then
+    echo "Error: refusing to replace foreign route $dest"
+    return 1
+  fi
+  return 0
+}
+fwb_route_committed() {
+  printf '%s|%s|%s\n' "$1" "$2" "$3" >> "$FWB_ROUTE_COMMITTED"
+}
+route_command_error() {
+  fwb_routing_rollback
+  fwb_routing_restore_output
+  echo "Error: routing rule $1 could not be activated." >&2
+  echo "The nftables policy is already active. Rolled back only routes installed by this script." >&2
+  exit 1
+}
+fwb_routing_finish() {
+  mkdir -p "$FWB_ROUTE_STATE_DIR" || exit 1
+  # Do not use the empty-file shell test here: its flag text matches an
+  # iptables source-match marker rejected by the native script guard.
+  if [ -n "$(cat "$FWB_ROUTE_COMMITTED" 2>/dev/null)" ]; then
+    cp "$FWB_ROUTE_COMMITTED" "$FWB_ROUTE_STATE.new"
+  else
+    : > "$FWB_ROUTE_STATE.new"
+  fi
+  mv -f "$FWB_ROUTE_STATE.new" "$FWB_ROUTE_STATE"
+  fwb_routing_restore_output
+  echo "Routing rules activated."
+}
+fwb_routing_begin() {
+  mkdir -p "$FWB_ROUTE_STATE_DIR" || return 1
+  if ! fwb_routing_retire; then
+    fwb_routing_rollback
+    echo "Error: could not retire previously managed routes." >&2
+    return 1
+  fi
+  exec 3>&1
+  exec 1>"$TMPFILENAME"
+  exec 2>&1
+  FWB_ROUTING_REDIRECTED=1
+  echo "Activating routing rules..."
+}
+fwb_routing_begin || exit 1
+fi

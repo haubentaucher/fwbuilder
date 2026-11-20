@@ -1,0 +1,40 @@
+## -*- mode: shell-script; -*- 
+##
+## To be able to make changes to the part of configuration created
+## from this configlet you need to copy this file to the directory
+## fwbuilder/configlets/nftables/ in your home directory and modify it.
+## Double "##" comments are removed during processing but single "#"
+## comments are be retained and appear in the generated script. Empty
+## lines are removed as well.  
+##
+## Configlets support simple macro language with these constructs:
+## {{$var}} is variable expansion
+## {{if var}} is conditional operator.
+##
+## This configlet defines commands executed when nftables script is ran
+## with command line argument "status". Exit codes are defined in
+## http://refspecs.freestandards.org/LSB_3.1.0/LSB-Core-generic/LSB-Core-generic/iniscrptact.html
+## Script should return with exit code 0 if nftables rules are loaded and 
+## 1 otherwise. We can not verify that the rules running at the moment
+## are those configured in this script so we only check if any rules
+## exist by checking if the ruleset is non-empty.
+
+check_nftables() {
+    ruleset=$($NFT list ruleset 2>/dev/null)
+    [ $? -ne 0 ] && return 151
+    [ -z "$ruleset" ] && return 152
+    return 0
+}
+
+status_action() {
+    check_nftables
+    ret_ruleset=$?
+    [ $ret_ruleset -eq 0 ] && return 0
+    [ $ret_ruleset -eq 151 ] && {
+        echo "nftables is not available"
+    }
+    [ $ret_ruleset -eq 152 ] && {
+        echo "Firewall is not configured"
+    }
+    exit 3
+}
