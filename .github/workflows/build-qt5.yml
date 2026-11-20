@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: build-qt5-nftables
+  cancel-in-progress: true
+
 jobs:
   build-qt5:
     name: Build FWB Qt5 incl. native nftables
@@ -33,23 +37,30 @@ jobs:
       - name: Configure Autotools and qmake (Qt5)
         run: |
           set -euo pipefail
+          mkdir -p ci-logs
           command -v qmake
-          qmake -v
+          qmake -v 2>&1 | tee ci-logs/qmake.log
           qmake -v 2>&1 | grep -Eq 'Qt version 5\.' || {
             echo 'Refusing to build the Qt5 tree with a non-Qt5 qmake' >&2
             exit 1
           }
-          bash ./autogen.sh --prefix=/usr --with-qmake=qmake
+          bash ./autogen.sh --prefix=/usr --with-qmake=qmake 2>&1 | tee ci-logs/configure.log
 
       - name: Compile full tree including fwb_nft
         run: |
           set -euo pipefail
-          make -j"$(nproc)"
+          make -j"$(nproc)" 2>&1 | tee ci-logs/build.log
+
+      - name: Summarize compile errors
+        if: ${{ failure() }}
+        run: |
+          set -euo pipefail
+          grep -nE 'error:|Project ERROR|No such file|undefined reference' ci-logs/build.log ci-logs/configure.log 2>/dev/null | tail -80 > ci-logs/errors.log || true
+          tail -80 ci-logs/errors.log || true
 
       - name: Inventory compiled policy compilers
         run: |
           set -euo pipefail
-          mkdir -p ci-logs
           find . -type f \
             \( -name fwb_ipt -o -name fwb_pf -o -name fwb_ipf \
             -o -name fwb_ipfw -o -name fwb_pix -o -name fwb_iosacl \
