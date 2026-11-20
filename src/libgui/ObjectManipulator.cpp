@@ -1831,4 +1831,3 @@ list<Firewall*> ObjectManipulator::findFirewallsForObject(FWObject *o)
 {
     return UsageResolver().findFirewallsForObject(o, this->m_project->db());
 }
-

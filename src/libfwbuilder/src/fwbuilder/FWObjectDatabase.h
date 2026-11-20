@@ -290,6 +290,8 @@ public:
          */
         FWObjectDatabase(FWObjectDatabase& d);
 
+        FWObjectDatabase& operator=(const FWObjectDatabase&) = default;
+
         virtual ~FWObjectDatabase();
 
         // --- methods dealing with object index
