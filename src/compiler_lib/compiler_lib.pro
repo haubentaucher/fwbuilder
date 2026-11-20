@@ -22,7 +22,8 @@ SOURCES	 =  CompilerDriver.cpp \
 			procurveInterfaces.cpp \
 			pixInterfaces.cpp \
 			interfacePropertiesObjectFactory.cpp \
-			AutomaticRules.cpp
+			AutomaticRules.cpp \
+			CentralHooks.cpp
 
 HEADERS	 = ../../config.h \
 			CompilerDriver.h \
@@ -37,7 +38,8 @@ HEADERS	 = ../../config.h \
 			procurveInterfaces.h \
 			pixInterfaces.h \
 			interfacePropertiesObjectFactory.h \
-			AutomaticRules.h
+			AutomaticRules.h \
+			CentralHooks.h
 
 INCLUDEPATH += ../libfwbuilder/src
 DEPENDPATH  += ../libfwbuilder/src
