@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: build-qt5-nftables
@@ -57,6 +57,21 @@ jobs:
           set -euo pipefail
           grep -nE 'error:|Project ERROR|No such file|undefined reference' ci-logs/build.log ci-logs/configure.log 2>/dev/null | tail -80 > ci-logs/errors.log || true
           tail -80 ci-logs/errors.log || true
+
+      - name: Publish build logs to ci-logs-nftables branch
+        if: ${{ failure() }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          rm -rf ci-log-repo && git init -q ci-log-repo && cd ci-log-repo
+          git config user.name "ci-log-bot"
+          git config user.email "ci-log-bot@users.noreply.github.com"
+          cp -r "$GITHUB_WORKSPACE/ci-logs" .
+          git add -A
+          git commit -qm "CI build logs for failed run $GITHUB_RUN_ID"
+          git push -qf "https://x-access-token:${GH_TOKEN}@github.com/haubentaucher/fwbuilder.git" HEAD:refs/heads/ci-logs-nftables
 
       - name: Inventory compiled policy compilers
         run: |
