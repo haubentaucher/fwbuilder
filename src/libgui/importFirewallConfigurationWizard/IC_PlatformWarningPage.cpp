@@ -119,55 +119,6 @@ void IC_PlatformWarningPage::initializePage()
             platformOk = false;
             break;
 
-        case PreImport::PIX:
-        case PreImport::FWSM:
-            m_dialog->platform->setText(tr("Cisco PIX / CIsco ASA / Cisco FWSM"));
-            m_dialog->platformSpecificWarning->setText(
-                tr("Not all Cisco ASA and PIX configuration commands are "
-                   "supported by Firewall Builder. "
-                   "The following configuration components will be imported "
-                   "and can be managed using "
-                   "Firewall Builder:"
-                   "<ul>"
-                   "<li>Interface configurations (IP address, security level, "
-                   "name, etc.)</li>"
-                   "<li>Access lists</li>"
-                   "<li>NAT configuration</li>"
-                   "</ul>"
-                   "The following configuration components will not be imported:"
-                   "<ul>"
-                   "<li>VPN</li>"
-                   "<li>Static routes</li>"
-                   "<li>Dynamic routing protocols</li>"
-                   "<li>QoS</li>"
-                   "</ul>"
-                ));
-            platformOk = true;
-            break;
-
-
-        case PreImport::IOSACL:
-            m_dialog->platform->setText(tr("Cisco Router IOS"));
-            m_dialog->platformSpecificWarning->setText(
-                tr("Not all Cisco IOS configuration commands are "
-                   "supported by Firewall Builder. The following "
-                   "configuration components will be imported and "
-                   "can be managed using Firewall Builder:"
-                   "<ul>"
-                   "<li>Interface configurations (IP address)</li>"
-                   "<li>Extended access lists</li>"
-                   "</ul>"
-                   "The following configuration components will not be imported:"
-                   "<ul>"
-                   "<li>VPN</li>"
-                   "<li>Static routes</li>"
-                   "<li>Dynamic routing protocols (OSPF, RIP, etc.)</li>"
-                   "<li>QoS</li>"
-                   "</ul>"
-                ));
-            platformOk = true;
-            break;
-
         case PreImport::IPTABLES:
             m_dialog->platform->setText(tr("iptables"));
             m_dialog->platformSpecificWarning->setText(

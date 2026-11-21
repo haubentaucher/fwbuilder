@@ -49,8 +49,6 @@
 #include "Preprocessor_ipt.h"
 #include "OSConfigurator_linux24.h"
 #include "OSConfigurator_linux24_nft.h"
-#include "OSConfigurator_secuwall.h"
-#include "OSConfigurator_ipcop.h"
 #include "nftables_options.h"
 #include "combinedAddress.h"
 #include "AutomaticRules_ipt.h"
@@ -242,24 +240,10 @@ QString CompilerDriver_nft::run(const std::string &cluster_id,
         string os_variant = Constants::getDistro();
 
 /* minimal sanity checking */
-        if (os_family == "ipcop")
-        {
-            os_variant = "ipcop";
-
-            oscnf = std::unique_ptr<OSConfigurator_linux24>(
-                new OSConfigurator_linux24_nft(objdb , fw, false));
-        }
 
         if (os_family == "linux24" ||
             os_family == "linux317" ||
-            os_family == "openwrt" ||
-            os_family == "dd-wrt-nvram" ||
-            os_family == "dd-wrt-jffs" ||
-            os_family == "sveasoft")
-            oscnf = std::unique_ptr<OSConfigurator_linux24>(
-                new OSConfigurator_linux24_nft(objdb , fw, false));
-
-        if (os_family == "secuwall")
+            os_family == "openwrt")
             oscnf = std::unique_ptr<OSConfigurator_linux24>(
                 new OSConfigurator_linux24_nft(objdb , fw, false));
 

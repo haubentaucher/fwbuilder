@@ -14,13 +14,8 @@ SOURCES = QStringListOperators.cpp \
           getProtoByName.cpp \
           getServByName.cpp \
           Importer.cpp \
-          IOSImporter.cpp \
-          IOSImporterRun.cpp \
           IPTImporter.cpp \
           IPTImporterRun.cpp \
-          PIXImporter.cpp \
-          PIXImporterNat.cpp \
-          PIXImporterRun.cpp \
 		  PFImporter.cpp \
           PFImporterRun.cpp \
 
@@ -33,9 +28,7 @@ HEADERS = QStringListOperators.h \
           getProtoByName.h \
           getServByName.h \
           Importer.h \
-          IOSImporter.h \
           IPTImporter.h \
-          PIXImporter.h \
 		  PFImporter.h \
 		  InterfaceSpec.h \
 		  AddressSpec.h \

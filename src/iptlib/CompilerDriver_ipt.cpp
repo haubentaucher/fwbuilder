@@ -28,7 +28,6 @@
 #include "Configlet.h"
 #include "CompilerDriver_ipt.h"
 #include "PolicyCompiler_ipt.h"
-#include "PolicyCompiler_secuwall.h"
 
 #include "fwbuilder/Address.h"
 #include "fwbuilder/FWException.h"
@@ -221,15 +220,9 @@ std::unique_ptr<PolicyCompiler_ipt> CompilerDriver_ipt::createPolicyCompiler(
 
     std::unique_ptr<PolicyCompiler_ipt> policy_compiler;
 
-    if (fw->getStr("host_OS") == "secuwall") {
-        policy_compiler = std::unique_ptr<PolicyCompiler_ipt>(
-            new PolicyCompiler_secuwall(objdb,fw, ipv6_policy, oscnf,
-                                        minus_n_commands_filter));
-    } else {
-        policy_compiler = std::unique_ptr<PolicyCompiler_ipt>(
-            new PolicyCompiler_ipt(objdb,fw, ipv6_policy, oscnf,
-                                   minus_n_commands_filter));
-    }
+    policy_compiler = std::unique_ptr<PolicyCompiler_ipt>(
+        new PolicyCompiler_ipt(objdb,fw, ipv6_policy, oscnf,
+                               minus_n_commands_filter));
 
     if (policy_compiler.get()==NULL)
         abort("Unrecognized firewall platform " +

@@ -26,14 +26,8 @@
 #include "interfacePropertiesObjectFactory.h"
 #include "interfaceProperties.h"
 #include "linux24Interfaces.h"
-#include "nxosInterfaces.h"
-#include "iosInterfaces.h"
-#include "junosInterfaces.h"
-#include "procurveInterfaces.h"
 #include "openbsdInterfaces.h"
 #include "freebsdInterfaces.h"
-#include "pixInterfaces.h"
-#include "procurveInterfaces.h"
 
 #include "fwbuilder/FWObject.h"
 #include "fwbuilder/Resources.h"
@@ -56,23 +50,11 @@ interfaceProperties* interfacePropertiesObjectFactory::getInterfacePropertiesObj
     const std::string &os_family)
 {
     if (os_family == "linux24" ||
-        os_family == "openwrt" ||
-        os_family == "dd-wrt-nvram" ||
-        os_family == "dd-wrt-jffs" ||
-        os_family == "secuwall") return new linux24Interfaces();
-
-    if (os_family == "nxos") return new nxosInterfaces();
-
-    if (os_family == "ios") return new iosInterfaces();
-
-    if (os_family == "junos") return new junosInterfaces();
-
-    if (os_family == "pix_os" || os_family == "ios") return new pixInterfaces();
+        os_family == "linux317" ||
+        os_family == "openwrt") return new linux24Interfaces();
 
     if (os_family == "openbsd") return new openbsdInterfaces();
     if (os_family == "freebsd") return new freebsdInterfaces();
-
-    if (os_family == "procurve") return new procurveInterfaces();
 
     // by default return object of the base class. It performs some
     // reasonable default actions.

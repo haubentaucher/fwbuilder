@@ -24,13 +24,6 @@ SUBDIRS  =  libfwbuilder \
 			pf \
 			ipf \
 			ipfw \
-			cisco_lib \
-			nxosacl \
-			iosacl \
-			pix \
-			procurve_acl \
-            juniper_lib \
-            junosacl \
 			libgui \
 			fwbedit \
 			gui \

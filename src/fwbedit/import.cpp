@@ -28,9 +28,7 @@
 #include "fwbedit.h"
 
 #include "PreImport.h"
-#include "IOSImporter.h"
 #include "IPTImporter.h"
-#include "PIXImporter.h"
 
 #include <iostream>
 
@@ -69,15 +67,6 @@ void importConfig(const string &import_config,
 
     switch (pi.getPlatform())
     {
-    case PreImport::PIX:
-    case PreImport::FWSM:
-        imp = new PIXImporter(library, instream, logger, fw_name);
-        break;
-
-    case PreImport::IOSACL:
-        imp = new IOSImporter(library, instream, logger, fw_name);
-        break;
-
     case PreImport::IPTABLES:
         imp = new IPTImporter(library, instream, logger, fw_name);
         break;

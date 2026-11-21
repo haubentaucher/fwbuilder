@@ -104,10 +104,6 @@ void ImportFirewallConfigurationWizard::accept()
     if (fwbdebug) qDebug() << "ImportFirewallConfigurationWizard::accept()"
                            << "fw=" << fw;
 
-    if (fw != NULL && (platform == "pix" || platform == "fwsm"))
-        dynamic_cast<IC_NetworkZonesPage*>(
-            page(Page_NetworkZones))->setNetworkZones();
-
     int fw_id = -1;
     int policy_id = -1;
     if (fw)

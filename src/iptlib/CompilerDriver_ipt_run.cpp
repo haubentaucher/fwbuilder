@@ -46,8 +46,6 @@
 #include "RoutingCompiler_ipt.h"
 #include "Preprocessor_ipt.h"
 #include "OSConfigurator_linux24.h"
-#include "OSConfigurator_secuwall.h"
-#include "OSConfigurator_ipcop.h"
 #include "combinedAddress.h"
 #include "AutomaticRules_ipt.h"
 
@@ -172,33 +170,11 @@ QString CompilerDriver_ipt::run(const std::string &cluster_id,
 
         string os_variant = Constants::getDistro();
 
-/* minimal sanity checking */
-        if (os_family == "ipcop")
-        {
-            os_variant = "ipcop";
-
-            // can't use iptables-restore with ipcop
-            fw->getOptionsObject()->setBool("use_iptables_restore", false);
-            // ipcop has its own iptables commands that accept packets
-            // in states ESTABLISHED,RELATED
-            fw->getOptionsObject()->setBool("accept_established", false);
-
-            oscnf = std::unique_ptr<OSConfigurator_linux24>(
-                new OSConfigurator_ipcop(objdb , fw, false));
-        }
-
         if (os_family == "linux24" ||
             os_family == "linux317" ||
-            os_family == "openwrt" ||
-            os_family == "dd-wrt-nvram" ||
-            os_family == "dd-wrt-jffs" ||
-            os_family == "sveasoft")
+            os_family == "openwrt")
             oscnf = std::unique_ptr<OSConfigurator_linux24>(
                 new OSConfigurator_linux24(objdb , fw, false));
-
-        if (os_family == "secuwall")
-            oscnf = std::unique_ptr<OSConfigurator_linux24>(
-                new OSConfigurator_secuwall(objdb , fw, false));
 
         if (oscnf.get()==NULL)
         {

@@ -124,19 +124,6 @@ instOptionsDialog::instOptionsDialog(QWidget *parent, instConf *_cnf, bool insta
     QString platform = cnf->fwobj->getStr("platform").c_str();
     string version = cnf->fwobj->getStr("version");
 
-    if (platform=="pix" || platform=="fwsm" ||
-        platform=="iosacl" || platform=="nxosacl" ||
-        platform=="procurve_acl" )
-    {
-        m_dialog->copyFWB->hide();
-        m_dialog->PIXgroupBox->hide();
-
-    } else if (platform=="junosacl") {
-        m_dialog->copyFWB->hide();
-        m_dialog->PIXgroupBox->hide();
-        m_dialog->epwd->hide();
-        m_dialog->epwdLbl->hide();
-    } else
     {
         m_dialog->epwd->hide();
         m_dialog->epwdLbl->hide();

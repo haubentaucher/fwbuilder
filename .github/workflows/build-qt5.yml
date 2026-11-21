@@ -64,8 +64,7 @@ jobs:
           set -euo pipefail
           find . -type f \
             \( -name fwb_ipt -o -name fwb_pf -o -name fwb_ipf \
-            -o -name fwb_ipfw -o -name fwb_pix -o -name fwb_iosacl \
-            -o -name fwb_junosacl -o -name fwb_nft \) \
+            -o -name fwb_ipfw -o -name fwb_nft \) \
             -perm /111 -print | sort | tee ci-logs/compiler-binaries.log
           test -s ci-logs/compiler-binaries.log || {
             echo 'Build completed without discovering any policy compiler binaries' >&2

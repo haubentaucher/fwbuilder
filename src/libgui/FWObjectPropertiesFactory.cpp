@@ -837,13 +837,6 @@ QString FWObjectPropertiesFactory::getObjectPropertiesDetailed(FWObject *obj,
             if (intf->isUnnumbered()) q=" unnum";
             if (intf->isBridgePort()) q=" bridge port";
             
-            FWObject *p=obj;
-            while (p!=NULL && !Firewall::cast(p)) p=p->getParent();
-            if (p!=NULL && (p->getStr("platform")=="pix" || p->getStr("platform")=="fwsm"))
-            {
-                int sl = intf->getSecurityLevel();
-                q=q+QString("sec.level %1").arg(sl);
-            }
 
             if (intf->isUnprotected())    q=q+" unp";
             
@@ -1038,15 +1031,12 @@ QString FWObjectPropertiesFactory::getPolicyRuleOptions(Rule *rule)
     string platform = f->getStr("platform");
     FWOptions *ropt = rule->getOptionsObject();
 
-    if (platform!="iosacl" && platform!="procurve_acl")
+    if (ropt->getBool("stateless"))
     {
-        if (ropt->getBool("stateless"))
-        {
-            options << qMakePair(QObject::tr("Stateless"), QString(""));
-        } else
-        {
-            options << qMakePair(QObject::tr("Stateful"), QString(""));
-        }
+        options << qMakePair(QObject::tr("Stateless"), QString(""));
+    } else
+    {
+        options << qMakePair(QObject::tr("Stateful"), QString(""));
     }
 
     if (platform=="iptables")
@@ -1253,45 +1243,6 @@ QString FWObjectPropertiesFactory::getPolicyRuleOptions(Rule *rule)
     }else if (platform=="ipfw")
     {
         ;
-    }else if (platform == "iosacl" || platform == "procurve_acl")
-    {
-        if (ropt->getBool("iosacl_add_mirror_rule"))
-        {
-            options << qMakePair(
-                QObject::tr("Add mirrored rule"), QString(""));
-        }
-            
-    }else if (platform=="pix" || platform=="fwsm")
-    {
-        string vers = "version_"+f->getStr("version");
-            
-        options << qMakePair(QObject::tr("Version:"), QString(vers.c_str()));
-            
-        if ( Resources::platform_res[platform]->getResourceBool(
-                 "/FWBuilderResources/Target/options/"+vers+"/pix_rule_syslog_settings"))
-        {
-                
-            if (!ropt->getStr("log_level").empty())
-            {
-                options << qMakePair(
-                    QObject::tr("Log level:"),
-                    QString(getScreenName(ropt->getStr("log_level").c_str(),
-                                          getLogLevels(platform.c_str()))));
-            }
-            if (ropt->getInt("log_interval")>0)
-            {
-                options << qMakePair(
-                    QObject::tr("Log interval:"),
-                    QString(ropt->getStr("log_interval").c_str()));
-            }
-                
-            if (ropt->getBool("disable_logging_for_this_rule"))
-            {
-                options << qMakePair(
-                    QObject::tr("Disable logging for this rule"), QString(""));
-            }
-                
-        } 
     }
 
     if (prule)
@@ -1362,20 +1313,12 @@ QString FWObjectPropertiesFactory::getInterfaceNameExamplesForHostOS(const QStri
     string os_family = os_resources-> getResourceStr("/FWBuilderResources/Target/family");
 
     if (os_family == "linux24" ||
-        os_family == "ipcop"   ||
-        os_family == "openwrt" ||
-        os_family == "dd-wrt-nvram" ||
-        os_family == "dd-wrt-jffs" ||
-        os_family == "sveasoft") return "eth0, eth0.100, vlan100, br0, etc";
+        os_family == "linux317" ||
+        os_family == "openwrt") return "eth0, eth0.100, vlan100, br0, etc";
     
     if (os_family == "openbsd" ||
         os_family == "freebsd" ||
         os_family == "macosx") return "en0, fxp0, vlan100, etc";
-    
-    if (os_family == "ios" ||
-        os_family == "pix_os") return "FastEthernet0/0, etc";
-    
-    if (os_family == "procurve") return "vlan 10, a1, b1, etc";
 
     return "";
 }

@@ -56,20 +56,6 @@ void IC_FirewallNamePage::initializePage()
 
     qDebug() << "platform=" << platform;
 
-    if (platform == "pix" || platform == "fwsm" || platform == "iosacl")
-    {
-        QRegExp cisco_re("^hostname\\s+(\\S+)");
-
-        foreach(QString line, *buf)
-        {
-            if (cisco_re.indexIn(line) > -1)
-            {
-                QString name = cisco_re.cap(1).replace("\"", "").replace("'", "");
-                m_dialog->firewallName->setText(name);
-                break;
-            }
-        }
-    }
     setCommitPage(true);
     emit completeChanged();
 }

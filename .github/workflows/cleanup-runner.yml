@@ -1,0 +1,42 @@
+name: Cleanup removed components
+
+on:
+  push:
+    branches: [nftables]
+    paths: ['ci/cleanup-manifest']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cleanup-nftables
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: nftables
+
+      - name: Remove dropped firewall platform sources
+        run: |
+          set -euo pipefail
+          while IFS= read -r p; do
+            [ -z "$p" ] && continue
+            case "$p" in '#'*) continue ;; esac
+            git rm -r --ignore-unmatch "$p"
+          done < ci/cleanup-manifest
+          # Remove this workflow and its manifest so they do not linger in the tree.
+          git rm -f --ignore-unmatch .github/workflows/cleanup-runner.yml ci/cleanup-manifest
+          if git diff --cached --quiet; then
+            echo "Nothing to remove, tree already clean."
+            exit 0
+          fi
+          git config user.name "fwbuilder-ci"
+          git config user.email "actions@users.noreply.github.com"
+          git commit -m "chore: remove sources of dropped platforms (cisco, juniper, procurve, secuwall, ipcop, dd-wrt, sveasoft)"
+          git push origin HEAD:nftables
+          echo "Cleanup commit pushed."

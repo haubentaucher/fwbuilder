@@ -27,7 +27,6 @@
 #include "CompilerDriver_nft.h"
 #include "MangleTableCompiler_nft.h"
 #include "PolicyCompiler_nft.h"
-#include "PolicyCompiler_secuwall.h"
 #include "OSConfigurator_linux24.h"
 
 #include "Configlet.h"

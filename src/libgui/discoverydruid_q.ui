@@ -407,16 +407,6 @@
           <widget class="QComboBox" name="import_platform">
            <item>
             <property name="text">
-             <string>Cisco Router IOS</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>Cisco PIX, Cisco ASA</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
              <string>iptables</string>
             </property>
            </item>

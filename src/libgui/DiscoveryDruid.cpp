@@ -86,9 +86,7 @@
 #include "FWWindow.h"
 #include "networkZoneManager.h"
 
-#include "IOSImporter.h"
 #include "IPTImporter.h"
-#include "PIXImporter.h"
 
 
 using namespace std;
@@ -223,46 +221,6 @@ void DiscoveryDruid::finishClicked()
 {
     if (current_task == BT_IMPORT && discovered_fw != NULL)
     {
-        if (selectedPlatform() == "pix" && currentPage() == NETWORK_ZONES_PAGE)
-        {
-            // read and configure network zones
-            list<FWObject*> all_interfaces =
-                discovered_fw->getByTypeDeep(Interface::TYPENAME);
-            list<FWObject*>::iterator it;
-            for (it=all_interfaces.begin(); it!=all_interfaces.end(); ++it)
-            {
-                Interface *iface = Interface::cast(*it);
-
-                string  network_zone_str_id = "";
-
-                QList<QTableWidgetItem*> ltwi =
-                    m_dialog->iface_nz_list->findItems( iface->getName().c_str(),
-                                                        Qt::MatchExactly );
-                if ( ! ltwi.empty())
-                {
-                    QTableWidgetItem *itm2 = ltwi[0];
-                    assert(itm2!=NULL);
-                    int row = itm2->row();
-                    QComboBox *cb = dynamic_cast<QComboBox*>(
-                        m_dialog->iface_nz_list->cellWidget(row, 3));
-                    assert(cb!=NULL);
-                    int network_zone_int_id =
-                        cb->itemData(cb->currentIndex(), Qt::UserRole).toInt();
-                    if (network_zone_int_id != 0)
-                        network_zone_str_id = FWObjectDatabase::getStringId(
-                            network_zone_int_id);
-                    else
-                        network_zone_str_id = "";
-                }
-
-                // only set network zone if it is supported and is not
-                // empty. See #2014
-                if (!network_zone_str_id.empty())
-                    iface->setStr("network_zone", network_zone_str_id);
-
-            }
-        }
-
         QCoreApplication::postEvent(
             mw->activeProject(), new expandObjectInTreeEvent(
                 mw->activeProject()->getFileName(), discovered_fw->getId()));
@@ -862,9 +820,7 @@ string DiscoveryDruid::selectedPlatform()
     string platform = "";
     switch (m_dialog->import_platform->currentIndex())
     {
-    case IMPORT_IOS: platform = "iosacl"; break;
     case IMPORT_IPT: platform = "iptables"; break;
-    case IMPORT_PIX: platform = "pix"; break;
     }
     return platform;
 }
@@ -1798,17 +1754,9 @@ void DiscoveryDruid::customEvent(QEvent *event)
 
         case BT_IMPORT:
         {
-            // if imported PIX, need to show one more page to select network zones
-            if (selectedPlatform() == "pix")
-            {
-                setNextEnabled(currentPage(), true);
-                setFinishEnabled(currentPage(), false);
-            } else
-            {
-                setNextEnabled(currentPage(), false);
-                setFinishEnabled(currentPage(), true);
-                finishButton->setFocus();
-            }
+            setNextEnabled(currentPage(), false);
+            setFinishEnabled(currentPage(), true);
+            finishButton->setFocus();
             break;
         }
         default:
@@ -2251,15 +2199,6 @@ QString DiscoveryDruid::guessOS(const string &sysDescr)
 {
     QStringList elements = QString(sysDescr.c_str()).split(" ");
     QString first = elements[0].toLower();
-    if (first == "cisco")
-    {
-        if (elements[1].toLower() == "adaptive" &&
-            elements[2].toLower() == "security" &&
-            elements[3].toLower() == "appliance") return "pix";
-        if (elements[1].toLower() == "pix") return "pix";
-        if (elements[1].toLower() == "secure" &&
-            elements[2].toLower() == "fwsm") return "pix";
-    }
     if (first == "darwin") return "macosx";
     if (first == "apple") return "macosx";
 
@@ -2439,16 +2378,6 @@ void DiscoveryDruid::createRealObjects()
                         o->setStr("platform", "pf");
                         o->setStr("host_OS", "openbsd");
                     }
-                    if (os == "ios")
-                    {
-                        o->setStr("platform", "iosacl");
-                        o->setStr("host_OS", "ios");
-                    }
-                    if (os == "pix" || os == "fwsm")
-                    {
-                        o->setStr("platform", "pix");
-                        o->setStr("host_OS", "pix_os");
-                    }
                     if (os == "apple")
                     {
                         o->setStr("platform", "ipfw");
@@ -2611,30 +2540,6 @@ void DiscoveryDruid::importPlatformChanged(int cp)
 
     switch (cp)
     {
-    case IMPORT_IOS:
-        m_dialog->import_text->setText(
-            QObject::tr("Firewall Builder can import Cisco IOS access lists "
-                        "from the router configuration saved using 'show run' "
-                        "or any other command that saves running config. The name "
-                        "of the created firewall object, all of its interfaces "
-                        "and their addresses will be configured automatically if "
-                        "this information can be found in the configuration file."
-            )
-        );
-        break;
-
-    case IMPORT_PIX:
-        m_dialog->import_text->setText(
-            QObject::tr("Firewall Builder can import Cisco PIX and ASA "
-                        "configuration saved with 'show run' command.  "
-                        "The name of the created firewall object, all of "
-                        "its interfaces and their addresses will be "
-                        "configured automatically if this information can "
-                        "be found in the configuration file."
-            )
-        );
-        break;
-
     case IMPORT_IPT:
         m_dialog->import_text->setText(
             QObject::tr("Firewall Builder can import iptables rules "
@@ -2838,15 +2743,9 @@ void ConfigImport::run()
     std::istringstream instream(*buffer);
 
     imp = NULL;
-    if (platform == "iosacl") imp = new IOSImporter(mw->getCurrentLib(),
-                                                    instream,
-                                                    Log, fwname);
     if (platform == "iptables") imp = new IPTImporter(mw->getCurrentLib(),
                                                       instream,
                                                       Log, fwname);
-    if (platform == "pix") imp = new PIXImporter(mw->getCurrentLib(),
-                                                 instream,
-                                                 Log, fwname);
 
     // add other platforms here when available
 

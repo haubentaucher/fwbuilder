@@ -28,7 +28,6 @@
 #include "CompilerDriver_ipt.h"
 #include "MangleTableCompiler_ipt.h"
 #include "PolicyCompiler_ipt.h"
-#include "PolicyCompiler_secuwall.h"
 #include "OSConfigurator_linux24.h"
 
 #include "Configlet.h"

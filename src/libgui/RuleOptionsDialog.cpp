@@ -109,9 +109,6 @@ void RuleOptionsDialog::loadFWObject(FWObject *o)
     if (platform=="ipf")      wid=2;
     if (platform=="pf")       wid=3;
     if (platform=="ipfw")     wid=4;
-    if (platform=="pix" || platform=="fwsm")      wid=5;
-    if (platform=="iosacl" || platform=="procurve_acl")   wid=6;
-	if (platform=="junosacl") wid=7;
 
     m_dialog->wStack->widget(wid)->raise();
     m_dialog->wStack->setCurrentWidget(m_dialog->wStack->widget(wid));
@@ -121,8 +118,6 @@ void RuleOptionsDialog::loadFWObject(FWObject *o)
     m_dialog->ipt_logLevel->addItems(getScreenNames(logLevels));
     m_dialog->ipf_logLevel->clear();
     m_dialog->ipf_logLevel->addItems(getScreenNames(logLevels));
-    m_dialog->pix_logLevel->clear();
-    m_dialog->pix_logLevel->addItems(getScreenNames(logLevels));
 
     QStringList logFacilities=getLogFacilities( obj->getStr("platform").c_str());
     m_dialog->ipf_logFacility->clear();
@@ -317,49 +312,6 @@ void RuleOptionsDialog::loadFWObject(FWObject *o)
         data.registerOption(m_dialog->ipfw_classify_method, ropt,
                             "ipfw_classify_method", classify_options_ipfw);
         data.registerOption(m_dialog->usePortNum, ropt, "ipfw_pipe_queue_num");
-    }
-
-    if (platform=="iosacl" || platform=="procurve_acl")
-    {
-        data.registerOption(m_dialog->iosacl_add_mirror_rule,
-                            ropt, "iosacl_add_mirror_rule");
-    }
-
-    if (platform=="pix" || platform=="fwsm")
-    {
-        string vers = "version_" + version;
-#if QT_VERSION < QT_VERSION_CHECK(5, 0, 0)
-        if (Resources::platform_res[platform.toAscii().constData()]->getResourceBool(
-              "/FWBuilderResources/Target/options/" +
-              vers + "/pix_rule_syslog_settings"))
-#else
-        if (Resources::platform_res[platform.toLatin1().constData()]->getResourceBool(
-              "/FWBuilderResources/Target/options/" +
-              vers + "/pix_rule_syslog_settings"))
-#endif
-        {
-            m_dialog->pix_disable_rule_log->setEnabled(true);
-            m_dialog->pix_logLevel->setEnabled(true);
-            m_dialog->pix_log_interval->setEnabled(true);
-
-            data.registerOption(m_dialog->pix_disable_rule_log, ropt,
-                                "disable_logging_for_this_rule");
-            data.registerOption(m_dialog->pix_logLevel, ropt,
-                                "log_level",logLevels);
-            data.registerOption(m_dialog->pix_log_interval, ropt,
-                                "log_interval");
-        } else
-        {
-            m_dialog->pix_disable_rule_log->setEnabled(false);
-            m_dialog->pix_logLevel->setEnabled(false);
-            m_dialog->pix_log_interval->setEnabled(false);
-        }
-
-    }
-
-    if (platform=="junosacl")
-    {
-        data.registerOption(m_dialog->counterLineEdit, ropt, "counter_name");
     }
 
 

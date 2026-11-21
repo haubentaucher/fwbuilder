@@ -32,12 +32,6 @@ HEADERS += ../../config.h \
     utils_no_qt.h \
     SSHSession.h \
     SSHUnx.h \
-    SSHCisco.h \
-    SSHPIX.h \
-    SSHIOS.h \
-    SSHNXOS.h \
-    SSHJUNOS.h \
-    SSHProcurve.h \
     debugDialog.h \
     findDialog.h \
 	listOfLibrariesModel.h \
@@ -101,32 +95,16 @@ HEADERS += ../../config.h \
     RuleSetView.h \
     RuleSetViewDelegate.h \
     iptAdvancedDialog.h \
-    ipcopAdvancedDialog.h \
     ipfAdvancedDialog.h \
     ipfwAdvancedDialog.h \
     pfAdvancedDialog.h \
-    pixAdvancedDialog.h \
-    pixosAdvancedDialog.h \
-    iosaclAdvancedDialog.h \
-    iosAdvancedDialog.h \
-    nxosaclAdvancedDialog.h \
-    nxosAdvancedDialog.h \
-    junosaclAdvancedDialog.h \
-    junosAdvancedDialog.h \
-    ipcoposAdvancedDialog.h \
     linux24AdvancedDialog.h \
-    linksysAdvancedDialog.h \
     freebsdAdvancedDialog.h \
     openbsdAdvancedDialog.h \
-    procurveaclAdvancedDialog.h \
     solarisAdvancedDialog.h \
     macosxAdvancedDialog.h \
-    secuwallAdvancedDialog.h \
-    secuwallosAdvancedDialog.h \
-    secuwallIfaceOptsDialog.h \
     vlanOnlyIfaceOptsDialog.h \
     linux24IfaceOptsDialog.h \
-    pixosIfaceOptsDialog.h \
     bsdIfaceOptsDialog.h \
     clusterMembersDialog.h \
     CompilerOutputPanel.h \
@@ -139,9 +117,6 @@ HEADERS += ../../config.h \
     instConf.h \
     instDialog.h \
     FirewallInstaller.h \
-    FirewallInstallerCisco.h \
-    FirewallInstallerJuniper.h \
-    FirewallInstallerProcurve.h \
     FirewallInstallerUnx.h \
     newFirewallDialog.h \
     newClusterDialog.h \
@@ -169,7 +144,6 @@ HEADERS += ../../config.h \
     StartTipDialog.h \
     vrrpOptionsDialog.h \
     carpOptionsDialog.h \
-    pixFailoverOptionsDialog.h \
     conntrackOptionsDialog.h \
     heartbeatOptionsDialog.h \
     openaisOptionsDialog.h \
@@ -252,12 +226,6 @@ SOURCES += ProjectPanel.cpp \
     utils_no_qt.cpp \
     SSHSession.cpp \
     SSHUnx.cpp \
-    SSHCisco.cpp \
-    SSHPIX.cpp \
-    SSHIOS.cpp \
-    SSHNXOS.cpp \
-    SSHJUNOS.cpp \
-    SSHProcurve.cpp \
     debugDialog.cpp \
     findDialog.cpp \
 	listOfLibrariesModel.cpp \
@@ -321,32 +289,16 @@ SOURCES += ProjectPanel.cpp \
     RuleSetView.cpp \
     RuleSetViewDelegate.cpp \
     iptAdvancedDialog.cpp \
-    ipcopAdvancedDialog.cpp \
     ipfAdvancedDialog.cpp \
     ipfwAdvancedDialog.cpp \
     pfAdvancedDialog.cpp \
-    pixAdvancedDialog.cpp \
-    pixosAdvancedDialog.cpp \
-    iosaclAdvancedDialog.cpp \
-    iosAdvancedDialog.cpp \
-    nxosaclAdvancedDialog.cpp \
-    nxosAdvancedDialog.cpp \
-    junosaclAdvancedDialog.cpp \
-    junosAdvancedDialog.cpp \
-    ipcoposAdvancedDialog.cpp \
     linux24AdvancedDialog.cpp \
-    linksysAdvancedDialog.cpp \
     freebsdAdvancedDialog.cpp \
     openbsdAdvancedDialog.cpp \
-    procurveaclAdvancedDialog.cpp \
     solarisAdvancedDialog.cpp \
     macosxAdvancedDialog.cpp \
-    secuwallAdvancedDialog.cpp \
-    secuwallosAdvancedDialog.cpp \
-    secuwallIfaceOptsDialog.cpp \
     vlanOnlyIfaceOptsDialog.cpp \
     linux24IfaceOptsDialog.cpp \
-    pixosIfaceOptsDialog.cpp \
     bsdIfaceOptsDialog.cpp \
     clusterMembersDialog.cpp \
     CompilerOutputPanel.cpp \
@@ -362,9 +314,6 @@ SOURCES += ProjectPanel.cpp \
     instDialog_compile.cpp \
     instDialog_installer.cpp \
     FirewallInstaller.cpp \
-    FirewallInstallerCisco.cpp \
-    FirewallInstallerJuniper.cpp \
-    FirewallInstallerProcurve.cpp \
     FirewallInstallerUnx.cpp \
     newFirewallDialog.cpp \
     newFirewallDialog_from_template.cpp \
@@ -397,7 +346,6 @@ SOURCES += ProjectPanel.cpp \
     FWBAboutDialog.cpp \
     vrrpOptionsDialog.cpp \
     carpOptionsDialog.cpp \
-    pixFailoverOptionsDialog.cpp \
     conntrackOptionsDialog.cpp \
     pfsyncOptionsDialog.cpp \
     heartbeatOptionsDialog.cpp \
@@ -489,19 +437,8 @@ FORMS = FWBMainWindow_q.ui \
     rcsfilepreview_q.ui \
     rcsfilesavedialog_q.ui \
     iptadvanceddialog_q.ui \
-    ipcopadvanceddialog_q.ui \
-    ipcoposadvanceddialog_q.ui \
     objectmanipulator_q.ui \
     prefsdialog_q.ui \
-    pixadvanceddialog_q.ui \
-    pixosadvanceddialog_q.ui \
-    iosacladvanceddialog_q.ui \
-    iosadvanceddialog_q.ui \
-    nxosacladvanceddialog_q.ui \
-    nxosadvanceddialog_q.ui \
-    junosacladvanceddialog_q.ui \
-    junosadvanceddialog_q.ui \
-    procurveacladvanceddialog_q.ui \
     simpletexteditor_q.ui \
     simpleinteditor_q.ui \
 	textfileeditor_q.ui \
@@ -522,9 +459,6 @@ FORMS = FWBMainWindow_q.ui \
     freebsdadvanceddialog_q.ui \
     openbsdadvanceddialog_q.ui \
     macosxadvanceddialog_q.ui \
-    secuwalladvanceddialog_q.ui \
-    secuwallosadvanceddialog_q.ui \
-    secuwallifaceoptsdialog_q.ui \
     clustermembersdialog_q.ui \
     bsdifaceoptsdialog_q.ui \
     colorlabelmenuitem_q.ui \
@@ -534,7 +468,6 @@ FORMS = FWBMainWindow_q.ui \
     newgroupdialog_q.ui \
     newhostdialog_q.ui \
     longtextdialog_q.ui \
-    linksysadvanceddialog_q.ui \
     printingprogressdialog_q.ui \
     pagesetupdialog_q.ui \
     blankdialog_q.ui \
@@ -557,14 +490,12 @@ FORMS = FWBMainWindow_q.ui \
     starttipdialog_q.ui \
     vrrpoptionsdialog_q.ui \
     carpoptionsdialog_q.ui \
-    pixfailoveroptionsdialog_q.ui \
     conntrackoptionsdialog_q.ui \
     heartbeatoptionsdialog_q.ui \
     openaisoptionsdialog_q.ui \
     pfsyncoptionsdialog_q.ui \
     vlanonlyifaceoptsdialog_q.ui \
     linux24ifaceoptsdialog_q.ui \
-    pixosifaceoptsdialog_q.ui \
     InterfaceEditorWidget.ui \
     InterfacesTabWidget.ui \
     ClusterInterfaceWidget.ui \
@@ -611,8 +542,7 @@ INCLUDEPATH += \
     ../import \
     ../iptlib \
     ../pflib \
-    ../cisco_lib \
-    ../juniper_lib \
+    ../nftlib \
     ../compiler_lib \
 	../libfwbuilder/src
 
@@ -620,8 +550,7 @@ DEPENDPATH += \
     ../import \
     ../iptlib \
     ../pflib \
-    ../cisco_lib/ \
-    ../juniper_lib \
+    ../nftlib \
     ../compiler_lib \
 	../libfwbuilder/src
 

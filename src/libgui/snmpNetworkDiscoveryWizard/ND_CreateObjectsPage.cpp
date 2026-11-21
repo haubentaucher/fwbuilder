@@ -146,16 +146,6 @@ void ND_CreateObjectsPage::initializePage()
                         o->setStr("platform", "pf");
                         o->setStr("host_OS", "openbsd");
                     }
-                    if (os == "ios")
-                    {
-                        o->setStr("platform", "iosacl");
-                        o->setStr("host_OS", "ios");
-                    }
-                    if (os == "pix" || os == "fwsm")
-                    {
-                        o->setStr("platform", "pix");
-                        o->setStr("host_OS", "pix_os");
-                    }
                     if (os == "apple")
                     {
                         o->setStr("platform", "ipfw");

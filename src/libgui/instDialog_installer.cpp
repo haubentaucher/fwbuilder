@@ -31,9 +31,6 @@
 #include "CompilerDriver.h"
 #include "FWBSettings.h"
 #include "FWWindow.h"
-#include "FirewallInstallerCisco.h"
-#include "FirewallInstallerJuniper.h"
-#include "FirewallInstallerProcurve.h"
 #include "FirewallInstallerUnx.h"
 #include "events.h"
 #include "instBatchOptionsDialog.h"
@@ -117,14 +114,7 @@ bool instDialog::runInstaller(Firewall *fw, bool installing_many_firewalls)
         if (installer!=NULL)
             delete installer;
 
-        if (isCiscoFamily())
-            installer = new FirewallInstallerCisco(this, &cnf, fwb_prompt);
-        else if (isProcurve())
-                installer = new FirewallInstallerProcurve(this, &cnf, fwb_prompt);
-		else if (isJuniper())
-                installer = new FirewallInstallerJuniper(this, &cnf, fwb_prompt);
-        else
-                installer = new FirewallInstallerUnx(this, &cnf, fwb_prompt);
+        installer = new FirewallInstallerUnx(this, &cnf, fwb_prompt);
 
         if (!installer->packInstallJobsList(fw))
         {

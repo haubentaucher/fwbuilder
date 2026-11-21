@@ -63,34 +63,19 @@
 #include "ipfAdvancedDialog.h"
 #include "ipfwAdvancedDialog.h"
 #include "pfAdvancedDialog.h"
-#include "pixAdvancedDialog.h"
-#include "junosaclAdvancedDialog.h"
-#include "nxosaclAdvancedDialog.h"
-#include "iosaclAdvancedDialog.h"
-#include "ipcopAdvancedDialog.h"
-#include "secuwallAdvancedDialog.h"
-#include "procurveaclAdvancedDialog.h"
 
 #include "linux24IfaceOptsDialog.h"
-#include "secuwallIfaceOptsDialog.h"
 #include "vlanOnlyIfaceOptsDialog.h"
 #include "bsdIfaceOptsDialog.h"
-#include "pixosIfaceOptsDialog.h"
 
 #include "clusterMembersDialog.h"
 
 #include "linux24AdvancedDialog.h"
-#include "linksysAdvancedDialog.h"
 #include "freebsdAdvancedDialog.h"
 #include "openbsdAdvancedDialog.h"
 #include "solarisAdvancedDialog.h"
 #include "macosxAdvancedDialog.h"
-#include "pixosAdvancedDialog.h"
-#include "junosAdvancedDialog.h"
-#include "nxosAdvancedDialog.h"
 #include "iosAdvancedDialog.h"
-#include "ipcoposAdvancedDialog.h"
-#include "secuwallosAdvancedDialog.h"
 
 #include "RuleOptionsDialog.h"
 #include "RoutingRuleOptionsDialog.h"
@@ -98,7 +83,6 @@
 
 #include "vrrpOptionsDialog.h"
 #include "carpOptionsDialog.h"
-#include "pixFailoverOptionsDialog.h"
 #include "conntrackOptionsDialog.h"
 #include "heartbeatOptionsDialog.h"
 #include "openaisOptionsDialog.h"
@@ -241,22 +225,11 @@ QWidget *DialogFactory::createFWDialog(QWidget *parent, FWObject *o)
 
     string dlgname = platform_res->Resources::getResourceStr(
         "/FWBuilderResources/Target/dialog");
-    if (platform == "iptables" && os_family == "ipcop")
-        dlgname = "ipcop";
-    if (platform == "iptables" && os_family == "secuwall")
-        dlgname = "secuwall";
-
-    if (dlgname=="junosacl")   return new junosaclAdvancedDialog(parent,o);
-    if (dlgname=="nxosacl")   return new nxosaclAdvancedDialog(parent,o);
-    if (dlgname=="iosacl")   return new iosaclAdvancedDialog(parent,o);
-    if (dlgname=="ipcop")    return new ipcopAdvancedDialog(parent,o);
     if (dlgname=="ipf")      return new ipfAdvancedDialog(parent,o);
     if (dlgname=="ipfw")     return new ipfwAdvancedDialog(parent,o);
     if (dlgname=="iptables") return new iptAdvancedDialog(parent,o);
+    if (dlgname=="nftables") return new iptAdvancedDialog(parent,o);
     if (dlgname=="pf")       return new pfAdvancedDialog(parent,o);
-    if (dlgname=="pix")      return new pixAdvancedDialog(parent,o);
-    if (dlgname=="secuwall") return new secuwallAdvancedDialog(parent,o);
-    if (dlgname=="procurveacl") return new procurveaclAdvancedDialog(parent,o);
 
     cerr << "Firewall settings dialog for " << dlgname
          << " is not implemented" << endl;
@@ -280,17 +253,10 @@ QWidget *DialogFactory::createOSDialog(QWidget *parent,FWObject *o)
 //    string os=o->getStr("host_OS");
     if (dlgname=="linux24")   return new linux24AdvancedDialog(parent, o);
     if (dlgname=="linux317")  return new linux24AdvancedDialog(parent, o);
-    if (dlgname=="sveasoft")  return new linksysAdvancedDialog(parent, o);
     if (dlgname=="freebsd")   return new freebsdAdvancedDialog(parent, o);
     if (dlgname=="openbsd")   return new openbsdAdvancedDialog(parent, o);
     if (dlgname=="solaris")   return new solarisAdvancedDialog(parent, o);
     if (dlgname=="macosx")    return new macosxAdvancedDialog(parent, o);
-    if (dlgname=="pix_os")    return new pixosAdvancedDialog(parent, o);
-    if (dlgname=="junos")       return new junosAdvancedDialog(parent, o);
-    if (dlgname=="nxos")       return new nxosAdvancedDialog(parent, o);
-    if (dlgname=="ios")       return new iosAdvancedDialog(parent, o);
-    if (dlgname=="ipcop")     return new ipcoposAdvancedDialog(parent, o);
-    if (dlgname=="secuwall")  return new secuwallosAdvancedDialog(parent, o);
 
     cerr << "OS settings dialog for " << dlgname
          << " is not implemented" << endl;
@@ -315,11 +281,9 @@ QWidget *DialogFactory::createIfaceDialog(QWidget *parent,FWObject *o)
 
     // add further dlgname support here ...
 
-    if (dlgname=="secuwall")  return new secuwallIfaceOptsDialog(parent, o);
     if (dlgname=="linux24")  return new linux24IfaceOptsDialog(parent, o);
     if (dlgname=="linux317")  return new linux24IfaceOptsDialog(parent, o);
     if (dlgname=="bsd")  return new bsdIfaceOptsDialog(parent, o);
-    if (dlgname=="pix_os")  return new pixosIfaceOptsDialog(parent, o);
     if (dlgname=="vlan_only")  return new vlanOnlyIfaceOptsDialog(parent, o);
 
     cerr << "Interface settings dialog for OS " << host_OS
@@ -380,7 +344,6 @@ QWidget *DialogFactory::createClusterGroupOptionsDialog(
 
     if (dlgname == "conntrack")  return new conntrackOptionsDialog(parent, o);
     if (dlgname == "pfsync")  return new pfsyncOptionsDialog(parent, o);
-    if (dlgname == "pix_state_sync")  return new pixFailoverOptionsDialog(parent, o);
 
     if (dlgname == "vrrp")  return new vrrpOptionsDialog(parent, o);
     if (dlgname == "carp")  return new carpOptionsDialog(parent, o);

@@ -27,9 +27,7 @@
 
 #include "utils.h"
 #include "QThreadLogger.h"
-#include "IOSImporter.h"
 #include "IPTImporter.h"
-#include "PIXImporter.h"
 #include "PFImporter.h"
 #include "objectMaker.h"
 
@@ -100,13 +98,7 @@ void ImporterThread::run()
 
     importer = NULL;
 
-    if (platform == "iosacl") importer = new IOSImporter(
-        lib, instream, logger, firewallName.toUtf8().constData());
-
     if (platform == "iptables") importer = new IPTImporter(
-        lib, instream, logger, firewallName.toUtf8().constData());
-
-    if (platform == "pix" || platform == "fwsm") importer = new PIXImporter(
         lib, instream, logger, firewallName.toUtf8().constData());
 
     if (platform == "pf") importer = new PFImporter(

@@ -88,11 +88,8 @@ int IC_ProgressPage::nextId() const
     QString platform = wz->platform;
     Firewall *fw = wz->getFirewall();
 
-    // Move on to the next page only if firewall object has been created
-    // and the next page only makes sense for pix and fwsm
-    if (fw && (platform == "pix" || platform == "fwsm"))
-        return ImportFirewallConfigurationWizard::Page_NetworkZones;
-
+    Q_UNUSED(fw);
+    Q_UNUSED(platform);
     return -1;
 }
 

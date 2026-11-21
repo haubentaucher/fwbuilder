@@ -14,17 +14,14 @@ SOURCES	 =  CompilerDriver_ipt.cpp \
 			NATCompiler_PrintRuleIptRst.cpp \
 			NATCompiler_PrintRuleIptRstEcho.cpp \
 			NATCompiler_ipt.cpp \
-			OSConfigurator_ipcop.cpp \
 		    OSConfigurator_linux24.cpp \
 		    OSConfigurator_linux24_interfaces.cpp \
-		    OSConfigurator_secuwall.cpp \
 			OSData_ipt.cpp \
 			PolicyCompiler_PrintRule.cpp \
 			PolicyCompiler_PrintRuleIptRst.cpp \
 			PolicyCompiler_PrintRuleIptRstEcho.cpp \
 			PolicyCompiler_ipt.cpp \
 			PolicyCompiler_ipt_optimizer.cpp \
-			PolicyCompiler_secuwall.cpp \
 			RoutingCompiler_ipt.cpp \
 			RoutingCompiler_ipt_writers.cpp \
 			Preprocessor_ipt.cpp \
@@ -36,12 +33,9 @@ HEADERS	 = ../../config.h \
 			CompilerDriver_ipt.h \
 			MangleTableCompiler_ipt.h \
 			NATCompiler_ipt.h \
-			OSConfigurator_ipcop.h \
 			OSConfigurator_linux24.h \
-			OSConfigurator_secuwall.h \
 			OSData_ipt.h \
 			PolicyCompiler_ipt.h \
-			PolicyCompiler_secuwall.h \
 			RoutingCompiler_ipt.h \
 			Preprocessor_ipt.h \
 			combinedAddress.h \

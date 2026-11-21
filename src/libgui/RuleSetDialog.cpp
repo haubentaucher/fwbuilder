@@ -153,21 +153,6 @@ void RuleSetDialog::loadFWObject(FWObject *o)
                                         0));
 #endif
 
-        if (platform == "iosacl" || platform == "pix" || platform=="fwsm")
-            m_dialog->top_rule_set->setToolTip(
-                QApplication::translate("RuleSetDialog_q",
-                                        "If this flag is unchecked, generated\n"
-                                        "access list will not be assigned to\n"
-                                        "interfaces with \"ip access-group\"\n"
-                                        "command. The name of the rule set will\n"
-                                        "be used as a prefix for names of\n"
-                                        "access access lists generated for it.",
-#if QT_VERSION < QT_VERSION_CHECK(5, 0, 0)
-                                        0, QApplication::UnicodeUTF8));
-#else
-                                        0));
-#endif
-
         if (platform == "ipf" || platform == "ipfw")
             m_dialog->top_rule_set->hide();
         else

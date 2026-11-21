@@ -187,10 +187,9 @@ void init_platforms()
 }
 
 
-bool isUsingNetZone(Firewall *fw)
+bool isUsingNetZone(Firewall*)
 {
-    string platform=fw->getStr("platform");
-    return (platform=="pix" || platform=="fwsm");
+    return false;
 }
 
 bool isDefaultPolicyRuleOptions(FWOptions *opt)
@@ -243,27 +242,6 @@ bool isDefaultPolicyRuleOptions(FWOptions *opt)
                    opt->getInt("ulog_nlgroup")<=1        &&
                    opt->getStr("limit_suffix").empty()   &&
                    opt->getStr("firewall_is_part_of_any_and_networks") == "");
-	}
-
-	if (platform=="pix" || platform=="fwsm")
-        {
-            string vers="version_"+p->getStr("version");
-#if QT_VERSION < QT_VERSION_CHECK(5, 0, 0)
-            if ( Resources::platform_res[platform.toAscii().constData()]->getResourceBool(
-                  "/FWBuilderResources/Target/options/"+vers+"/pix_rule_syslog_settings"))
-#else
-            if ( Resources::platform_res[platform.toLatin1().constData()]->getResourceBool(
-                  "/FWBuilderResources/Target/options/"+vers+"/pix_rule_syslog_settings"))
-#endif
-            {
-                res= ( opt->getStr("log_level").empty()        &&
-                   opt->getInt("log_interval")<=0          &&
-                   ! opt->getBool("disable_logging_for_this_rule") );
-            }
-            else
-            {
-                res=true;
-            }
 	}
 
 	if (platform=="pf")
@@ -337,12 +315,6 @@ bool isDefaultPolicyRuleOptions(FWOptions *opt)
 
         }
 
-        // all rules are stateless for IOS ACL
-	if (platform=="iosacl" || platform=="procurve_acl")
-        {
-            res = !opt->getBool("iosacl_add_mirror_rule");
-        }
-
     }
     return res;
 }
@@ -384,14 +356,6 @@ bool isDefaultNATRuleOptions(FWOptions *opt)
                      ! opt->getBool("pf_round_robin")  &&
                      ! opt->getBool("pf_static_port") ) );
 	}
-
-	if (platform=="pix" || platform=="fwsm")
-        {
-            res = (! opt->getBool("asa8_nat_dns") &&
-                   ! opt->getBool("asa8_nat_static") &&
-                   ! opt->getBool("asa8_nat_dynamic"));
-
-        }
     }
     return res;
 }
@@ -443,29 +407,6 @@ void getVersionsForPlatform(const QString &platform, std::list<QStringPair> &res
         res.push_back(QStringPair("1.4.20", QObject::tr("1.4.20 or later")));
     } else
     {
-        // we list supported versions for the following platforms in
-        // corresponding resource .xml file
-        if (platform=="pix" ||
-            platform=="fwsm" ||
-            platform=="nxosacl" ||
-            platform=="iosacl" ||
-            platform=="procurve_acl")
-        {
-#if QT_VERSION < QT_VERSION_CHECK(5, 0, 0)
-            QString lst = Resources::platform_res[
-                platform.toAscii().constData()]->getResourceStr(
-                    "/FWBuilderResources/Target/versions").c_str();
-#else
-            QString lst = Resources::platform_res[
-                platform.toLatin1().constData()]->getResourceStr(
-                    "/FWBuilderResources/Target/versions").c_str();
-#endif
-
-            QStringList ll=lst.split(',');
-
-            for (QStringList::iterator i=ll.begin(); i!=ll.end(); ++i)
-                res.push_back(QStringPair(*i,*i));
-        } else
         {
             if (platform=="pf")
             {
@@ -1233,14 +1174,6 @@ void guessSecurityLevel(const string&, InterfaceData *idata)
 void guessOSAndPlatformFromSysDescr(
     const QString &sysDescr, QString &platform, QString &hostOS, QString &version)
 {
-    QList<QRegExp> pix_re;
-    pix_re << QRegExp("Cisco PIX Firewall Version ([0-9\\.]+)")
-           << QRegExp("Cisco PIX Security Appliance Version ([0-9\\.]+)")
-           << QRegExp("Cisco Adaptive Security Appliance Version ([0-9\\.]+)");
-
-    QList<QRegExp> ios_re;
-    ios_re << QRegExp("Cisco Internetwork Operating System Software .* Version ([0-9\\.]+)");
-
     platform = "";
     hostOS = "";
     version = "";
@@ -1248,40 +1181,6 @@ void guessOSAndPlatformFromSysDescr(
     if (fwbdebug)
         qDebug() << "guessOSAndPlatformFromSysDescr:"
                  << "sysdescr=" << sysDescr;
-
-    list<QStringPair> allowed_versions;
-    QString version_from_sysdescr;
-
-    foreach (QRegExp re, pix_re)
-    {
-        if (re.indexIn(sysDescr) > -1)
-        {
-            platform = "pix";
-            hostOS = "pix_os";
-            version_from_sysdescr = re.cap(1);
-        }
-    }
-
-
-    foreach (QRegExp re, ios_re)
-    {
-        if (re.indexIn(sysDescr) > -1)
-        {
-            platform = "iosacl";
-            hostOS = "ios";
-            version_from_sysdescr = re.cap(1);
-        }
-    }
-
-    if (fwbdebug)
-        qDebug() << "guessOSAndPlatformFromSysDescr:"
-                 << "platform=" << platform
-                 << "hostOS=" << hostOS
-                 << "version=" << version_from_sysdescr;
-
-    if ( ! platform.isEmpty())
-        version = findBestVersionMatch(platform, version_from_sysdescr);
-
 }
 
 QString findBestVersionMatch(const QString &platform,

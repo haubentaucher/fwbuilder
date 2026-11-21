@@ -38,8 +38,6 @@
 #include "FirewallInstaller.h"
 #include "FWBSettings.h"
 #include "SSHUnx.h"
-#include "SSHPIX.h"
-#include "SSHIOS.h"
 #include "FWWindow.h"
 #include "instOptionsDialog.h"
 #include "instBatchOptionsDialog.h"
@@ -688,24 +686,6 @@ bool instDialog::checkSSHPathConfiguration(Firewall *fw)
     }
 
     return true;
-}
-
-bool instDialog::isCiscoFamily()
-{
-    string platform = cnf.fwobj->getStr("platform");
-    return (platform=="pix" || platform=="fwsm" || platform=="iosacl" || platform=="nxosacl");
-}
-
-bool instDialog::isProcurve()
-{
-    string platform = cnf.fwobj->getStr("platform");
-    return (platform=="procurve_acl");
-}
-
-bool instDialog::isJuniper()
-{
-    string platform = cnf.fwobj->getStr("platform");
-    return (platform=="junosacl");
 }
 
 /*

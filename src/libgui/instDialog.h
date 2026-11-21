@@ -229,9 +229,6 @@ protected:
     void storeInstallerOptions();
     void findFirewalls();
 
-    bool isCiscoFamily();
-    bool isProcurve();
-	bool isJuniper();
 
     void interpretLogLine(const QString &buf);
     

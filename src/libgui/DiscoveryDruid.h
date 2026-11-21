@@ -56,9 +56,7 @@ using namespace libfwbuilder;
 
 class Importer;
 
-#define IMPORT_IOS 0
-#define IMPORT_PIX 1
-#define IMPORT_IPT 2
+#define IMPORT_IPT 0
 
 
 // ---------------- OBJECT DESCRIPTOR ------------------ //

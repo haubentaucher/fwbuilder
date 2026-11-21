@@ -399,19 +399,6 @@ void newFirewallDialog::monitor()
         {
             guessInterfaceLabel(idata);
 
-            if (platform == "pix" || platform == "fwsm")
-            {
-                if ( ! idata->mac_addr.empty() && idata->snmp_type == 1 &&
-                     idata->mac_addr.find("00:00:00")==0) continue;
-
-                QString name = idata->name.c_str();
-                name.replace("Adaptive Security Appliance '", "");
-                name.replace("Cisco PIX Security Appliance '", "");
-                name.replace("PIX Firewall '", "");
-                name.replace("' interface", "");
-                idata->name = name.toStdString();
-            }
-
             this->m_dialog->interfaceEditor1->addInterfaceFromData(idata);
         }
     }

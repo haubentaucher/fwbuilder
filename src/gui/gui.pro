@@ -51,8 +51,7 @@ DEPENDPATH +=  \
 OTHER_LIBS  = ../common/$$BINARY_SUBDIR/libcommon.a \
       ../iptlib/$$BINARY_SUBDIR/libiptlib.a \
       ../pflib/$$BINARY_SUBDIR/libfwbpf.a \
-      ../cisco_lib/$$BINARY_SUBDIR/libfwbcisco.a \
-      ../juniper_lib/$$BINARY_SUBDIR/libfwbjuniper.a \
+      ../nftlib/$$BINARY_SUBDIR/libnftlib.a \
       ../compiler_lib/$$BINARY_SUBDIR/libcompilerdriver.a \
       ../libfwbuilder/src/fwcompiler/$$BINARY_SUBDIR/libfwcompiler.a \
       ../libfwbuilder/src/fwbuilder/$$BINARY_SUBDIR/libfwbuilder.a
