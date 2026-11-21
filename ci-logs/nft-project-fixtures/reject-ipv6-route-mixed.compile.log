@@ -1,0 +1,8 @@
+ *** Loading data ... done
+ Compiling ruleset Policy for 'mangle' table, IPv6
+ Detecting rule shadowing
+ Compiling ruleset Policy for 'filter' table, IPv6
+ Detecting rule shadowing
+ Compiling routing rules for nft-test (IPv4)
+nft-test:Routing:1: error: Routing rule mixes IPv4 and IPv6
+Compile time: 

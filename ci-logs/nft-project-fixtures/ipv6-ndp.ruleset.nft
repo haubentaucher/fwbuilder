@@ -1,0 +1,58 @@
+
+
+# ================ IPv6
+
+
+
+
+add table ip6 filter
+add chain ip6 filter INPUT { type filter hook input priority 0; policy drop; }
+add chain ip6 filter OUTPUT { type filter hook output priority 0; policy drop; }
+add chain ip6 filter FORWARD { type filter hook forward priority 0; policy drop; }
+# ================ Table 'filter', automatic rules
+add rule ip6 filter INPUT ct state { established, related } accept
+add rule ip6 filter OUTPUT ct state { established, related } accept
+add rule ip6 filter FORWARD ct state { established, related } accept
+# ================ Table 'filter', rule set Policy
+# 
+# Rule 0 (global)
+# 
+# Rule 0 (global)
+# 
+add rule ip6 filter INPUT meta l4proto icmpv6 ip6 saddr 2001:db8::/32  icmpv6 type 128 icmpv6 code 0 icmpv6 type 128 icmpv6 code 0  accept
+add rule ip6 filter OUTPUT meta l4proto icmpv6 ip6 saddr 2001:db8::/32  icmpv6 type 128 icmpv6 code 0 icmpv6 type 128 icmpv6 code 0  accept
+add rule ip6 filter FORWARD meta l4proto icmpv6 ip6 saddr 2001:db8::/32  icmpv6 type 128 icmpv6 code 0 icmpv6 type 128 icmpv6 code 0  accept
+# 
+# Rule 1 (global)
+# 
+# Rule 1 (global)
+# 
+# CI: allow ICMPv6 neighbor NS
+add rule ip6 filter OUTPUT meta l4proto icmpv6 icmpv6 type 135 icmpv6 code 0 icmpv6 type 135 icmpv6 code 0  accept
+add rule ip6 filter INPUT meta l4proto icmpv6 icmpv6 type 135 icmpv6 code 0 icmpv6 type 135 icmpv6 code 0  accept
+add rule ip6 filter FORWARD meta l4proto icmpv6 icmpv6 type 135 icmpv6 code 0 icmpv6 type 135 icmpv6 code 0  accept
+# 
+# Rule 2 (global)
+# 
+# Rule 2 (global)
+# 
+# CI: allow ICMPv6 neighbor NA
+add rule ip6 filter OUTPUT meta l4proto icmpv6 icmpv6 type 136 icmpv6 code 0 icmpv6 type 136 icmpv6 code 0  accept
+add rule ip6 filter INPUT meta l4proto icmpv6 icmpv6 type 136 icmpv6 code 0 icmpv6 type 136 icmpv6 code 0  accept
+add rule ip6 filter FORWARD meta l4proto icmpv6 icmpv6 type 136 icmpv6 code 0 icmpv6 type 136 icmpv6 code 0  accept
+# 
+# Rule 3 (global)
+# 
+# Rule 3 (global)
+# 
+add chain ip6 filter RULE_3
+add rule ip6 filter OUTPUT  jump RULE_3
+add rule ip6 filter INPUT  jump RULE_3
+add rule ip6 filter FORWARD  jump RULE_3
+add rule ip6 filter RULE_3  log group 1 prefix "RULE 3 -- DENY "
+add rule ip6 filter RULE_3  drop
+#
+
+
+
+

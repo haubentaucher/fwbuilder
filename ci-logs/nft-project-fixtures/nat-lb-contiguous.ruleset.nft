@@ -1,0 +1,54 @@
+
+
+# ================ IPv4
+
+
+
+
+add table ip filter
+add chain ip filter INPUT { type filter hook input priority 0; policy drop; }
+add chain ip filter OUTPUT { type filter hook output priority 0; policy drop; }
+add chain ip filter FORWARD { type filter hook forward priority 0; policy drop; }
+# ================ Table 'filter', automatic rules
+add rule ip filter INPUT ct state { established, related } accept
+add rule ip filter OUTPUT ct state { established, related } accept
+add rule ip filter FORWARD ct state { established, related } accept
+# ================ Table 'filter', rule set Policy
+# 
+# Rule 0 (global)
+# 
+# Rule 0 (global)
+# 
+add chain ip filter RULE_0
+add rule ip filter OUTPUT  jump RULE_0
+add rule ip filter INPUT  jump RULE_0
+add rule ip filter FORWARD  jump RULE_0
+add rule ip filter RULE_0  log group 1 prefix "RULE 0 -- DENY "
+add rule ip filter RULE_0  drop
+# 
+# Rule 1 (global)
+# 
+# Rule 1 (global)
+# 
+add rule ip filter FORWARD ip protocol tcp ip saddr != 192.168.1.0/24  ip daddr 192.168.2.10  tcp dport 80  ct state { new }  accept
+#
+
+
+
+add table ip nat
+# Standard NAT chains are considered pre-existing by NATCompiler_nft.
+# The hook priorities are the native dstnat (-100) and srcnat (100).
+add chain ip nat PREROUTING { type nat hook prerouting priority -100; policy accept; }
+add chain ip nat INPUT { type nat hook input priority 100; policy accept; }
+add chain ip nat OUTPUT { type nat hook output priority -100; policy accept; }
+add chain ip nat POSTROUTING { type nat hook postrouting priority 100; policy accept; }
+# ================ Table 'nat',  rule set NAT
+# 
+# Rule 1 (NAT)
+# 
+# Rule 1 (NAT)
+# 
+add rule ip nat PREROUTING ip protocol tcp  ip daddr 192.0.2.101  tcp dport 80 dnat to numgen random mod 2 map { 0 : 192.168.1.100, 1 : 192.168.1.101 }
+#
+
+

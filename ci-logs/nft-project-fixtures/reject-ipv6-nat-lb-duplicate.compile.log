@@ -1,0 +1,4 @@
+ *** Loading data ... done
+ Compiling ruleset NAT for 'nat' table, IPv6
+nft-test:NAT:1: error: Duplicate native nftables load-balancing destination
+Compile time: 

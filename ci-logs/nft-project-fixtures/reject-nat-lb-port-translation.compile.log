@@ -1,0 +1,4 @@
+ *** Loading data ... done
+ Compiling ruleset NAT for 'nat' table
+nft-test:NAT:1: error: Native nftables load-balancing address maps cannot translate ports
+Compile time: 

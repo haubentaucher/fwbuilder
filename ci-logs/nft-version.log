@@ -1,0 +1,3 @@
+Firewall Builder:  policy compiler for Linux 2.4.x and 2.6.x nftables
+Version 3d63e02
+Usage: src/nft/fwb_nft [-x level] [-v] [-V] [-q] [-f filename.xml] [-d destdir] [-D datadir ] [-m] [-4|-6] firewall_object_name

@@ -1,0 +1,227 @@
+Found GNU Make at /usr/bin/gmake ... good.
+This script runs configure ...
+libtoolize: putting auxiliary files in '.'.
+libtoolize: copying file './config.guess'
+libtoolize: copying file './config.sub'
+libtoolize: copying file './install-sh'
+libtoolize: copying file './ltmain.sh'
+libtoolize: putting macros in AC_CONFIG_MACRO_DIRS, 'm4'.
+libtoolize: copying file 'm4/libtool.m4'
+libtoolize: copying file 'm4/ltoptions.m4'
+libtoolize: copying file 'm4/ltsugar.m4'
+libtoolize: copying file 'm4/ltversion.m4'
+libtoolize: copying file 'm4/lt~obsolete.m4'
+libtoolize: Consider adding '-I m4' to ACLOCAL_AMFLAGS in Makefile.am.
+aclocal: warning: autoconf input should be named 'configure.ac', not 'configure.in'
+configure.in:6: warning: The macro `AC_CONFIG_HEADER' is obsolete.
+configure.in:6: You should run autoupdate.
+./lib/autoconf/status.m4:719: AC_CONFIG_HEADER is expanded from...
+configure.in:6: the top level
+configure.in:7: warning: The macro `AC_CONFIG_HEADER' is obsolete.
+configure.in:7: You should run autoupdate.
+./lib/autoconf/status.m4:719: AC_CONFIG_HEADER is expanded from...
+configure.in:7: the top level
+configure.in:125: warning: The macro `AC_ISC_POSIX' is obsolete.
+configure.in:125: You should run autoupdate.
+./lib/autoconf/specific.m4:550: AC_ISC_POSIX is expanded from...
+configure.in:125: the top level
+configure.in:128: warning: The macro `AC_HEADER_STDC' is obsolete.
+configure.in:128: You should run autoupdate.
+./lib/autoconf/headers.m4:704: AC_HEADER_STDC is expanded from...
+configure.in:128: the top level
+configure.in:238: warning: The macro `AC_LANG_C' is obsolete.
+configure.in:238: You should run autoupdate.
+./lib/autoconf/c.m4:72: AC_LANG_C is expanded from...
+acinclude.m4:54: ACX_PTHREAD is expanded from...
+configure.in:238: the top level
+configure.in:238: warning: The macro `AC_TRY_LINK' is obsolete.
+configure.in:238: You should run autoupdate.
+./lib/autoconf/general.m4:2920: AC_TRY_LINK is expanded from...
+acinclude.m4:54: ACX_PTHREAD is expanded from...
+configure.in:238: the top level
+checking build system type... x86_64-pc-linux-gnu
+checking host system type... x86_64-pc-linux-gnu
+checking target system type... x86_64-pc-linux-gnu
+checking how to print strings... printf
+checking for gcc... gcc
+checking whether the C compiler works... yes
+checking for C compiler default output file name... a.out
+checking for suffix of executables... 
+checking whether we are cross compiling... no
+checking for suffix of object files... o
+checking whether the compiler supports GNU C... yes
+checking whether gcc accepts -g... yes
+checking for gcc option to enable C11 features... none needed
+checking for a sed that does not truncate output... /usr/bin/sed
+checking for grep that handles long lines and -e... /usr/bin/grep
+checking for egrep... /usr/bin/grep -E
+checking for fgrep... /usr/bin/grep -F
+checking for ld used by gcc... /usr/bin/ld
+checking if the linker (/usr/bin/ld) is GNU ld... yes
+checking for BSD- or MS-compatible name lister (nm)... /usr/bin/nm -B
+checking the name lister (/usr/bin/nm -B) interface... BSD nm
+checking whether ln -s works... yes
+checking the maximum length of command line arguments... 3145728
+checking how to convert x86_64-pc-linux-gnu file names to x86_64-pc-linux-gnu format... func_convert_file_noop
+checking how to convert x86_64-pc-linux-gnu file names to toolchain format... func_convert_file_noop
+checking for /usr/bin/ld option to reload object files... -r
+checking for file... file
+checking for objdump... objdump
+checking how to recognize dependent libraries... pass_all
+checking for dlltool... no
+checking how to associate runtime and link libraries... printf %s\n
+checking for ar... ar
+checking for archiver @FILE support... @
+checking for strip... strip
+checking for ranlib... ranlib
+checking for gawk... gawk
+checking command to parse /usr/bin/nm -B output from gcc object... ok
+checking for sysroot... no
+checking for a working dd... /usr/bin/dd
+checking how to truncate binary pipes... /usr/bin/dd bs=4096 count=1
+checking for mt... mt
+checking if mt is a manifest tool... no
+checking for stdio.h... yes
+checking for stdlib.h... yes
+checking for string.h... yes
+checking for inttypes.h... yes
+checking for stdint.h... yes
+checking for strings.h... yes
+checking for sys/stat.h... yes
+checking for sys/types.h... yes
+checking for unistd.h... yes
+checking for dlfcn.h... yes
+checking for objdir... .libs
+checking if gcc supports -fno-rtti -fno-exceptions... no
+checking for gcc option to produce PIC... -fPIC -DPIC
+checking if gcc PIC flag -fPIC -DPIC works... yes
+checking if gcc static flag -static works... yes
+checking if gcc supports -c -o file.o... yes
+checking if gcc supports -c -o file.o... (cached) yes
+checking whether the gcc linker (/usr/bin/ld -m elf_x86_64) supports shared libraries... yes
+checking whether -lc should be explicitly linked in... no
+checking dynamic linker characteristics... GNU/Linux ld.so
+checking how to hardcode library paths into programs... immediate
+checking whether stripping libraries is possible... yes
+checking if libtool supports shared libraries... yes
+checking whether to build shared libraries... yes
+checking whether to build static libraries... yes
+Creating VERSION.h file...
+checking for qmake... /bin/qmake
+checking checking version of QT this qmake is part of... 5.15.13 
+checking whether byte ordering is bigendian... no
+checking for a BSD-compatible install... /usr/bin/install -c
+checking for library containing strerror... none required
+checking for gcc... (cached) gcc
+checking whether the compiler supports GNU C... (cached) yes
+checking whether gcc accepts -g... (cached) yes
+checking for gcc option to enable C11 features... (cached) none needed
+checking for egrep... (cached) /usr/bin/grep -E
+checking how to run the C preprocessor... gcc -E
+checking for g++... g++
+checking whether the compiler supports GNU C++... yes
+checking whether g++ accepts -g... yes
+checking for g++ option to enable C++11 features... none needed
+checking how to run the C++ preprocessor... g++ -E
+checking for ld used by g++... /usr/bin/ld -m elf_x86_64
+checking if the linker (/usr/bin/ld -m elf_x86_64) is GNU ld... yes
+checking whether the g++ linker (/usr/bin/ld -m elf_x86_64) supports shared libraries... yes
+checking for g++ option to produce PIC... -fPIC -DPIC
+checking if g++ PIC flag -fPIC -DPIC works... yes
+checking if g++ static flag -static works... yes
+checking if g++ supports -c -o file.o... yes
+checking if g++ supports -c -o file.o... (cached) yes
+checking whether the g++ linker (/usr/bin/ld -m elf_x86_64) supports shared libraries... yes
+checking dynamic linker characteristics... (cached) GNU/Linux ld.so
+checking how to hardcode library paths into programs... immediate
+checking how to run the C++ preprocessor... g++ -E
+checking for strchr... yes
+checking for memcpy... yes
+checking whether make sets $(MAKE)... yes
+checking whether make is GNU Make... yes
+checking for pty.h... yes
+checking for libutil.h... no
+checking for util.h... no
+checking for forkpty in -lc... yes
+checking for cfmakeraw in -lc... yes
+checking for getopt.h... yes
+checking for signal.h... yes
+checking for endian.h... yes
+checking for strtok_r... yes
+checking for stat... yes
+checking for _stat... no
+checking for signal... yes
+checking whether struct tm is in sys/time.h or time.h... time.h
+checking for gcc options needed to detect all undeclared functions... none needed
+checking for struct tm.tm_zone... yes
+checking for cppunit-config... no
+checking for Cppunit - version >= 1.12.0... no
+checking for the pthreads library -lpthreads... no
+checking whether pthreads work without any flags... yes
+checking for joinable pthread attribute... PTHREAD_CREATE_JOINABLE
+checking if more special flags are required for pthreads... no
+checking for cc_r... gcc
+Found pthread library:
+PTHREAD_CFLAGS=
+PTHREAD_LIBS=
+checking for xml2-config... /bin/xml2-config
+checking for xmlSaveFormatFileEnc... yes
+checking for xslt-config... /bin/xslt-config
+checking for libxslt/xsltconfig.h... yes
+checking for bind/resolv.h... no
+checking for /usr/local/bind/include/resolv.h... no
+checking for resolv.h... yes
+checking for net-snmp-config... no
+checking for ucd-snmp/asn1.h... no
+checking for inet_net_ntop in -lc... no
+checking for inet_net_ntop in -lbind... no
+checking for gzopen in -lz... yes
+checking for rcs... rcs
+checking for rcsdiff... rcsdiff
+checking for rlog... rlog
+checking for ci... ci
+checking for co... co
+checking what OS this is... Debian Linux
+checking for ccache... no
+checking for distcc... no
+configure: creating ./config.status
+config.status: creating qmake.inc
+config.status: creating src/res/objects_init.xml
+config.status: creating src/res/templates.xml
+config.status: creating src/libfwbuilder/qmake.inc
+config.status: creating src/libfwbuilder/etc/fwbuilder.dtd
+config.status: creating packaging/fwbuilder.control
+config.status: creating packaging/fwbuilder.spec
+config.status: creating packaging/fwbuilder-static-qt.spec
+config.status: creating packaging/fwbuilder.nsi
+config.status: creating config.h
+config.status: creating src/libfwbuilder/src/fwbuilder/libfwbuilder-config.h
+config.status: executing libtool commands
+QTDIR=""
+Running qmake: /bin/qmake -recursive
+Info: creating stash file /home/runner/work/fwbuilder/fwbuilder/.qmake.stash
+Reading /home/runner/work/fwbuilder/fwbuilder/src/src.pro
+ Reading /home/runner/work/fwbuilder/fwbuilder/src/libfwbuilder/libfwbuilder.pro
+  Reading /home/runner/work/fwbuilder/fwbuilder/src/libfwbuilder/etc/etc.pro
+  Reading /home/runner/work/fwbuilder/fwbuilder/src/libfwbuilder/migration/migration.pro
+  Reading /home/runner/work/fwbuilder/fwbuilder/src/libfwbuilder/src/src.pro
+   Reading /home/runner/work/fwbuilder/fwbuilder/src/libfwbuilder/src/fwbuilder/fwbuilder.pro
+   Reading /home/runner/work/fwbuilder/fwbuilder/src/libfwbuilder/src/fwcompiler/fwcompiler.pro
+ Reading /home/runner/work/fwbuilder/fwbuilder/src/res/res.pro
+ Reading /home/runner/work/fwbuilder/fwbuilder/src/antlr/antlr.pro
+ Reading /home/runner/work/fwbuilder/fwbuilder/src/parsers/parsers.pro
+ Reading /home/runner/work/fwbuilder/fwbuilder/src/import/import.pro
+ Reading /home/runner/work/fwbuilder/fwbuilder/src/common/common.pro
+ Reading /home/runner/work/fwbuilder/fwbuilder/src/compiler_lib/compiler_lib.pro
+ Reading /home/runner/work/fwbuilder/fwbuilder/src/iptlib/iptlib.pro
+ Reading /home/runner/work/fwbuilder/fwbuilder/src/ipt/ipt.pro
+ Reading /home/runner/work/fwbuilder/fwbuilder/src/nftlib/nftlib.pro
+ Reading /home/runner/work/fwbuilder/fwbuilder/src/nft/nft.pro
+ Reading /home/runner/work/fwbuilder/fwbuilder/src/pflib/pflib.pro
+ Reading /home/runner/work/fwbuilder/fwbuilder/src/pf/pf.pro
+ Reading /home/runner/work/fwbuilder/fwbuilder/src/ipf/ipf.pro
+ Reading /home/runner/work/fwbuilder/fwbuilder/src/ipfw/ipfw.pro
+ Reading /home/runner/work/fwbuilder/fwbuilder/src/libgui/libgui.pro
+ Reading /home/runner/work/fwbuilder/fwbuilder/src/fwbedit/fwbedit.pro
+ Reading /home/runner/work/fwbuilder/fwbuilder/src/gui/gui.pro
+Reading /home/runner/work/fwbuilder/fwbuilder/doc/doc.pro

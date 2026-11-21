@@ -1,0 +1,8 @@
+ *** Loading data ... done
+ Compiling ruleset NAT for 'nat' table
+ Compiling ruleset Policy for 'mangle' table
+ Detecting rule shadowing
+ Compiling ruleset Policy for 'filter' table
+ Detecting rule shadowing
+nft-test:Policy:1: error: Run-time address table bad_guys requires named nftables sets: enable firewall option 'use_nft_sets'
+Compile time: 

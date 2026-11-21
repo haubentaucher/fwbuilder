@@ -1,0 +1,4 @@
+ *** Loading data ... done
+ Compiling ruleset NAT for 'nat' table
+nft-test:NAT:0: error: Native nftables NAT IP option matching is not supported
+Compile time: 
