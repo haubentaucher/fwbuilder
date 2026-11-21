@@ -31,7 +31,6 @@
 #include <functional>
 #include <sstream>
 
-#include "IOSImporter.h"
 #include "AddressSpec.h"
 #include "InterfaceSpec.h"
 #include "PortSpec.h"

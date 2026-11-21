@@ -75,7 +75,6 @@
 #include "openbsdAdvancedDialog.h"
 #include "solarisAdvancedDialog.h"
 #include "macosxAdvancedDialog.h"
-#include "iosAdvancedDialog.h"
 
 #include "RuleOptionsDialog.h"
 #include "RoutingRuleOptionsDialog.h"
