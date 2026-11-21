@@ -783,14 +783,18 @@ def case_dynamic_interface(tree):
     eth1.set('dyn', 'True')
     # Networks attached to a dynamic interface become run-time objects,
     # resolved with getnet() into the $i_eth1_network shell variable.
+    # The FWB DTD requires AttachedNetworks as the LAST Interface child
+    # (IPv4*, IPv6*, physAddress?, InterfaceOptions?, Interface*,
+    # FailoverClusterGroup?, AttachedNetworks?).
     attached = ET.Element(tag('AttachedNetworks'), {
         'id': 'fwb-ci-att-nets-eth1',
         'name': 'nft-test:eth1:attached',
         'comment': 'CI run-time networks attached to eth1',
         'ro': 'False',
     })
-    options = only(eth1, './' + tag('InterfaceOptions'))
-    eth1.insert(list(eth1).index(options), attached)
+    if only(eth1, './' + tag('InterfaceOptions')) is None:
+        raise ValueError('baseline eth1 has no InterfaceOptions element')
+    eth1.append(attached)
     # First rule: match the firewall's own dynamic interface address.
     replace_ref(allow, 'Src', eth1.get('id'))
     only(allow, './' + tag('Src')).set('neg', 'False')

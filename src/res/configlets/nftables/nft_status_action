@@ -20,9 +20,11 @@
 ## exist by checking if the ruleset is non-empty.
 
 check_nftables() {
-    # A foreign ruleset does not mean Firewall Builder is running.
+    # A foreign ruleset does not mean Firewall Builder is running. Both the
+    # current table names and the legacy fwb_-prefixed ones count as FWB
+    # policy so a status check stays correct across an upgrade.
     for fwb_family in ip ip6; do
-        for fwb_table in fwb_filter fwb_mangle fwb_nat; do
+        for fwb_table in filter mangle nat fwb_filter fwb_mangle fwb_nat; do
             if "$NFT" list table "$fwb_family" "$fwb_table" >/dev/null 2>&1; then
                 return 0
             fi

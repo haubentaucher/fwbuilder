@@ -38,7 +38,7 @@ for fw in "$@"; do
         if ($1!="add") { fail("non-native command inside nft heredoc: " $0); next }
         if ($2=="table" && n>=4) {
             family=part[3]; tab=part[4]
-            if (tab !~ /^fwb_(filter|nat|mangle)$/) fail("unowned nft table: " tab)
+            if (tab !~ /^(filter|nat|mangle)$/) fail("unowned nft table: " tab)
             table[family " " tab]=1
             next
         }
@@ -48,8 +48,8 @@ for fw in "$@"; do
             if (!table[family " " tab]) fail("chain before table: " key)
             if (chains[key]) fail("duplicate chain: " key)
             chains[key]=1
-            if (tab=="fwb_nat" && $0 !~ /type nat hook/) fail("NAT base chain missing nat hook: " key)
-            if (tab=="fwb_mangle" && $0 !~ /type (filter|route) hook/) fail("mangle base chain missing hook: " key)
+            if (tab=="nat" && $0 !~ /type nat hook/) fail("NAT base chain missing nat hook: " key)
+            if (tab=="mangle" && $0 !~ /type (filter|route) hook/) fail("mangle base chain missing hook: " key)
             next
         }
         # Named dynamic hashlimit sets are nftables objects, not rules.
@@ -57,7 +57,7 @@ for fw in "$@"; do
         if ($2=="set" && n>=6) {
             family=part[3]; tab=part[4]; setname=part[5]
             key=family " " tab " " setname
-            if (tab !~ /^fwb_(filter|mangle)$/) fail("unowned nft set table: " tab)
+            if (tab !~ /^(filter|mangle)$/) fail("unowned nft set table: " tab)
             if (!table[family " " tab]) fail("set before table: " key)
             if (setname !~ /^fwb_[[:alnum:]_]+$/) fail("invalid FWB set name: " setname)
             if (sets[key]++) fail("duplicate set declaration: " key)
@@ -69,7 +69,7 @@ for fw in "$@"; do
         if ($2=="rule" && n>=6) {
             family=part[3]; tab=part[4]; chain=part[5]
             key=family " " tab " " chain
-            if (tab !~ /^fwb_(filter|nat|mangle)$/) fail("unowned nft table referenced: " tab)
+            if (tab !~ /^(filter|nat|mangle)$/) fail("unowned nft table referenced: " tab)
             if (!chains[key]) fail("rule references undefined chain: " key)
             if ($0 ~ /[io]ifname[[:space:]]+"[^"]*\+"/) fail("iptables-style interface wildcard: " $0)
             if ($0 ~ /[io]ifname[[:space:]]+"\*"/) fail("bare interface wildcard: " $0)

@@ -74,7 +74,7 @@ check_positive() {
     fi
     local table_family=ip
     [[ "$family" == 6 ]] && table_family=ip6
-    if ! grep -Eq "^add table $table_family fwb_filter[[:space:]]*\$" "$work/$name.ruleset.nft"; then
+    if ! grep -Eq "^add table $table_family filter[[:space:]]*\$" "$work/$name.ruleset.nft"; then
         # For IPv4 the family is "ip" and for IPv6 it is "ip6".
         echo "FAIL: $name has no IPv$family filter table" >&2
         return 1
@@ -116,7 +116,7 @@ lines = Path(sys.argv[1]).read_text().splitlines()
 expected = re.compile(sys.argv[2])
 rules = []
 for index, line in enumerate(lines):
-    match = re.fullmatch(r'add rule ip fwb_filter (\S+) (.+)', line)
+    match = re.fullmatch(r'add rule ip filter (\S+) (.+)', line)
     if match:
         rules.append((index, match.group(1), match.group(2)))
 
@@ -157,7 +157,7 @@ import sys
 rules = Path(sys.argv[1]).read_text().splitlines()
 expected = sys.argv[2]
 owner_rules = [line for line in rules
-               if re.match(r'^add rule ip fwb_filter OUTPUT ', line)
+               if re.match(r'^add rule ip filter OUTPUT ', line)
                and 'meta skuid' in line]
 if not owner_rules:
     sys.exit('FAIL: expected UserService in native OUTPUT chain')
@@ -258,14 +258,14 @@ check_dynamic_sets() {
     [[ ${#generated[@]} == 1 && -s ${generated[0]} ]] || return 1
     sh -n "${generated[0]}" || return 1
     grep -Fq 'fwb_nft_stage_address_tables || exit 1' "${generated[0]}" || return 1
-    grep -Eq 'add rule ip fwb_filter .*ip saddr @bad_guys' "${generated[0]}" || return 1
+    grep -Eq 'add rule ip filter .*ip saddr @bad_guys' "${generated[0]}" || return 1
     grep -Fq "fwb_nft_stage_one_address_table 'bad_guys' '/tmp/fwb-pr6-ci-address-set.data'" "${generated[0]}" || return 1
     # block_action() has a separate emergency-policy transaction, so its
     # add-table declarations are not duplicates in the start transaction.
     if awk '
         /^block_action\(\) \{/ { in_block = 1; next }
         in_block && /^}/ { in_block = 0; next }
-        !in_block && /^add table ip fwb_filter[[:space:]]*$/ { duplicate = 1 }
+        !in_block && /^add table ip filter[[:space:]]*$/ { duplicate = 1 }
         END { exit !duplicate }
     ' "${generated[0]}"; then
         echo 'Unexpected duplicate add-table declaration in set mode' >&2
@@ -323,11 +323,11 @@ check_dynamic_interface() {
         echo 'FAIL: generated script never resolves attached networks' >&2
         return 1
     }
-    grep -Eq 'add rule ip fwb_filter .*ip saddr \$i_eth1' "${generated[0]}" || {
+    grep -Eq 'add rule ip filter .*ip saddr \$i_eth1' "${generated[0]}" || {
         echo 'FAIL: no rule references the dynamic interface address $i_eth1' >&2
         return 1
     }
-    grep -Eq 'add rule ip fwb_filter .*ip saddr \$i_eth1_network' "${generated[0]}" || {
+    grep -Eq 'add rule ip filter .*ip saddr \$i_eth1_network' "${generated[0]}" || {
         echo 'FAIL: no rule references attached networks via $i_eth1_network' >&2
         return 1
     }
@@ -450,11 +450,11 @@ run_case reject-ipv6-route-mixed check_negative reject-ipv6-route-mixed 'Routing
 run_case udp-workhours check_positive udp-workhours 4 'meta hour' 'meta day'
 run_case reject-hashlimit-bad-mode check_negative reject-hashlimit-bad-mode 'Unsupported native nftables hashlimit mode'
 run_case reject-hashlimit-icmp-port check_negative reject-hashlimit-icmp-port 'Native nftables port-key hashlimit needs a TCP or UDP service'
-run_case hashlimit-srcip check_positive hashlimit-srcip 4 'add set ip fwb_filter fwb_ci_srcip \{ type ipv4_addr; size 65535; flags dynamic,timeout; timeout 3000ms; \}' 'update @fwb_ci_srcip \{ ip saddr limit rate 8/second burst 4 packets \}'
-run_case hashlimit-srcip-dstport check_positive hashlimit-srcip-dstport 4 'add set ip fwb_filter fwb_ci_srcip_dstport \{ type ipv4_addr \. inet_service; size 65535; flags dynamic,timeout; timeout 3000ms; \}' 'update @fwb_ci_srcip_dstport \{ ip saddr \. tcp dport limit rate 8/second burst 4 packets \}'
-run_case hashlimit-udp-srcip-dstport check_positive hashlimit-udp-srcip-dstport 4 'add set ip fwb_filter fwb_ci_srcip_dstport \{ type ipv4_addr \. inet_service; size 65535; flags dynamic,timeout; timeout 3000ms; \}' 'update @fwb_ci_srcip_dstport \{ ip saddr \. udp dport limit rate 8/second burst 4 packets \}'
-run_case ipv6-hashlimit-srcip check_positive ipv6-hashlimit-srcip 6 'add set ip6 fwb_filter fwb_ci_srcip \{ type ipv6_addr; size 65535; flags dynamic,timeout; timeout 3000ms; \}' 'update @fwb_ci_srcip \{ ip6 saddr limit rate 8/second burst 4 packets \}'
-run_case ipv6-hashlimit-srcip-dstport check_positive ipv6-hashlimit-srcip-dstport 6 'add set ip6 fwb_filter fwb_ci_srcip_dstport \{ type ipv6_addr \. inet_service; size 65535; flags dynamic,timeout; timeout 3000ms; \}' 'update @fwb_ci_srcip_dstport \{ ip6 saddr \. tcp dport limit rate 8/second burst 4 packets \}'
+run_case hashlimit-srcip check_positive hashlimit-srcip 4 'add set ip filter fwb_ci_srcip \{ type ipv4_addr; size 65535; flags dynamic,timeout; timeout 3000ms; \}' 'update @fwb_ci_srcip \{ ip saddr limit rate 8/second burst 4 packets \}'
+run_case hashlimit-srcip-dstport check_positive hashlimit-srcip-dstport 4 'add set ip filter fwb_ci_srcip_dstport \{ type ipv4_addr \. inet_service; size 65535; flags dynamic,timeout; timeout 3000ms; \}' 'update @fwb_ci_srcip_dstport \{ ip saddr \. tcp dport limit rate 8/second burst 4 packets \}'
+run_case hashlimit-udp-srcip-dstport check_positive hashlimit-udp-srcip-dstport 4 'add set ip filter fwb_ci_srcip_dstport \{ type ipv4_addr \. inet_service; size 65535; flags dynamic,timeout; timeout 3000ms; \}' 'update @fwb_ci_srcip_dstport \{ ip saddr \. udp dport limit rate 8/second burst 4 packets \}'
+run_case ipv6-hashlimit-srcip check_positive ipv6-hashlimit-srcip 6 'add set ip6 filter fwb_ci_srcip \{ type ipv6_addr; size 65535; flags dynamic,timeout; timeout 3000ms; \}' 'update @fwb_ci_srcip \{ ip6 saddr limit rate 8/second burst 4 packets \}'
+run_case ipv6-hashlimit-srcip-dstport check_positive ipv6-hashlimit-srcip-dstport 6 'add set ip6 filter fwb_ci_srcip_dstport \{ type ipv6_addr \. inet_service; size 65535; flags dynamic,timeout; timeout 3000ms; \}' 'update @fwb_ci_srcip_dstport \{ ip6 saddr \. tcp dport limit rate 8/second burst 4 packets \}'
 run_case user-service-outbound check_user_service user-service-outbound 'meta skuid 1000'
 run_case negated-user-service-outbound check_user_service negated-user-service-outbound 'meta skuid != 1000'
 run_case policy-fragments check_positive policy-fragments 4 'ip frag-off'

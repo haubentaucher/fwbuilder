@@ -87,9 +87,11 @@ std::string familyName(bool ipv6)
 
 std::string managedTableName(const std::string &logical_table)
 {
-    if (logical_table == "filter" || logical_table == "nat" ||
-        logical_table == "mangle")
-        return "fwb_" + logical_table;
+    // The nftables generator owns and fully replaces the standard table
+    // names (filter, nat, mangle) in every atomic activation, so no
+    // "fwb_" prefix is added. Legacy fwb_-prefixed tables from older
+    // generated scripts are still deleted during activation (see
+    // fwb_nft_existing_tables) so both policies never run at once.
     return logical_table;
 }
 

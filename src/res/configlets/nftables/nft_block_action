@@ -20,21 +20,21 @@ block_action() {
     # Replace FWB-owned tables atomically, preserving third-party policies.
     fwb_nft_begin_transaction || return 1
     cat >> "$FWB_NFT_TXN" <<'FWB_NFT_BLOCK'
-add table ip fwb_filter
-add chain ip fwb_filter INPUT { type filter hook input priority 0; policy drop; }
-add chain ip fwb_filter OUTPUT { type filter hook output priority 0; policy drop; }
-add chain ip fwb_filter FORWARD { type filter hook forward priority 0; policy drop; }
-add table ip6 fwb_filter
-add chain ip6 fwb_filter INPUT { type filter hook input priority 0; policy drop; }
-add chain ip6 fwb_filter OUTPUT { type filter hook output priority 0; policy drop; }
-add chain ip6 fwb_filter FORWARD { type filter hook forward priority 0; policy drop; }
+add table ip filter
+add chain ip filter INPUT { type filter hook input priority 0; policy drop; }
+add chain ip filter OUTPUT { type filter hook output priority 0; policy drop; }
+add chain ip filter FORWARD { type filter hook forward priority 0; policy drop; }
+add table ip6 filter
+add chain ip6 filter INPUT { type filter hook input priority 0; policy drop; }
+add chain ip6 filter OUTPUT { type filter hook output priority 0; policy drop; }
+add chain ip6 filter FORWARD { type filter hook forward priority 0; policy drop; }
 {{if mgmt_access_ipv4}}
-add rule ip fwb_filter INPUT ip saddr {{$ssh_management_address_ipv4}} tcp dport 22 ct state { new, established } accept
-add rule ip fwb_filter OUTPUT ip daddr {{$ssh_management_address_ipv4}} tcp sport 22 ct state { established, related } accept
+add rule ip filter INPUT ip saddr {{$ssh_management_address_ipv4}} tcp dport 22 ct state { new, established } accept
+add rule ip filter OUTPUT ip daddr {{$ssh_management_address_ipv4}} tcp sport 22 ct state { established, related } accept
 {{endif}}
 {{if mgmt_access_ipv6}}
-add rule ip6 fwb_filter INPUT ip6 saddr {{$ssh_management_address_ipv6}} tcp dport 22 ct state { new, established } accept
-add rule ip6 fwb_filter OUTPUT ip6 daddr {{$ssh_management_address_ipv6}} tcp sport 22 ct state { established, related } accept
+add rule ip6 filter INPUT ip6 saddr {{$ssh_management_address_ipv6}} tcp dport 22 ct state { new, established } accept
+add rule ip6 filter OUTPUT ip6 daddr {{$ssh_management_address_ipv6}} tcp sport 22 ct state { established, related } accept
 {{endif}}
 FWB_NFT_BLOCK
     fwb_nft_commit_transaction

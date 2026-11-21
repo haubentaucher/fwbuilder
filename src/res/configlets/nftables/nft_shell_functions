@@ -112,9 +112,12 @@ diff_intf() {
 
 # Stage deletion of only FWB-owned tables in the SAME nft transaction as
 # replacement rules. A temporary file avoids an unsafe expand-and-eval heredoc.
+# The generator owns the standard table names (filter, mangle, nat). The
+# older fwb_-prefixed tables are removed as well so an upgraded machine can
+# never keep two active base-chain policies at the same hook priorities.
 fwb_nft_existing_tables() (
     for fwb_family in ip ip6; do
-        for fwb_table in fwb_filter fwb_mangle fwb_nat; do
+        for fwb_table in filter mangle nat fwb_filter fwb_mangle fwb_nat; do
             if "$NFT" list table "$fwb_family" "$fwb_table" >/dev/null 2>&1; then
                 printf 'delete table %s %s\n' "$fwb_family" "$fwb_table"
             fi
