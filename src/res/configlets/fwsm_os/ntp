@@ -1,7 +1,0 @@
-## -*- mode: shell-script; -*- 
-##
-## See http://www.cisco.com/en/US/products/hw/modules/ps2706/products_configuration_example09186a00808b4d9f.shtml
-##
-## Cisco says: 
-## "Note: NTP cannot be configured on FWSM, because it takes its settings from the Switch."
-
