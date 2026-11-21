@@ -348,6 +348,7 @@
         <UDPService id="id3CB129D2" name="IKE" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="500" dst_range_end="500"/>
         <UDPService id="id3CB131CA" name="PCAnywhere-status" comment="status channel for PCAnywhere v7.52 and later" ro="False" src_range_start="0" src_range_end="0" dst_range_start="5632" dst_range_end="5632"/>
         <UDPService id="id3AED0D6B" name="RIP" comment="routing protocol RIP" ro="False" src_range_start="0" src_range_end="0" dst_range_start="520" dst_range_end="520"/>
+        <UDPService id="id3D703C8C" name="Radius" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="1645" dst_range_end="1645"/>
         <UDPService id="id3D703C85" name="UDP high ports" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="1024" dst_range_end="65535"/>
         <UDPService id="id3D703C86" name="Who" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="513" dst_range_end="513"/>
         <UDPService id="id3B4FEDA1" name="afs" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="7000" dst_range_end="7009"/>
@@ -748,6 +749,7 @@
         <Routing id="id2416X9501" name="Routing" comment="" ro="False" ipv4_rule_set="False" ipv6_rule_set="False" top_rule_set="True">
           <RuleSetOptions/>
         </Routing>
+        <Interface id="id2392X9501" dedicated_failover="False" dyn="False" label="outside" mgmt="False" security_level="0" unnum="False" unprotected="False" name="eth0" comment="" ro="False">
           <IPv4 id="id2395X9501" name="test3:eth0:ip" comment="This is a test address, change it to your real one" ro="False" address="192.0.2.2" netmask="255.255.255.0"/>
           <InterfaceOptions/>
         </Interface>
@@ -1148,6 +1150,7 @@
           <Option name="action_on_reject"/>
           <Option name="activationCmd"/>
           <Option name="add_mgmt_ssh_rule_when_stoped">False</Option>
+          <Option name="add_rules_for_ipv6_neighbor_discovery">False</Option>
           <Option name="admUser"/>
           <Option name="altAddress"/>
           <Option name="bridging_fw">False</Option>
@@ -1548,6 +1551,7 @@
           <SNMPManagement enabled="False" snmp_read_community="" snmp_write_community=""/>
           <FWBDManagement enabled="False" identity="" port="-1"/>
           <PolicyInstallScript arguments="" command="" enabled="False"/>
+        </Management>
         <FirewallOptions>
           <Option name="accept_established">True</Option>
           <Option name="accept_new_tcp_with_no_syn">True</Option>
@@ -1948,6 +1952,7 @@
         </FirewallOptions>
       </Firewall>
     </ObjectGroup>
+    <ObjectGroup id="id1567X1251" name="Clusters" comment="" ro="False">
       <Cluster id="id2876X9501" host_OS="linux24" lastCompiled="1269885939" lastInstalled="0" lastModified="1269886019" platform="iptables" name="cluster-2-3" comment="" ro="False">
         <NAT id="id2880X9501" name="NAT" comment="" ro="False" ipv4_rule_set="False" ipv6_rule_set="False" top_rule_set="True">
           <RuleSetOptions/>
