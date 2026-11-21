@@ -539,6 +539,34 @@ def case_multi_address_set(tree):
     deny.set('disabled', 'True')
 
 
+def case_nat_multi_address_set(tree):
+    """Multi-object NAT Src/Dst must stay one flat rule with inline sets.
+
+    The iptables-era splitMultiSrcAndDst pass chainified such rules and
+    the shared ConvertToAtomicForAddresses exploded them into a cartesian
+    product; the native backend prints inline nftables sets instead.
+    OSrc uses two real FWB networks, ODst a real network plus a real host
+    from the same subnet (so splitODstForSNAT keeps one rule), and the
+    baseline SNAT translation address stays unchanged.
+    """
+    _, fw, _, nr = prepare(tree)
+    nat = only(fw, './%s' % tag('NAT'))
+    if only(nr, './' + tag('OSrc'))[0].get('ref') != 'id3DC75CE7-1':
+        raise ValueError('baseline NAT source changed')
+    if only(nr, './' + tag('TSrc'))[0].get('ref') != 'id2864X30989':
+        raise ValueError('baseline NAT translation source changed')
+    for elem_name, refs in (
+            ('OSrc', ('id3DC75CE7-1', 'id3DC75CE7-2')),      # 192.168.1.0/24, 192.168.2.0/24
+            ('ODst', ('id3F4ECE3F', 'id11875X30989'))):      # 192.0.2.0/24, 192.0.2.101
+        elem = only(nr, './' + tag(elem_name))
+        elem.clear()
+        elem.set('neg', 'False')
+        for ref in refs:
+            ET.SubElement(elem, tag('ObjectRef'), {'ref': ref})
+    for other in nat.findall('./' + tag('NATRule')):
+        other.set('disabled', 'False' if other is nr else 'True')
+
+
 def _case_nat_load_balancing(tree, destination, extra_address='192.168.1.101'):
     """Real FWB NAT LB using the existing DNAT rule and real host objects."""
     _, fw, _, _ = prepare(tree)
@@ -937,6 +965,7 @@ CASES = {
     'nat-fragments': case_nat_fragments,
     'negated-nat-odst': case_negated_nat_odst,
     'multi-address-set': case_multi_address_set,
+    'nat-multi-address-set': case_nat_multi_address_set,
     'reject-policy-options': case_reject_policy_options,
     'reject-nat-options': case_reject_nat_options,
     'reject-timezone': case_reject_timezone,

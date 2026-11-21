@@ -32,6 +32,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 #include <QMap>
 #include <QSet>
@@ -369,6 +370,21 @@ namespace fwcompiler
           * split rule for efficiency where multiple srcs & dsts are present
           */ 
    	DECLARE_NAT_RULE_PROCESSOR(splitMultiSrcAndDst);
+
+        /**
+         * Native nftables variant of ConvertToAtomicForAddresses: rule
+         * elements that can be printed as inline nftables sets stay in
+         * one flat rule instead of being expanded into a cartesian
+         * product of atomic rules.
+         */
+        class ConvertToAtomicForAddresses :
+            public NATCompiler::ConvertToAtomicForAddresses
+        {
+            public:
+            ConvertToAtomicForAddresses(const std::string &n) :
+                NATCompiler::ConvertToAtomicForAddresses(n) {}
+            virtual bool processNext();
+        };
 	/**
 	 * MAC address filtering is permitted only in DNAT rules (only
 	 * in PREROUTING chain)
@@ -515,6 +531,12 @@ namespace fwcompiler
             virtual std::string _printAddr(libfwbuilder::Address  *o,
                                            bool print_mask=true,
                                            bool print_range=false);
+            std::string trimSpaces(const std::string &value) const;
+            std::string formatAddressSetEntry(libfwbuilder::Address *addr);
+            std::vector<std::string> collectAddressSetEntries(
+                libfwbuilder::RuleElement *rel);
+            std::string printAddressSet(libfwbuilder::RuleElement *rel,
+                                        const std::string &direction);
             virtual std::string _printIpSetMatch(
                 libfwbuilder::Address *o, libfwbuilder::RuleElement *rel);
             virtual std::string _printChainDirectionAndInterface(libfwbuilder::NATRule *r);
@@ -604,6 +626,11 @@ namespace fwcompiler
         std::list<std::string> getUsedChains();
         
 	static std::string getNewTmpChainName(libfwbuilder::NATRule *rule);
+
+        // Native inline-set support for multi-object OSrc/ODst, the same
+        // machinery PolicyCompiler_nft uses for Src/Dst.
+        bool isNftSetOptimizationEnabled();
+        bool canUseNftSetForAddresses(libfwbuilder::RuleElement *rel);
 
         void setRulesetToChainMapping(const std::map<std::string, std::list<std::string> > *m)
         { branch_ruleset_to_chain_mapping = m; }

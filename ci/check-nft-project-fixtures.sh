@@ -182,6 +182,40 @@ print('PASS: multi-object Src/Dst stay one flat rule with inline sets')
 PY_MULTI_ADDRESS_SET
 }
 
+# NAT twin of the flat multi-address check: the iptables-era
+# splitMultiSrcAndDst pass used to turn multi-object Src/Dst into a jump
+# chain with one row per address. The native backend prints inline
+# nftables sets, so the same FWB rule must compile into one flat
+# translation row and must not create a jump chain.
+check_nat_multi_address_set() {
+    local name=$1
+    if ! check_positive "$name" 4 \
+        'ip saddr \{ 192\.168\.1\.0/24, 192\.168\.2\.0/24 \}' \
+        'ip daddr \{ 192\.0\.2\.0/24, 192\.0\.2\.101 \}' \
+        'snat to 192\.0\.2\.100'; then
+        return 1
+    fi
+    python3 - "$work/$name.ruleset.nft" <<'PY_NAT_MULTI_ADDRESS_SET'
+import re
+import sys
+from pathlib import Path
+
+lines = Path(sys.argv[1]).read_text().splitlines()
+for line in lines:
+    if re.match(r'^add (rule|chain) ip nat C\S*', line):
+        sys.exit('FAIL: multi-address NAT rule was chainified: ' + line)
+    if re.match(r'^add rule ip nat \S+ .* \bjump C\S*', line):
+        sys.exit('FAIL: multi-address NAT rule jumps into a chain: ' + line)
+flat = [line for line in lines
+        if re.search(r'\bip saddr \{', line)
+        and re.search(r'\bip daddr \{', line)
+        and line.rstrip().endswith('snat to 192.0.2.100')]
+if len(flat) != 1:
+    sys.exit('FAIL: expected exactly one flat multi-address snat rule')
+print('PASS: multi-object NAT Src/Dst stay one flat rule with inline sets')
+PY_NAT_MULTI_ADDRESS_SET
+}
+
 # Validate the native three-row NAT negation lowering (regression for the
 # "Unsupported native nftables SNAT target" / "... NAT rule type" aborts):
 # the translation row in a base chain must jump to the temporary chain,
@@ -557,6 +591,7 @@ run_case policy-fragments check_positive policy-fragments 4 'ip frag-off'
 run_case nat-fragments check_positive nat-fragments 4 'ip frag-off'
 run_case negated-nat-odst check_negated_nat negated-nat-odst 'ip daddr 192\.0\.2\.10[12]' 'snat to 192\.0\.2\.100'
 run_case multi-address-set check_multi_address_set multi-address-set
+run_case nat-multi-address-set check_nat_multi_address_set nat-multi-address-set
 run_case ipv4-option-rr check_positive ipv4-option-rr 4 'ip option rr exists'
 run_case ipv4-option-lsrr check_positive ipv4-option-lsrr 4 'ip option lsrr exists'
 run_case ipv4-option-ssrr check_positive ipv4-option-ssrr 4 'ip option ssrr exists'

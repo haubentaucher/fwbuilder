@@ -39,6 +39,7 @@
 #include "fwbuilder/DNSName.h"
 #include "fwbuilder/FailoverClusterGroup.h"
 #include "fwbuilder/Firewall.h"
+#include "fwbuilder/FWOptions.h"
 #include "fwbuilder/Host.h"
 #include "fwbuilder/ICMPService.h"
 #include "fwbuilder/IPService.h"
@@ -46,9 +47,11 @@
 #include "fwbuilder/IPv6.h"
 #include "fwbuilder/Interface.h"
 #include "fwbuilder/Library.h"
+#include "fwbuilder/MultiAddress.h"
 #include "fwbuilder/NAT.h"
 #include "fwbuilder/Network.h"
 #include "fwbuilder/ObjectMatcher.h"
+#include "fwbuilder/physAddress.h"
 #include "fwbuilder/Resources.h"
 #include "fwbuilder/RuleElement.h"
 #include "fwbuilder/TCPService.h"
@@ -169,6 +172,47 @@ string NATCompiler_nft::getNewTmpChainName(NATRule *rule)
     chain_no++;
     return str.str();
 #endif
+}
+
+bool NATCompiler_nft::isNftSetOptimizationEnabled()
+{
+    const FWOptions *options = getCachedFwOpt();
+    if (options == nullptr) return true;
+    return !options->getBool("disable_nft_set_optimization");
+}
+
+/*
+ * The same eligibility test PolicyCompiler_nft::canUseNftSetForAddresses
+ * applies to Src/Dst: every object in the rule element must reduce to
+ * exactly one printable address. Objects the native backend can not
+ * print inside an inline set (run-time address tables, interfaces,
+ * physical and combined addresses, objects with several addresses and
+ * negated elements) keep the legacy expansion.
+ */
+bool NATCompiler_nft::canUseNftSetForAddresses(RuleElement *rel)
+{
+    if (!isNftSetOptimizationEnabled()) return false;
+    if (rel == nullptr || rel->isAny() || rel->size() <= 1) return false;
+    if (rel->getBool("single_object_negation")) return false;
+
+    for (FWObject::iterator it = rel->begin(); it != rel->end(); ++it)
+    {
+        FWObject *obj = *it;
+        if (FWReference::cast(obj) != nullptr)
+            obj = FWReference::cast(obj)->getPointer();
+        if (obj == nullptr) return false;
+        if (combinedAddress::cast(obj) != nullptr ||
+            physAddress::cast(obj) != nullptr)
+            return false;
+        if (MultiAddressRunTime::cast(obj) != nullptr) return false;
+        if (Interface::cast(obj) != nullptr) return false;
+
+        Address *addr = Address::cast(obj);
+        if (addr == nullptr) return false;
+        if (!addr->hasInetAddress()) return false;
+        if (addr->countInetAddresses(true) != 1) return false;
+    }
+    return true;
 }
 
 string NATCompiler_nft::debugPrintRule(Rule *r)
@@ -1182,7 +1226,7 @@ bool NATCompiler_nft::splitMultiSrcAndDst::processNext()
  * 1 src with 1 dst ...
  */
  
-    if ((nosrv>1  || !(osrv->isAny())) || 
+    if ((nosrv>1  || !(osrv->isAny())) ||
         (nosrc<1 || osrc->isAny())  ||
         (nodst<1 || odst->isAny())  ||
         (nosrc==1 && nodst==1) )
@@ -1190,7 +1234,26 @@ bool NATCompiler_nft::splitMultiSrcAndDst::processNext()
         tmp_queue.push_back(rule);
         return true;
     }
-      
+
+/*
+ * Native nftables sets: if both multi-object rule elements can be
+ * printed as inline sets, the rule compiles into one flat statement
+ * (PrintRule::printAddressSet keeps OSrc/ODst, the native
+ * ConvertToAtomicForAddresses no longer explodes them). The jump
+ * chain below only moved the shared matches into a temporary chain
+ * and re-merged the same addresses there, which is an iptables-era
+ * optimization.
+ */
+    {
+        NATCompiler_nft *nat_comp=dynamic_cast<NATCompiler_nft*>(compiler);
+        if (nat_comp->canUseNftSetForAddresses(osrc) &&
+            nat_comp->canUseNftSetForAddresses(odst))
+        {
+            tmp_queue.push_back(rule);
+            return true;
+        }
+    }
+
     switch (rule->getRuleType())
     {
     case NATRule::NONAT:     
@@ -1236,6 +1299,114 @@ bool NATCompiler_nft::splitMultiSrcAndDst::processNext()
     }
 
     tmp_queue.push_back(rule);
+
+    return true;
+}
+
+/*
+ * Native nftables variant of NATCompiler::ConvertToAtomicForAddresses
+ * (see the shared implementation in fwcompiler/NATCompiler.cpp): rule
+ * elements that PrintRule emits as inline nftables sets stay in one
+ * rule. Nothing is lost semantically: the cartesian expansion only
+ * enumerated the same addresses the set matches at once. Translated
+ * addresses (TSrc/TDst) are still expanded, and elements that can not
+ * use inline sets fall back to the shared behavior.
+ */
+bool NATCompiler_nft::ConvertToAtomicForAddresses::processNext()
+{
+    NATRule *rule=getNext(); if (rule==nullptr) return false;
+    NATCompiler_nft *nat_comp=dynamic_cast<NATCompiler_nft*>(compiler);
+
+    RuleElementOSrc *osrc=rule->getOSrc();    assert(osrc);
+    RuleElementODst *odst=rule->getODst();    assert(odst);
+    RuleElementTSrc *tsrc=rule->getTSrc();    assert(tsrc);
+    RuleElementTDst *tdst=rule->getTDst();    assert(tdst);
+
+    bool osrc_ok = osrc->size() <= 1 ||
+        nat_comp->canUseNftSetForAddresses(osrc);
+    bool odst_ok = odst->size() <= 1 ||
+        nat_comp->canUseNftSetForAddresses(odst);
+
+    if (osrc_ok && odst_ok)
+    {
+        if (tsrc->size() <= 1 && tdst->size() <= 1)
+        {
+            tmp_queue.push_back(rule);
+            return true;
+        }
+
+// keep the inline set matches, expand only the translated addresses
+        for (FWObject::iterator i4=tsrc->begin(); i4!=tsrc->end(); ++i4)
+        {
+            for (FWObject::iterator i5=tdst->begin(); i5!=tdst->end(); ++i5)
+            {
+                NATRule *r = compiler->dbcopy->createNATRule();
+                compiler->temp_ruleset->add(r);
+                r->duplicate(rule);
+
+                FWObject *s;
+
+                s=r->getOSrc();    assert(s);
+                s->clearChildren();
+                for (FWObject::iterator j=osrc->begin(); j!=osrc->end(); ++j)
+                    s->addCopyOf( *j );
+
+                s=r->getODst();    assert(s);
+                s->clearChildren();
+                for (FWObject::iterator j=odst->begin(); j!=odst->end(); ++j)
+                    s->addCopyOf( *j );
+
+                s=r->getTSrc();    assert(s);
+                s->clearChildren();
+                s->addCopyOf( *i4 );
+
+                s=r->getTDst();    assert(s);
+                s->clearChildren();
+                s->addCopyOf( *i5 );
+
+                tmp_queue.push_back(r);
+            }
+        }
+        return true;
+    }
+
+// Elements that can not use inline sets keep the shared cartesian
+// expansion over OSrc x ODst x TSrc x TDst.
+    for (FWObject::iterator i1=osrc->begin(); i1!=osrc->end(); ++i1)
+    {
+	for (FWObject::iterator i2=odst->begin(); i2!=odst->end(); ++i2)
+        {
+	    for (FWObject::iterator i4=tsrc->begin(); i4!=tsrc->end(); ++i4)
+            {
+		for (FWObject::iterator i5=tdst->begin(); i5!=tdst->end(); ++i5)
+                {
+		    NATRule *r = compiler->dbcopy->createNATRule();
+		    r->duplicate(rule);
+                    compiler->temp_ruleset->add(r);
+
+		    FWObject *s;
+
+		    s=r->getOSrc();	assert(s);
+		    s->clearChildren();
+		    s->addCopyOf( *i1 );
+
+		    s=r->getODst();	assert(s);
+		    s->clearChildren();
+		    s->addCopyOf( *i2 );
+
+		    s=r->getTSrc();	assert(s);
+		    s->clearChildren();
+		    s->addCopyOf( *i4 );
+
+		    s=r->getTDst();	assert(s);
+		    s->clearChildren();
+		    s->addCopyOf( *i5 );
+
+		    tmp_queue.push_back(r);
+		}
+	    }
+	}
+    }
 
     return true;
 }

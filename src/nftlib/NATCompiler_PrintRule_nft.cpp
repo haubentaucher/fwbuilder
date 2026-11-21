@@ -643,6 +643,71 @@ string NATCompiler_nft::PrintRule::_printSingleObjectNegation(
     else return "";
 }
 
+string NATCompiler_nft::PrintRule::trimSpaces(const string &value) const
+{
+    size_t start = value.find_first_not_of(' ');
+    if (start == string::npos) return "";
+    size_t end = value.find_last_not_of(' ');
+    return value.substr(start, end - start + 1);
+}
+
+string NATCompiler_nft::PrintRule::formatAddressSetEntry(Address *addr)
+{
+    if (AddressRange::cast(addr)!=nullptr)
+    {
+        AddressRange *ar = AddressRange::cast(addr);
+        const InetAddr &range_start = ar->getRangeStart();
+        const InetAddr &range_end = ar->getRangeEnd();
+        if (range_start != range_end)
+            return range_start.toString() + "-" + range_end.toString();
+        return range_start.toString();
+    }
+    return _printAddr(addr);
+}
+
+vector<string> NATCompiler_nft::PrintRule::collectAddressSetEntries(
+    RuleElement *rel)
+{
+    vector<string> entries;
+    for (FWObject::iterator i=rel->begin(); i!=rel->end(); ++i)
+    {
+        FWObject *o = *i;
+        if (FWReference::cast(o)!=nullptr) o = FWReference::cast(o)->getPointer();
+        Address *addr = Address::cast(o);
+        if (addr == nullptr) continue;
+        string entry = formatAddressSetEntry(addr);
+        entry = trimSpaces(entry);
+        if (!entry.empty()) entries.push_back(entry);
+    }
+    return entries;
+}
+
+/*
+ * Prints multi-object OSrc/ODst as one inline nftables set:
+ *   ip saddr { 192.168.1.0/24, 192.168.2.0/24 }
+ * The calling code has verified canUseNftSetForAddresses() before.
+ */
+string NATCompiler_nft::PrintRule::printAddressSet(
+    RuleElement *rel, const string &direction)
+{
+    NATCompiler_nft *ipt_comp=dynamic_cast<NATCompiler_nft*>(compiler);
+    vector<string> entries = collectAddressSetEntries(rel);
+    if (entries.empty()) return "";
+
+    std::ostringstream ostr;
+    ostr << (ipt_comp->ipv6 ? "ip6 " : "ip ") << direction;
+    if (rel->getNeg()) ostr << " != { ";
+    else ostr << " { ";
+
+    for (size_t i=0; i<entries.size(); ++i)
+    {
+        if (i != 0) ostr << ", ";
+        ostr << entries[i];
+    }
+    ostr << " } ";
+    return ostr.str();
+}
+
 NATCompiler_nft::PrintRule::PrintRule(const std::string &name) :
     NATRuleProcessor(name)
 {
@@ -719,6 +784,10 @@ bool NATCompiler_nft::PrintRule::processNext()
                 ipt_comp->using_ipset)
             {
                 cmdout << _printIpSetMatch(osrc, osrcrel);
+            } else if (osrcrel->size() > 1 &&
+                       ipt_comp->canUseNftSetForAddresses(osrcrel))
+            {
+                cmdout << printAddressSet(osrcrel, "saddr");
             } else
             {
                 string osrc_out = _printAddr(osrc);
@@ -744,6 +813,10 @@ bool NATCompiler_nft::PrintRule::processNext()
             ipt_comp->using_ipset)
         {
             cmdout << _printIpSetMatch(odst, odstrel);
+        } else if (odstrel->size() > 1 &&
+                   ipt_comp->canUseNftSetForAddresses(odstrel))
+        {
+            cmdout << printAddressSet(odstrel, "daddr");
         } else
             cmdout << _printSingleOptionWithNegation(ipt_comp->ipv6 ? "ip6 daddr" : "ip daddr", odstrel, _printAddr(odst));
     }
