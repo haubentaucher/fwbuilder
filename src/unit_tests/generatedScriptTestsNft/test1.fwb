@@ -348,7 +348,55 @@
         <UDPService id="id3CB129D2" name="IKE" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="500" dst_range_end="500"/>
         <UDPService id="id3CB131CA" name="PCAnywhere-status" comment="status channel for PCAnywhere v7.52 and later" ro="False" src_range_start="0" src_range_end="0" dst_range_start="5632" dst_range_end="5632"/>
         <UDPService id="id3AED0D6B" name="RIP" comment="routing protocol RIP" ro="False" src_range_start="0" src_range_end="0" dst_range_start="520" dst_range_end="520"/>
-
+        <UDPService id="id3D703C85" name="UDP high ports" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="1024" dst_range_end="65535"/>
+        <UDPService id="id3D703C86" name="Who" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="513" dst_range_end="513"/>
+        <UDPService id="id3B4FEDA1" name="afs" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="7000" dst_range_end="7009"/>
+        <UDPService id="udp-bootpc" name="bootpc" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="68" dst_range_end="68"/>
+        <UDPService id="udp-bootps" name="bootps" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="67" dst_range_end="67"/>
+        <UDPService id="id3AEDBE70" name="daytime" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="13" dst_range_end="13"/>
+        <UDPService id="udp-DNS" name="domain" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="53" dst_range_end="53"/>
+        <UDPService id="id3D703C8A" name="interphone" comment="VocalTec Internet Phone" ro="False" src_range_start="0" src_range_end="0" dst_range_start="22555" dst_range_end="22555"/>
+        <UDPService id="id3B4FEDA5" name="kerberos" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="88" dst_range_end="88"/>
+        <UDPService id="id3B4FEDA9" name="kerberos-adm" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="749" dst_range_end="750"/>
+        <UDPService id="id3B4FEDA7" name="kpasswd" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="464" dst_range_end="464"/>
+        <UDPService id="id3B4FEDAB" name="krb524" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="4444" dst_range_end="4444"/>
+        <UDPService id="id3F865B0D" name="microsoft-rpc" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="135" dst_range_end="135"/>
+        <UDPService id="udp-netbios-dgm" name="netbios-dgm" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="138" dst_range_end="138"/>
+        <UDPService id="udp-netbios-ns" name="netbios-ns" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="137" dst_range_end="137"/>
+        <UDPService id="udp-netbios-ssn" name="netbios-ssn" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="139" dst_range_end="139"/>
+        <UDPService id="id3B4FEE78" name="nfs" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="2049" dst_range_end="2049"/>
+        <UDPService id="udp-ntp" name="ntp" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="123" dst_range_end="123"/>
+        <UDPService id="id3B4FEF7E" name="quake" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="26000" dst_range_end="26000"/>
+        <UDPService id="id3D703C88" name="secureid-udp" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="1024" dst_range_end="1024"/>
+        <UDPService id="udp-SNMP" name="snmp" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="161" dst_range_end="161"/>
+        <UDPService id="id3AED0D69" name="snmp-trap" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="162" dst_range_end="162"/>
+        <UDPService id="id3AEDBE19" name="sunrpc" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="111" dst_range_end="111"/>
+        <UDPService id="id3AECF780" name="syslog" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="514" dst_range_end="514"/>
+        <UDPService id="id3AED0D67" name="tftp" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="69" dst_range_end="69"/>
+        <UDPService id="id3AED0D8C" name="traceroute" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="33434" dst_range_end="33524"/>
+        <UDPService id="id4127EA73" name="rsync" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="873" dst_range_end="873"/>
+        <UDPService id="id41291783" name="SSDP" comment="Simple Service Discovery Protocol (used for UPnP)" ro="False" src_range_start="0" src_range_end="0" dst_range_start="1900" dst_range_end="1900"/>
+        <UDPService id="id41291883" name="OpenVPN" comment="" ro="False" src_range_start="0" src_range_end="0" dst_range_start="1194" dst_range_end="1194"/>
+      </ServiceGroup>
+      <ServiceGroup id="stdid13" name="Custom" comment="" ro="False">
+        <CustomService id="id3B64EEA8" name="rpc" comment="works in iptables and requires patch-o-matic.&#10;For more information look for patch-o-matic on http://www.netfilter.org/" ro="False" protocol="any" address_family="ipv4">
+          <CustomServiceCommand platform="Undefined"/>
+          <CustomServiceCommand platform="ipf"/>
+          <CustomServiceCommand platform="ipfilter"/>
+          <CustomServiceCommand platform="ipfw"/>
+          <CustomServiceCommand platform="iptables">-m record_rpc</CustomServiceCommand>
+          <CustomServiceCommand platform="pf"/>
+          <CustomServiceCommand platform="pix"/>
+          <CustomServiceCommand platform="unknown"/>
+        </CustomService>
+        <CustomService id="id3B64EF4E" name="irc-conn" comment="IRC connection tracker, supports DCC.&#10;Works on iptables and requires patch-o-matic.&#10;For more information look for patch-o-matic on http://www.netfilter.org/&#10;" ro="False" protocol="any" address_family="ipv4">
+          <CustomServiceCommand platform="Undefined"/>
+          <CustomServiceCommand platform="ipf"/>
+          <CustomServiceCommand platform="ipfilter"/>
+          <CustomServiceCommand platform="ipfw"/>
+          <CustomServiceCommand platform="iptables">-m irc</CustomServiceCommand>
+          <CustomServiceCommand platform="pf"/>
+          <CustomServiceCommand platform="pix"/>
           <CustomServiceCommand platform="unknown"/>
         </CustomService>
         <CustomService id="id3B64EF50" name="psd" comment="Port scan detector, works only on iptables and  requires patch-o-matic &#10;For more information look for patch-o-matic on http://www.netfilter.org/" ro="False" protocol="any" address_family="ipv4">
@@ -700,7 +748,6 @@
         <Routing id="id2416X9501" name="Routing" comment="" ro="False" ipv4_rule_set="False" ipv6_rule_set="False" top_rule_set="True">
           <RuleSetOptions/>
         </Routing>
-        <Interface id="id2392X9501" dedicated_failover="False" dyn="False" label="outside" mgmt="False" security_level="0" unnum="False" unprotected="False" name="eth0" comment="" ro="False">
           <IPv4 id="id2395X9501" name="test3:eth0:ip" comment="This is a test address, change it to your real one" ro="False" address="192.0.2.2" netmask="255.255.255.0"/>
           <InterfaceOptions/>
         </Interface>
@@ -749,7 +796,6 @@
           <Option name="firewall_is_part_of_any_and_networks">True</Option>
           <Option name="flush_and_set_default_policy">True</Option>
           <Option name="freebsd_ip_forward">1</Option>
-
           <Option name="ignore_empty_groups">False</Option>
           <Option name="ipv4_6_order">ipv4_first</Option>
           <Option name="limit_suffix"/>
@@ -1102,7 +1148,6 @@
           <Option name="action_on_reject"/>
           <Option name="activationCmd"/>
           <Option name="add_mgmt_ssh_rule_when_stoped">False</Option>
-          <Option name="add_rules_for_ipv6_neighbor_discovery">False</Option>
           <Option name="admUser"/>
           <Option name="altAddress"/>
           <Option name="bridging_fw">False</Option>
@@ -1150,7 +1195,6 @@
           <Option name="pf_limit_states">10000</Option>
           <Option name="pf_timeout_frag">30</Option>
           <Option name="pf_timeout_interval">10</Option>
-
           <Option name="pix_add_clear_statements">true</Option>
           <Option name="pix_assume_fw_part_of_any">true</Option>
           <Option name="pix_default_logint">300</Option>
@@ -1504,7 +1548,6 @@
           <SNMPManagement enabled="False" snmp_read_community="" snmp_write_community=""/>
           <FWBDManagement enabled="False" identity="" port="-1"/>
           <PolicyInstallScript arguments="" command="" enabled="False"/>
-        </Management>
         <FirewallOptions>
           <Option name="accept_established">True</Option>
           <Option name="accept_new_tcp_with_no_syn">True</Option>
@@ -1551,7 +1594,6 @@
           <Option name="macosx_ip_forward">1</Option>
           <Option name="manage_virtual_addr">True</Option>
           <Option name="mgmt_addr"/>
-
           <Option name="mgmt_ssh">False</Option>
           <Option name="modules_dir">/lib/modules/`uname -r`/kernel/net/</Option>
           <Option name="openbsd_ip_forward">1</Option>
@@ -1906,7 +1948,6 @@
         </FirewallOptions>
       </Firewall>
     </ObjectGroup>
-    <ObjectGroup id="id1567X1251" name="Clusters" comment="" ro="False">
       <Cluster id="id2876X9501" host_OS="linux24" lastCompiled="1269885939" lastInstalled="0" lastModified="1269886019" platform="iptables" name="cluster-2-3" comment="" ro="False">
         <NAT id="id2880X9501" name="NAT" comment="" ro="False" ipv4_rule_set="False" ipv6_rule_set="False" top_rule_set="True">
           <RuleSetOptions/>
@@ -1952,7 +1993,6 @@
           </FailoverClusterGroup>
         </Interface>
         <Interface id="id2907X9501" dedicated_failover="False" dyn="False" label="loopback" security_level="0" unnum="False" unprotected="False" name="lo" comment="" ro="False">
-
           <InterfaceOptions>
             <Option name="type">cluster_interface</Option>
           </InterfaceOptions>
