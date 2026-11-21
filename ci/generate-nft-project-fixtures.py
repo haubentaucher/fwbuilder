@@ -512,6 +512,33 @@ def case_packet_dnat(tree):
         rule.set('disabled', 'False' if rule is dnat else 'True')
 
 
+def case_multi_address_set(tree):
+    """Multi-object Src/Dst must stay one flat rule with inline sets.
+
+    The optimize1 pass chainified such rules for iptables; the native
+    backend can print the addresses as inline nftables sets, so the
+    compiled result must be a single rule instead of a jump chain.
+    Both referenced networks are real FWB objects in the baseline file.
+    """
+    _, fw, allow, _ = prepare(tree)
+    policy = only(fw, './%s' % tag('Policy'))
+    if (only(allow, './' + tag('Src'))[0].get('ref'),
+            only(allow, './' + tag('Dst'))[0].get('ref')) != \
+            ('id3DC75CE7-1', 'id3D84EECF'):
+        raise ValueError('baseline policy address objects changed')
+    # Real FWB networks: 192.168.1.0/24 and 192.168.2.0/24.
+    networks = ('id3DC75CE7-1', 'id3DC75CE7-2')
+    for elem_name in ('Src', 'Dst'):
+        elem = only(allow, './' + tag(elem_name))
+        elem.clear()
+        elem.set('neg', 'False')
+        for ref in networks:
+            ET.SubElement(elem, tag('ObjectRef'), {'ref': ref})
+    # Keep the compiled policy minimal and free of unrelated jump chains.
+    deny = only(policy, "./%s[@id='id2830X30989']" % tag('PolicyRule'))
+    deny.set('disabled', 'True')
+
+
 def _case_nat_load_balancing(tree, destination, extra_address='192.168.1.101'):
     """Real FWB NAT LB using the existing DNAT rule and real host objects."""
     _, fw, _, _ = prepare(tree)
@@ -909,6 +936,7 @@ CASES = {
     'policy-fragments': case_policy_fragments,
     'nat-fragments': case_nat_fragments,
     'negated-nat-odst': case_negated_nat_odst,
+    'multi-address-set': case_multi_address_set,
     'reject-policy-options': case_reject_policy_options,
     'reject-nat-options': case_reject_nat_options,
     'reject-timezone': case_reject_timezone,

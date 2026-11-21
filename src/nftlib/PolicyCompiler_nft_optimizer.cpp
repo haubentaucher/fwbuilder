@@ -317,6 +317,29 @@ bool PolicyCompiler_nft::optimize1::processNext()
         return true;
     }
 
+// If every multi-object rule element of this rule can be printed
+// inline as a native nftables set (see canUseNftSetForAddresses and
+// PrintRule::_printSrcAddr/_printDstAddr, as well as
+// ConvertToAtomicForAddresses which keeps such rules in one piece), the
+// rule compiles into a single flat rule. In that case the classic
+// iptables optimization below would only move the shared matches into
+// a jump chain and re-merge the same addresses inside that chain, so
+// keep the rule flat instead. Services and time intervals keep the
+// legacy split behavior.
+
+    if ((srcn > 1 || dstn > 1) && srvn <= 1 && intn <= 1)
+    {
+        PolicyCompiler_nft *nft_comp =
+            dynamic_cast<PolicyCompiler_nft*>(compiler);
+        bool src_ok = srcn <= 1 || nft_comp->canUseNftSetForAddresses(srcrel);
+        bool dst_ok = dstn <= 1 || nft_comp->canUseNftSetForAddresses(dstrel);
+        if (src_ok && dst_ok)
+        {
+            tmp_queue.push_back(rule);
+            return true;
+        }
+    }
+
 // Assume any means LOTS of rules - i.e. not good candidate for optimization
     if (srcany) srcn=INT_MAX;
     if (dstany) dstn=INT_MAX;

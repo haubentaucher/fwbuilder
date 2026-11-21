@@ -142,6 +142,46 @@ print('PASS: negated IP service uses jump / positive match return / accept')
 PY_NEGATED_IP_SERVICE
 }
 
+# Multi-object rule elements used to be chainified by the iptables-era
+# optimize1 pass. The native backend prints set-capable Src and Dst as
+# inline nftables address sets, so the same FWB rule must compile into one
+# flat terminal rule and must not create a jump chain.
+check_multi_address_set() {
+    local name=$1
+    if ! check_positive "$name" 4 \
+        'ip saddr \{ 192\.168\.1\.0/24, 192\.168\.2\.0/24 \}' \
+        'ip daddr \{ 192\.168\.1\.0/24, 192\.168\.2\.0/24 \}'; then
+        return 1
+    fi
+    python3 - "$work/$name.ruleset.nft" <<'PY_MULTI_ADDRESS_SET'
+import re
+import sys
+from pathlib import Path
+
+lines = Path(sys.argv[1]).read_text().splitlines()
+for line in lines:
+    if re.match(r'^add (rule|chain) ip filter C\S*', line):
+        sys.exit('FAIL: multi-address rule was chainified: ' + line)
+    if re.match(r'^add rule ip \S+ .* \bjump C\S*', line):
+        sys.exit('FAIL: multi-address rule jumps into a chain: ' + line)
+    if re.match(r'^add rule ip \S+ .* (ip saddr|ip daddr) \{', line) \
+            and ' jump ' in line:
+        sys.exit('FAIL: inline address set is not terminal: ' + line)
+flat = [line for line in lines
+        if re.search(r'\bip saddr \{', line)
+        and re.search(r'\bip daddr \{', line)
+        and line.endswith(' accept')]
+if not flat:
+    sys.exit('FAIL: no flat accept rule with inline Src and Dst sets')
+same_rule = [line for line in flat
+             if re.search(r'\bip daddr \{ 192\.168\.1\.0/24, '
+                          r'192\.168\.2\.0/24 \}', line)]
+if len(same_rule) != 1 or len(flat) != 1:
+    sys.exit('FAIL: expected exactly one flat multi-address accept rule')
+print('PASS: multi-object Src/Dst stay one flat rule with inline sets')
+PY_MULTI_ADDRESS_SET
+}
+
 # Validate the native three-row NAT negation lowering (regression for the
 # "Unsupported native nftables SNAT target" / "... NAT rule type" aborts):
 # the translation row in a base chain must jump to the temporary chain,
@@ -516,6 +556,7 @@ run_case negated-user-service-outbound check_user_service negated-user-service-o
 run_case policy-fragments check_positive policy-fragments 4 'ip frag-off'
 run_case nat-fragments check_positive nat-fragments 4 'ip frag-off'
 run_case negated-nat-odst check_negated_nat negated-nat-odst 'ip daddr 192\.0\.2\.10[12]' 'snat to 192\.0\.2\.100'
+run_case multi-address-set check_multi_address_set multi-address-set
 run_case ipv4-option-rr check_positive ipv4-option-rr 4 'ip option rr exists'
 run_case ipv4-option-lsrr check_positive ipv4-option-lsrr 4 'ip option lsrr exists'
 run_case ipv4-option-ssrr check_positive ipv4-option-ssrr 4 'ip option ssrr exists'
