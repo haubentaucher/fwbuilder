@@ -130,25 +130,26 @@ bool collectDirFiles(const QString &dir_path,
         return false;
     }
 
+    // Deliberately do not filter with QDir::Readable here: a mode-000
+    // hook file must abort the compile, not silently vanish from the list.
     QDir dir(dir_path);
-    QStringList names = dir.entryList(QDir::Files | QDir::Readable,
-                                      QDir::Name);
+    QStringList names = dir.entryList(QDir::Files, QDir::Name);
     names.sort();
     for (int i = 0; i < names.size(); ++i)
     {
         const QString name = names.at(i);
         QFileInfo info(dir.filePath(name));
+        if (info.isSymLink())
+        {
+            *error = QString("Central hooks refuse symbolic links: %1")
+                         .arg(info.filePath());
+            return false;
+        }
         if (!isAllowedHookFile(info))
         {
             // Documented: only regular *.sh files are loaded. Other
             // names are ignored without error so README files may sit
             // beside hooks.
-            if (info.isSymLink())
-            {
-                *error = QString("Central hooks refuse symbolic links: %1")
-                             .arg(info.filePath());
-                return false;
-            }
             continue;
         }
         if (!info.isReadable())
