@@ -42,6 +42,8 @@
 #include "fwbuilder/Interval.h"
 #include "fwbuilder/Interface.h"
 #include "fwbuilder/Network.h"
+#include "fwbuilder/IPv4.h"
+#include "fwbuilder/IPv6.h"
 #include "fwbuilder/Firewall.h"
 
 #include "fwbuilder/FWObjectReference.h"
@@ -664,7 +666,7 @@ bool RuleElementRGtw::validateChild(FWObject *o)
     return checkSingleIPAdress(o);
 }
 
-// check if the gateway has only one interface with only one ipv4 adress
+// check if the gateway has only one interface with only one IPv4 or IPv6 address
 bool RuleElementRGtw::checkSingleIPAdress(FWObject *o)
 {
     if( Host::cast(o) != NULL)
@@ -672,23 +674,25 @@ bool RuleElementRGtw::checkSingleIPAdress(FWObject *o)
         list<FWObject*> obj_list = o->getByType("Interface");
         if( obj_list.size() == 1)
         {
-            obj_list = (obj_list.front())->getByType("IPv4");
-            if( obj_list.size() == 1)
+            FWObject *iface = obj_list.front();
+            if (iface->getByType(IPv4::TYPENAME).size() == 1 ||
+                iface->getByType(IPv6::TYPENAME).size() == 1)
             {
                 return true;
             } else return false;
         } else return false;
     } else if( Interface::cast(o) != NULL)
     {
-        list<FWObject*> obj_list = o->getByType("IPv4");
-        if( obj_list.size() == 1)
+        if (o->getByType(IPv4::TYPENAME).size() == 1 ||
+            o->getByType(IPv6::TYPENAME).size() == 1)
         {
             return true;
         } else return false;
     }
     return ( o->getId() == getAnyElementId() ||
-            (FWObject::validateChild(o) && 
-            (IPv4::cast(o)!=NULL || FWObjectReference::cast(o)!=NULL)));
+            (FWObject::validateChild(o) &&
+            (IPv4::cast(o)!=NULL || IPv6::cast(o)!=NULL ||
+             FWObjectReference::cast(o)!=NULL)));
 }
 
 const char *RuleElementRItf::TYPENAME={"RItf"};
