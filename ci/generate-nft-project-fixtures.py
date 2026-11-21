@@ -780,7 +780,13 @@ def case_dynamic_interface(tree):
     for child in list(eth1):
         if child.tag == tag('IPv4'):
             eth1.remove(child)
+    # "Dynamic" (address discovered at run time) is deliberately different
+    # from "unnumbered" (no address at all, e.g. serial links).  The
+    # preserved baseline declares eth1 unnumbered with a stray address
+    # child; the generic fwcompiler guard correctly rejects unnumbered
+    # interfaces in rules, so the dynamic fixture must clear that flag.
     eth1.set('dyn', 'True')
+    eth1.set('unnum', 'False')
     # Networks attached to a dynamic interface become run-time objects,
     # resolved with getnet() into the $i_eth1_network shell variable.
     # The FWB DTD requires AttachedNetworks as the LAST Interface child

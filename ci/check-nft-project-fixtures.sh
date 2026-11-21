@@ -90,7 +90,7 @@ check_positive() {
                 echo "FAIL: $name expected exactly one nftables set declaration ($expected); found $declaration_count" >&2
                 return 1
             fi
-        elif ! grep -Eq "^add rule $table_family fwb_(filter|nat|mangle) .*${expected}" "$work/$name.ruleset.nft"; then
+        elif ! grep -Eq "^add rule $table_family (filter|nat|mangle) .*${expected}" "$work/$name.ruleset.nft"; then
             echo "FAIL: $name has no expected nftables rule expression ($expected)" >&2
             return 1
         fi
@@ -180,12 +180,12 @@ check_ipv6_lb_transport() {
     fi
     rules="$work/$name.ruleset.nft"
     for table in filter nat; do
-        if ! grep -Eq "^add rule ip6 fwb_${table} .*meta l4proto tcp " "$rules"; then
+        if ! grep -Eq "^add rule ip6 ${table} .*meta l4proto tcp " "$rules"; then
             echo "FAIL: $name has no extension-header-safe TCP selector in $table" >&2
             return 1
         fi
     done
-    if grep -Eq '^add rule ip6 fwb_(filter|nat) .*ip6 nexthdr tcp ' "$rules"; then
+    if grep -Eq '^add rule ip6 (filter|nat) .*ip6 nexthdr tcp ' "$rules"; then
         echo "FAIL: $name still uses immediate IPv6 next-header matching" >&2
         return 1
     fi
