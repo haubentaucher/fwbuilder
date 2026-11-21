@@ -261,12 +261,35 @@ def case_prolog_after_flush(tree):
     Regression test: this prolog position used to abort the whole compile
     whenever policy was activated in atomic nftables mode, e.g. after a
     firewall migrated from the iptables platform kept its old options.
+    The scripts use native nftables commands and shell substitutions to
+    make sure realistic user prologue/epilogue content survives the
+    legacy-marker validation and is emitted around the nftables
+    transaction.
     """
     root, fw, _, _ = prepare(tree)
     opts = only(fw, './' + tag('FirewallOptions'))
+    prolog = (
+        '# ci-prolog-after-flush: cleanup from the previous activation\n'
+        'nft delete table ip fwb_ci_mangle\n'
+        'ip route flush table novpn\n'
+        'ip rule del from 192.168.19.0/24 lookup novpn\n'
+    )
+    epilog = (
+        '# ci-epilog: policy-based routing set up with native nftables\n'
+        'ci_provider_ip=$(curl --silent ipinfo.io/ip)\n'
+        'nft add table ip fwb_ci_mangle\n'
+        "nft add chain ip fwb_ci_mangle PREROUTING "
+        "'{ type filter hook prerouting priority mangle; policy accept; }'\n"
+        'nft add rule ip fwb_ci_mangle PREROUTING '
+        'ip saddr 192.168.19.0/24 counter meta mark set 0x2\n'
+        'nft insert rule ip fwb_ci_nat POSTROUTING '
+        'meta mark 0x4 counter snat to $ci_provider_ip\n'
+        'ip rule add fwmark 0x2 lookup novpn priority 99\n'
+    )
     for name, value in (
             ('prolog_place', 'after_flush'),
-            ('prolog_script', '/bin/true # ci-prolog-after-flush'),
+            ('prolog_script', prolog),
+            ('epilog_script', epilog),
     ):
         found = opts.findall("./%s[@name='%s']" % (tag('Option'), name))
         if len(found) > 1:

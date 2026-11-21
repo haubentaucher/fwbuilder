@@ -309,18 +309,28 @@ check_prolog_after_flush() {
         echo 'FAIL: generated script lost the prolog commands' >&2
         return 1
     }
+    grep -Fq 'ci_provider_ip' "${files[0]}" || {
+        echo 'FAIL: generated script lost the epilog commands' >&2
+        return 1
+    }
+    # The prolog must run before the nftables transaction, the epilog after it.
     if ! awk '
-        /^[[:space:]]*start\)/ { in_start = 1; seen = 0; next }
+        /^[[:space:]]*start\)/ { in_start = 1; seen_prolog = 0; seen_body = 0;
+                                 ok_prolog = 0; ok_epilog = 0; next }
         in_start && /^[[:space:]]*;;/ { in_start = 0; next }
-        in_start && /^[[:space:]]*prolog_commands[[:space:]]*$/ { seen = 1; next }
-        in_start && /^[[:space:]]*script_body[[:space:]]*$/ { ok = seen; next }
-        END { exit !ok }
+        in_start && /^[[:space:]]*prolog_commands[[:space:]]*$/ {
+            if (seen_body) ok_prolog = 0; else seen_prolog = 1; next }
+        in_start && /^[[:space:]]*script_body[[:space:]]*$/ {
+            ok_prolog = seen_prolog; seen_body = 1; next }
+        in_start && /^[[:space:]]*epilog_commands[[:space:]]*$/ {
+            if (seen_body) ok_epilog = 1; next }
+        END { exit !(ok_prolog && ok_epilog) }
     ' "${files[0]}"; then
-        echo 'FAIL: prolog does not run before the nftables transaction' >&2
+        echo 'FAIL: prolog/epilog are not placed around the nftables transaction' >&2
         return 1
     fi
     cp -- "${files[0]}" "$output/nft-ci-$name.fw"
-    echo 'PASS: prolog-after-flush compiles and precedes the nftables transaction'
+    echo 'PASS: prolog-after-flush compiles and surrounds the nftables transaction'
 }
 
 # Do not let the first failing fixture hide the other six outcomes.
