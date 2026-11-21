@@ -142,6 +142,42 @@ def case_nat_fragments(tree):
     replace_ref(nr, 'OSrv', 'ip-IP_Fragments')
 
 
+def case_negated_nat_odst(tree):
+    """SNAT with a two-object NEG ODst, lowering like iptables NAT negation.
+
+    Regression test: NEG ODst in a translation rule ran doODstNegation,
+    whose generated rows keep the original rule type but jump to a
+    temporary chain that positively matches the negated destination and
+    returns. The native nftables PrintRule derived the verdict from the
+    rule type alone, so the jump row aborted with "Unsupported native
+    nftables SNAT target" and the return row with "Unsupported native
+    nftables NAT rule type". The verdict now mirrors iptables
+    "-j $ipt_target" using native jump / return statements.
+    """
+    root, fw, _, _ = prepare(tree)
+    nat = only(fw, './%s' % tag('NAT'))
+    rule = only(nat, "./%s[@id='id2842X30989']" % tag('NATRule'))
+    target = only(rule, './' + tag('ODst'))
+    if [o.get('ref') for o in target] != ['sysid0']:
+        raise ValueError('unexpected original NAT rule destination')
+    # Two documentation destinations so single-object negation does not
+    # apply and the generic three-row negation lowering is exercised.
+    cloned = deepcopy(only(root, ".//%s[@id='id11875X30989']" % tag('IPv4')))
+    cloned.set('id', 'fwb-ci-nat-neg-dst-102')
+    cloned.set('name', 'CI negated NAT destination 192.0.2.102')
+    cloned.set('address', '192.0.2.102')
+    only(root, ".//%s[@id='id1550X1251']" % tag('ObjectGroup')).append(cloned)
+    replace_ref(rule, 'ODst', 'id11875X30989')
+    ET.SubElement(target, tag('ObjectRef'), {'ref': 'fwb-ci-nat-neg-dst-102'})
+    target.set('neg', 'True')
+    # Keep the verified translation shape: 192.168.1.0/24 -> 192.0.2.100.
+    replace_ref(rule, 'OSrc', 'id3DC75CE7-1')
+    only(rule, './' + tag('OSrc')).set('neg', 'False')
+    only(rule, './' + tag('OSrv')).set('neg', 'False')
+    for other in nat.findall('./' + tag('NATRule')):
+        other.set('disabled', 'False' if other is rule else 'True')
+
+
 def _case_native_ipv4_options(tree, enabled):
     _, _, pr, _ = prepare(tree)
     service = only(tree.getroot(), ".//" + tag('IPService') + "[@id='ip-RR']")
@@ -814,6 +850,12 @@ def case_dynamic_interface(tree):
     only(attached_rule, './' + tag('Src')).set('neg', 'False')
     policy.insert(1, attached_rule)
     only(policy, "./%s[@id='id2830X30989']" % tag('PolicyRule')).set('position', '2')
+    # The single baseline route reaches 192.168.1.10 via eth1 (192.168.1.1/24).
+    # Once eth1 is dynamic it contributes no local network, so the routing
+    # compiler correctly rejects that static gateway; routing through dynamic
+    # interfaces is not what this fixture tests. Disable the route instead.
+    for route in only(fw, './%s' % tag('Routing')).findall('./' + tag('RoutingRule')):
+        route.set('disabled', 'True')
 
 
 def case_reject_runtime_address_tables(tree):
@@ -866,6 +908,7 @@ CASES = {
     'udp-workhours': case_udp_workhours,
     'policy-fragments': case_policy_fragments,
     'nat-fragments': case_nat_fragments,
+    'negated-nat-odst': case_negated_nat_odst,
     'reject-policy-options': case_reject_policy_options,
     'reject-nat-options': case_reject_nat_options,
     'reject-timezone': case_reject_timezone,

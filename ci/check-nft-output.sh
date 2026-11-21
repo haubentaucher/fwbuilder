@@ -48,8 +48,13 @@ for fw in "$@"; do
             if (!table[family " " tab]) fail("chain before table: " key)
             if (chains[key]) fail("duplicate chain: " key)
             chains[key]=1
-            if (tab=="nat" && $0 !~ /type nat hook/) fail("NAT base chain missing nat hook: " key)
-            if (tab=="mangle" && $0 !~ /type (filter|route) hook/) fail("mangle base chain missing hook: " key)
+            # Base chains carry a braced { type ... hook ... } definition.
+            # Hookless chains are ordinary jump targets which the native
+            # compiler creates on demand for negation and NAT branching.
+            if ($0 ~ /\{/) {
+                if (tab=="nat" && $0 !~ /type nat hook/) fail("NAT base chain missing nat hook: " key)
+                if (tab=="mangle" && $0 !~ /type (filter|route) hook/) fail("mangle base chain missing hook: " key)
+            }
             next
         }
         # Named dynamic hashlimit sets are nftables objects, not rules.

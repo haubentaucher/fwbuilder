@@ -752,28 +752,64 @@ bool NATCompiler_nft::PrintRule::processNext()
     cmdout << _printDstService(osrvrel);
 
     // nftables verdict/translation syntax is not iptables -j syntax.
-    // Unsupported translation modes must fail rather than generate
+    // The rule processors decide the target the way they do for the
+    // iptables backend: regular rules carry a standard target
+    // (SNAT/DNAT/MASQUERADE/REDIRECT/ACCEPT), while rules generated
+    // for negation and NAT branching keep their original rule type but
+    // carry the name of a temporary chain in ipt_target. Mirror the
+    // generic iptables "-j $ipt_target" emission: translate standard
+    // targets to native statements and emit "jump" for chain targets.
+    // Combinations we can not translate must fail rather than generate
     // a deployable firewall policy with changed semantics.
+    const string itgt = rule->getStr("ipt_target");
     switch (rule->getRuleType())
     {
+    case NATRule::Return:
+        if (itgt != "RETURN")
+            compiler->abort(rule, "Unsupported native nftables target in RETURN rule");
+        cmdout << "return ";
+        break;
+    case NATRule::NONAT:
+        if (itgt != "ACCEPT")
+            compiler->abort(rule, "Unsupported native nftables NONAT target");
+        cmdout << "accept ";
+        break;
     case NATRule::Masq:
-        cmdout << "masquerade ";
+        if (itgt == "MASQUERADE")
+            cmdout << "masquerade ";
+        else if (!itgt.empty())  // negation jump to temporary chain
+            cmdout << "jump " << itgt << " ";
+        else
+            compiler->abort(rule, "Unsupported native nftables MASQUERADE target");
         break;
     case NATRule::SNAT:
-        if (rule->getStr("ipt_target") != "SNAT")
+        if (itgt == "SNAT")
+            cmdout << "snat to ";
+        else if (!itgt.empty())  // negation jump to temporary chain
+            cmdout << "jump " << itgt << " ";
+        else
             compiler->abort(rule, "Unsupported native nftables SNAT target");
-        cmdout << "snat to ";
         break;
     case NATRule::DNAT:
-        if (rule->getStr("ipt_target") != "DNAT")
+        if (itgt == "DNAT")
+            cmdout << "dnat to ";
+        else if (!itgt.empty())  // negation jump to temporary chain
+            cmdout << "jump " << itgt << " ";
+        else
             compiler->abort(rule, "Unsupported native nftables DNAT target");
-        cmdout << "dnat to ";
         break;
     case NATRule::Redirect:
-        cmdout << "redirect ";
+        if (itgt == "REDIRECT")
+            cmdout << "redirect ";
+        else if (!itgt.empty())  // negation jump to temporary chain
+            cmdout << "jump " << itgt << " ";
+        else
+            compiler->abort(rule, "Unsupported native nftables REDIRECT target");
         break;
     case NATRule::NATBranch:
-        cmdout << "jump " << rule->getStr("ipt_target") << " ";
+        if (itgt.empty())
+            compiler->abort(rule, "Missing target chain for NAT branch rule");
+        cmdout << "jump " << itgt << " ";
         break;
     default:
         compiler->abort(rule, "Unsupported native nftables NAT rule type");

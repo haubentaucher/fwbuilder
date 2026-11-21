@@ -142,6 +142,62 @@ print('PASS: negated IP service uses jump / positive match return / accept')
 PY_NEGATED_IP_SERVICE
 }
 
+# Validate the native three-row NAT negation lowering (regression for the
+# "Unsupported native nftables SNAT target" / "... NAT rule type" aborts):
+# the translation row in a base chain must jump to the temporary chain,
+# the positive destination matches must return without translating, and
+# only the fall-through rows may carry the actual snat statement.
+check_negated_nat() {
+    local name=$1 dst_re=$2 translation_re=$3
+    if ! check_positive "$name" 4 'ip daddr'; then
+        return 1
+    fi
+    python3 - "$work/$name.ruleset.nft" "$dst_re" "$translation_re" <<'PY_NEGATED_NAT'
+import re
+import sys
+from pathlib import Path
+
+lines = Path(sys.argv[1]).read_text().splitlines()
+dst_re = re.compile(sys.argv[2])
+translation_re = re.compile(sys.argv[3])
+rules = []
+for index, line in enumerate(lines):
+    match = re.fullmatch(r'add rule ip nat (\S+) (.+)', line)
+    if match:
+        rules.append((index, match.group(1), match.group(2)))
+
+base = {'PREROUTING', 'INPUT', 'OUTPUT', 'POSTROUTING'}
+jump_rows = []
+for index, chain, body in rules:
+    match = re.search(r'\bjump (\S+)\s*$', body)
+    if chain in base and match and match.group(1) not in base:
+        jump_rows.append((index, match.group(1), body))
+if not jump_rows:
+    sys.exit('FAIL: negated NAT has no jump into a temporary chain')
+for jump_index, tmp_chain, jump_body in jump_rows:
+    if dst_re.search(jump_body) or translation_re.search(jump_body):
+        sys.exit('FAIL: negated NAT jump row must not match or translate')
+    returns = [(index, body) for index, chain, body in rules
+               if chain == tmp_chain and dst_re.search(body)
+               and body.endswith(' return')]
+    translations = [(index, body) for index, chain, body in rules
+                     if chain == tmp_chain and translation_re.search(body)]
+    if not returns:
+        sys.exit('FAIL: negated NAT temporary chain lacks positive-match return')
+    if not translations:
+        sys.exit('FAIL: negated NAT temporary chain lacks translation row')
+    for _, body in returns:
+        if translation_re.search(body):
+            sys.exit('FAIL: negated destination match must not translate')
+    for _, body in translations:
+        if dst_re.search(body):
+            sys.exit('FAIL: translation row must not match the negated destination')
+    if max(i for i, _ in returns) > min(i for i, _ in translations):
+        sys.exit('FAIL: translation must follow the positive-match returns')
+print('PASS: negated NAT uses jump / positive match return / translation')
+PY_NEGATED_NAT
+}
+
 # End-to-end output from actual FWB UserService objects, including the
 # SingleSrvNegation lowering.  Reject syntactically invalid "meta skuid not".
 check_user_service() {
@@ -459,6 +515,7 @@ run_case user-service-outbound check_user_service user-service-outbound 'meta sk
 run_case negated-user-service-outbound check_user_service negated-user-service-outbound 'meta skuid != 1000'
 run_case policy-fragments check_positive policy-fragments 4 'ip frag-off'
 run_case nat-fragments check_positive nat-fragments 4 'ip frag-off'
+run_case negated-nat-odst check_negated_nat negated-nat-odst 'ip daddr 192\.0\.2\.10[12]' 'snat to 192\.0\.2\.100'
 run_case ipv4-option-rr check_positive ipv4-option-rr 4 'ip option rr exists'
 run_case ipv4-option-lsrr check_positive ipv4-option-lsrr 4 'ip option lsrr exists'
 run_case ipv4-option-ssrr check_positive ipv4-option-ssrr 4 'ip option ssrr exists'
