@@ -567,6 +567,25 @@ def case_nat_multi_address_set(tree):
         other.set('disabled', 'False' if other is nr else 'True')
 
 
+def case_nat_masquerade(tree):
+    """The ipt_use_masq rule option must flip SNAT into native masquerade.
+
+    The backend has always honored the iptables-style rule options
+    (alwaysUseMasquerading), so the fixture guards the compiled
+    statement: one masquerade row, no residual snat translation.
+    """
+    _, fw, _, nr = prepare(tree)
+    nat = only(fw, './%s' % tag('NAT'))
+    if only(nr, './' + tag('TSrc'))[0].get('ref') != 'id2864X30989':
+        raise ValueError('baseline NAT translation source changed')
+    opts = only(nr, './' + tag('NATRuleOptions'))
+    if list(opts):
+        raise ValueError('unexpected baseline NAT rule options')
+    ET.SubElement(opts, tag('Option'), {'name': 'ipt_use_masq'}).text = 'True'
+    for other in nat.findall('./' + tag('NATRule')):
+        other.set('disabled', 'False' if other is nr else 'True')
+
+
 def _case_nat_load_balancing(tree, destination, extra_address='192.168.1.101'):
     """Real FWB NAT LB using the existing DNAT rule and real host objects."""
     _, fw, _, _ = prepare(tree)
@@ -966,6 +985,7 @@ CASES = {
     'negated-nat-odst': case_negated_nat_odst,
     'multi-address-set': case_multi_address_set,
     'nat-multi-address-set': case_nat_multi_address_set,
+    'nat-masquerade': case_nat_masquerade,
     'reject-policy-options': case_reject_policy_options,
     'reject-nat-options': case_reject_nat_options,
     'reject-timezone': case_reject_timezone,

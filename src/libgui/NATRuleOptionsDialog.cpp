@@ -88,18 +88,32 @@ void NATRuleOptionsDialog::loadFWObject(FWObject *o)
     if (platform=="ipfw")     wid=0;
     if (platform=="iptables") wid=1;
     if (platform=="pf")       wid=2;
+    // The nftables backend shares the iptables rule options: SNAT rules
+    // can be flipped to masquerade (ipt_use_masq) and dynamic-interface
+    // masquerading can be forced back to SNAT
+    // (ipt_use_snat_instead_of_masq).
+    if (platform=="nftables") wid=1;
 
     m_dialog->widgetStack->setCurrentIndex(wid);
     m_dialog->widgetStack->widget(wid)->raise();
 
+    // The iptables-only random/persistent NAT pool options abort the
+    // native nftables compiler; hide their checkboxes there.
+    m_dialog->ipt_nat_random->setVisible(platform=="iptables");
+    m_dialog->ipt_nat_persistent->setVisible(platform=="iptables");
+
     data.clear();
 
-    if (platform=="iptables")
+    if (platform=="iptables" || platform=="nftables")
     {
         data.registerOption(m_dialog->ipt_use_snat_instead_of_masq, ropt,
                             "ipt_use_snat_instead_of_masq");
         data.registerOption(m_dialog->ipt_use_masq, ropt,
                             "ipt_use_masq");
+    }
+
+    if (platform=="iptables")
+    {
         data.registerOption(m_dialog->ipt_nat_random, ropt,
                             "ipt_nat_random");
         data.registerOption(m_dialog->ipt_nat_persistent, ropt,

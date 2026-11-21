@@ -216,6 +216,31 @@ print('PASS: multi-object NAT Src/Dst stay one flat rule with inline sets')
 PY_NAT_MULTI_ADDRESS_SET
 }
 
+# The ipt_use_masq rule option must flip the standard SNAT translation
+# into exactly one native masquerade statement; no residual snat.
+check_nat_masquerade() {
+    local name=$1
+    if ! check_positive "$name" 4 'masquerade' 'ip saddr 192\.168\.1\.0/24'; then
+        return 1
+    fi
+    python3 - "$work/$name.ruleset.nft" <<'PY_NAT_MASQUERADE'
+import sys
+from pathlib import Path
+
+lines = Path(sys.argv[1]).read_text().splitlines()
+snat = [line for line in lines if 'snat to' in line]
+if snat:
+    sys.exit('FAIL: residual snat translation remains: ' + snat[0])
+masq = [line for line in lines if 'masquerade' in line]
+if not masq:
+    sys.exit('FAIL: no native masquerade rule')
+for line in masq:
+    if not line.startswith('add rule ip nat POSTROUTING'):
+        sys.exit('FAIL: masquerade rule is not in POSTROUTING: ' + line)
+print('PASS: ipt_use_masq flips SNAT into a native masquerade row')
+PY_NAT_MASQUERADE
+}
+
 # Validate the native three-row NAT negation lowering (regression for the
 # "Unsupported native nftables SNAT target" / "... NAT rule type" aborts):
 # the translation row in a base chain must jump to the temporary chain,
@@ -592,6 +617,7 @@ run_case nat-fragments check_positive nat-fragments 4 'ip frag-off'
 run_case negated-nat-odst check_negated_nat negated-nat-odst 'ip daddr 192\.0\.2\.10[12]' 'snat to 192\.0\.2\.100'
 run_case multi-address-set check_multi_address_set multi-address-set
 run_case nat-multi-address-set check_nat_multi_address_set nat-multi-address-set
+run_case nat-masquerade check_nat_masquerade nat-masquerade
 run_case ipv4-option-rr check_positive ipv4-option-rr 4 'ip option rr exists'
 run_case ipv4-option-lsrr check_positive ipv4-option-lsrr 4 'ip option lsrr exists'
 run_case ipv4-option-ssrr check_positive ipv4-option-ssrr 4 'ip option ssrr exists'

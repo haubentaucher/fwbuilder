@@ -342,6 +342,14 @@ bool isDefaultNATRuleOptions(FWOptions *opt)
                 !opt->getBool("ipt_nat_persistent");
         }
 
+	if (platform=="nftables")
+        {
+            // the nftables backend supports the iptables SNAT/MASQ
+            // options, but not random/persistent NAT pools
+            res = !opt->getBool("ipt_use_snat_instead_of_masq") &&
+                !opt->getBool("ipt_use_masq");
+        }
+
 	if (platform=="pf")
         {
             // if "pf_pool_type_none" is undefined, then all others
