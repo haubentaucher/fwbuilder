@@ -1,10 +1,9 @@
 name: Build Qt5 (nftables)
 
+# Manual builds only: pushes and pull requests no longer trigger the Qt5
+# build. Start it from the Actions tab ("Run workflow") when a full
+# verification run is actually needed.
 on:
-  push:
-    branches: [nftables]
-  pull_request:
-    branches: [nftables]
   workflow_dispatch:
 
 permissions:
