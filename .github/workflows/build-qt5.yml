@@ -32,7 +32,8 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             build-essential qtbase5-dev qtbase5-dev-tools qttools5-dev qt5-qmake \
             autoconf automake libtool gettext pkg-config \
-            libxml2-dev libxslt1-dev zlib1g-dev flex bison
+            libxml2-dev libxslt1-dev zlib1g-dev flex bison \
+            nftables
 
       - name: Configure Autotools and qmake (Qt5)
         run: |
@@ -100,6 +101,72 @@ jobs:
           test -s src/res/configlets/nftables/nft_script_skeleton
           test -s src/res/platform/nftables.xml
           echo 'Native fwb_nft built and smoke-tested.'
+
+      - name: Compile nft-test firewall and validate native nftables structure
+        run: |
+          set -euo pipefail
+          compiler="$(find src/nft -type f -name fwb_nft -perm /111 -print -quit)"
+          test -n "$compiler"
+          # The native backend uses libfwbuilder's compiled RES_DIR, not the repo tree.
+          sudo make -C src/res install
+          sudo make -C src/libfwbuilder/etc install
+          resource_dir="$(awk '$1 == "#define" && $2 == "RES_DIR" { gsub(/"/, "", $3); print $3; exit }' src/libfwbuilder/src/fwbuilder/libfwbuilder-config.h)"
+          test -n "$resource_dir" || { echo 'Native nft: RES_DIR missing' >&2; exit 1; }
+          test -s "$resource_dir/resources.xml" || { echo "Native nft: missing $resource_dir/resources.xml" >&2; exit 1; }
+          test -s "$resource_dir/fwbuilder.dtd" || { echo "Native nft: missing $resource_dir/fwbuilder.dtd" >&2; exit 1; }
+          test -d "$resource_dir/configlets/nftables" || { echo 'Native nft: nftables configlets missing' >&2; exit 1; }
+          mkdir -p ci-logs/nft-output
+          "$compiler" -f "$PWD/src/unit_tests/generatedScriptTestsNft/test1.fwb" \
+            -d "$PWD/ci-logs/nft-output" nft-test \
+            2>&1 | tee ci-logs/nft-compile.log
+          find ci-logs/nft-output -type f -print | sort | tee ci-logs/nft-generated-files.log
+          test -s ci-logs/nft-generated-files.log || {
+            echo "fwb_nft returned without generating policy output" >&2
+            exit 1
+          }
+          # A non-empty output file alone is not a native nftables test.
+          # Reject known legacy commands, placeholders and restore markers.
+          if grep -nE '\$IP(TABLES|6TABLES)|(^|[[:space:]])echo[[:space:]]+.*(COMMIT|\*(filter|nat|mangle|raw))|--to-(source|destination)|-j (SNAT|DNAT)|\{\{opt_wait\}\}' \
+              ci-logs/nft-output/*.fw; then
+            echo 'Native nftables output contains legacy syntax' >&2
+            exit 1
+          fi
+          # Validate nftables structure, not merely CLI exit status or output size.
+          # Static check only: no policy is loaded into the kernel.
+          sh ci/check-nft-output.sh ci-logs/nft-output/*.fw \
+            2>&1 | tee ci-logs/nft-structure.log
+          echo 'Native nftables CLI and structural checks passed; no policy installed.'
+
+      - name: Compile expanded native FWB XML test matrix
+        run: |
+          set -euo pipefail
+          bash ci/check-nft-project-fixtures.sh \
+            "$PWD/src/nft/fwb_nft" \
+            "$PWD/src/unit_tests/generatedScriptTestsNft/test1.fwb" \
+            ci-logs/nft-output 2>&1 | tee ci-logs/nft-fixture-results.log
+
+      - name: Verify central prolog/epilog hooks with fwb_nft
+        run: |
+          set -euo pipefail
+          bash ci/check-central-hooks.sh \
+            "$PWD/src/nft/fwb_nft" \
+            "$PWD/src/unit_tests/generatedScriptTestsNft/test1.fwb" \
+            ci-logs/central-hooks 2>&1 | tee ci-logs/central-hooks.log
+
+      - name: Validate generated nftables grammar with nft --check
+        run: |
+          set -euo pipefail
+          command -v nft
+          nft --version
+          shopt -s nullglob
+          policies=(ci-logs/nft-output/*.fw)
+          test "${#policies[@]}" -gt 0 || {
+            echo 'No generated nftables policy found' >&2
+            exit 1
+          }
+          # nft --check parses and validates without applying any kernel rules.
+          sudo sh ci/check-nft-syntax.sh "${policies[@]}" \
+            2>&1 | tee ci-logs/nft-native-syntax.log
 
       - name: Upload build diagnostics
         if: ${{ always() }}
