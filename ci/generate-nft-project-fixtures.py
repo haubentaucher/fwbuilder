@@ -255,6 +255,26 @@ def case_reject_nat_options(tree):
     replace_ref(nr, 'OSrv', 'ip-RR')
 
 
+def case_prolog_after_flush(tree):
+    """Prolog place "after policy reset" must compile, not abort.
+
+    Regression test: this prolog position used to abort the whole compile
+    whenever policy was activated in atomic nftables mode, e.g. after a
+    firewall migrated from the iptables platform kept its old options.
+    """
+    root, fw, _, _ = prepare(tree)
+    opts = only(fw, './' + tag('FirewallOptions'))
+    for name, value in (
+            ('prolog_place', 'after_flush'),
+            ('prolog_script', '/bin/true # ci-prolog-after-flush'),
+    ):
+        found = opts.findall("./%s[@name='%s']" % (tag('Option'), name))
+        if len(found) > 1:
+            raise ValueError('duplicate firewall option ' + name)
+        opt = found[0] if found else ET.SubElement(opts, tag('Option'), {'name': name})
+        opt.text = value
+
+
 def case_reject_timezone(tree):
     _, fw, pr, _ = prepare(tree)
     replace_ref(pr, 'When', 'int-workhours')
@@ -751,6 +771,7 @@ CASES = {
     'reject-policy-options': case_reject_policy_options,
     'reject-nat-options': case_reject_nat_options,
     'reject-timezone': case_reject_timezone,
+    'prolog-after-flush': case_prolog_after_flush,
     'packet-tcp-input': case_packet_tcp_input,
     'packet-udp-forward': case_packet_udp_forward,
     'packet-snat': case_packet_snat,

@@ -208,12 +208,13 @@ QString CompilerDriver_nft::run(const std::string &cluster_id,
         // firewall fw This happens when we compile a member of a cluster
         current_firewall_name = fw->getName().c_str();
 
-        if (fw->getOptionsObject()->getStr("prolog_place") == "after_flush" &&
-            useNftablesAtomic(fw->getOptionsObject()))
-        {
-            abort("Prolog place \"after policy reset\" can not be used"
-                  " when policy is activated with nftables in atomic mode");
-        }
+        // Prolog place "after policy reset" (prolog_place "after_flush")
+        // used to be rejected here when policy was activated in atomic
+        // nftables mode. It is honored instead: the generated script runs
+        // the prolog commands right before it stages and commits the
+        // nftables transaction that replaces the fwbuilder-owned tables.
+        // The prolog's own nftables state survives because that
+        // transaction only touches fwbuilder-owned tables.
 
         string firewall_dir = options->getStr("firewall_dir");
         if (firewall_dir=="") firewall_dir="/etc";
@@ -818,16 +819,15 @@ QString CompilerDriver_nft::run(const std::string &cluster_id,
         string prolog_place = fw->getOptionsObject()->getStr("prolog_place");
         if (prolog_place == "") prolog_place="top";
 
-        /* there is no way to stick prolog commands between nftables
-         * reset and nftables rules if we use atomic nftables loading
-         * to activate policy. Therefore, if prolog needs to run after
-         * nftables flush and we use atomic loading, we run prolog
-         * on top of the script.
+        /* Prolog place "after policy reset" keeps its script position even
+         * with atomic nftables activation. Atomic mode flushes and reloads
+         * inside a single nftables transaction in script_body(), so the
+         * prolog can not be executed between the flush and the rules any
+         * more; it runs right before that transaction instead. Nftables
+         * state created by the prolog survives because the transaction
+         * only replaces fwbuilder-owned tables.
          */
-        if (!prolog_done &&
-            (prolog_place == "top" ||
-             (prolog_place == "after_flush" &&
-              useNftablesAtomic(fw->getOptionsObject()))))
+        if (!prolog_done && prolog_place == "top")
         {
             script_skeleton.setVariable("prolog_top", 1);
             script_skeleton.setVariable("prolog_after_interfaces", 0);
@@ -843,6 +843,10 @@ QString CompilerDriver_nft::run(const std::string &cluster_id,
             prolog_done = true;
         }
 
+        /* Covers "after_flush" in every mode now: with a plain reset
+         * (non-atomic) the prolog follows reset_all(), while in atomic
+         * mode it precedes the nftables transaction in script_body().
+         */
         if (!prolog_done && prolog_place == "after_flush")
         {
             script_skeleton.setVariable("prolog_top", 0);

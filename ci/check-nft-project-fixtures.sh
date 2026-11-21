@@ -275,6 +275,54 @@ check_dynamic_sets() {
     echo 'PASS: dynamic-address-sets generated from real FWB AddressTable'
 }
 
+# Prolog place "after policy reset" used to abort every atomic-mode compile,
+# including single-rule compiles of migrated iptables firewalls. The prolog
+# must now be generated and must run right before script_body() commits the
+# nftables transaction, so it applies before the firewall policy is replaced.
+check_prolog_after_flush() {
+    local name=prolog-after-flush
+    mkdir -p "$work/$name"
+    if ! "$compiler" -4 -f "$work/xml/$name.fwb" -d "$work/$name" nft-test \
+        > "$work/$name.compile.log" 2>&1; then
+        cat "$work/$name.compile.log" >&2
+        echo 'FAIL: prolog place "after policy reset" was rejected again' >&2
+        return 1
+    fi
+    if grep -Fiq 'can not be used when policy is activated' \
+        "$work/$name.compile.log"; then
+        echo 'FAIL: the stale after-flush abort is still emitted' >&2
+        return 1
+    fi
+    local -a files=()
+    shopt -s nullglob
+    files=("$work/$name"/*.fw)
+    shopt -u nullglob
+    if (( ${#files[@]} != 1 )) || [[ ! -s "${files[0]}" ]]; then
+        echo 'FAIL: expected exactly one generated script for prolog-after-flush' >&2
+        return 1
+    fi
+    if ! sh ci/check-nft-output.sh "${files[0]}"; then
+        echo 'FAIL: invalid native script structure for prolog-after-flush' >&2
+        return 1
+    fi
+    grep -Fq 'ci-prolog-after-flush' "${files[0]}" || {
+        echo 'FAIL: generated script lost the prolog commands' >&2
+        return 1
+    }
+    if ! awk '
+        /^[[:space:]]*start\)/ { in_start = 1; seen = 0; next }
+        in_start && /^[[:space:]]*;;/ { in_start = 0; next }
+        in_start && /^[[:space:]]*prolog_commands[[:space:]]*$/ { seen = 1; next }
+        in_start && /^[[:space:]]*script_body[[:space:]]*$/ { ok = seen; next }
+        END { exit !ok }
+    ' "${files[0]}"; then
+        echo 'FAIL: prolog does not run before the nftables transaction' >&2
+        return 1
+    fi
+    cp -- "${files[0]}" "$output/nft-ci-$name.fw"
+    echo 'PASS: prolog-after-flush compiles and precedes the nftables transaction'
+}
+
 # Do not let the first failing fixture hide the other six outcomes.
 failures=0
 cases=0
@@ -374,6 +422,7 @@ run_case reject-nat-lb-network check_negative reject-nat-lb-network 'Native nfta
 run_case reject-nat-lb-duplicate check_negative reject-nat-lb-duplicate 'Duplicate native nftables load-balancing destination'
 run_case reject-nat-lb-port-translation check_negative reject-nat-lb-port-translation 'Native nftables load-balancing address maps cannot translate ports'
 run_case reject-timezone check_negative reject-timezone 'xt_time kernel timezone mode is not supported by native nftables'
+run_case prolog-after-flush check_prolog_after_flush
 # Real traffic fixtures are compiled from FWB XML, never handwritten nft.
 # Their emitted policies are exercised against real packets in ci/check-nft-packets.py.
 run_case packet-tcp-input check_positive packet-tcp-input 4 'tcp dport 80'
