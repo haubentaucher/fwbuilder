@@ -983,7 +983,39 @@
        <item row="13" column="1" colspan="2">
         <widget class="QLineEdit" name="linux24_path_ip6tables_restore"/>
        </item>
-       <item row="14" column="2">
+       <item row="14" column="0">
+        <widget class="QLabel" name="label_nft">
+         <property name="text">
+          <string>nft:</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+         </property>
+         <property name="wordWrap">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="14" column="1" colspan="2">
+        <widget class="QLineEdit" name="nftables_path"/>
+       </item>
+       <item row="15" column="0">
+        <widget class="QLabel" name="label_nft_conf">
+         <property name="text">
+          <string>nftables.conf:</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+         </property>
+         <property name="wordWrap">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="15" column="1" colspan="2">
+        <widget class="QLineEdit" name="nftables_conf_path"/>
+       </item>
+       <item row="16" column="2">
         <spacer>
          <property name="orientation">
           <enum>Qt::Vertical</enum>
@@ -1380,6 +1412,8 @@ Explanation of this parameter can be found at&lt;br&gt;
   <tabstop>linux24_path_lsmod</tabstop>
   <tabstop>linux24_path_iptables_restore</tabstop>
   <tabstop>linux24_path_ip6tables_restore</tabstop>
+  <tabstop>nftables_path</tabstop>
+  <tabstop>nftables_conf_path</tabstop>
   <tabstop>tabWidget</tabstop>
   <tabstop>buttonHelp</tabstop>
  </tabstops>

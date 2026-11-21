@@ -179,6 +179,15 @@ linux24AdvancedDialog::linux24AdvancedDialog(QWidget *parent,FWObject *o)
     data.registerOption( m_dialog->linux24_path_ip6tables_restore,
                          fwopt,
                          "linux24_path_ip6tables_restore");
+    // Native nftables backend: binary and ruleset configuration file
+    // paths. Read by OSConfigurator_linux24_nft; defaults live in
+    // res/platform/nftables.xml. Leave empty to use the defaults.
+    data.registerOption( m_dialog->nftables_path,
+                         fwopt,
+                         "nftables_path");
+    data.registerOption( m_dialog->nftables_conf_path,
+                         fwopt,
+                         "nftables_conf_path");
 
     data.registerOption(m_dialog->conntrack_max,
                         fwopt,
