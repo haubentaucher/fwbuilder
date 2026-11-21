@@ -32,9 +32,22 @@ for fw in "$@"; do
     }
     !active { next }
     /^[[:space:]]*$/ || /^[[:space:]]*#/ { next }
+    # Dynamic interfaces stage their rules through small shell loops in
+    # the unquoted heredoc: for/do/done only drive the loop over the
+    # addresses resolved by configure_interfaces().
+    /^[[:space:]]*(for|do|done)([[:space:]]|$)/ { next }
     {
         n=split($0, part, /[[:space:]]+/)
         if ($1=="flush" && $2=="ruleset") { fail("global ruleset flush forbidden"); next }
+        # "test -n "$var" && add ..." stages one native rule per existing
+        # address and stages nothing when the interface is down; validate
+        # the embedded native command.
+        if ($1=="test") {
+            if ($0 !~ /^test -n "[^"]+"[[:space:]]*&&[[:space:]]*/)
+                { fail("non-native command inside nft heredoc: " $0); next }
+            sub(/^test -n "[^"]+"[[:space:]]*&&[[:space:]]*/, "", $0)
+            n=split($0, part, /[[:space:]]+/)
+        }
         if ($1!="add") { fail("non-native command inside nft heredoc: " $0); next }
         if ($2=="table" && n>=4) {
             family=part[3]; tab=part[4]
