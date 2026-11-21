@@ -67,7 +67,7 @@ check_positive() {
 
     # Store the extracted ruleset for reproducible diagnostics.  Testing the
     # script preamble could accidentally accept unrelated IPv6 addresses.
-    if ! awk '/<<\047FWB_NFT_RULESET\047/ { on=1; next } /^FWB_NFT_RULESET$/ { on=0 } on { print }' \
+    if ! awk '/<<FWB_NFT_RULESET/ { on=1; next } /^FWB_NFT_RULESET$/ { on=0 } on { print }' \
         "$generated" > "$work/$name.ruleset.nft"; then
         echo "FAIL: could not extract native ruleset for $name" >&2
         return 1
@@ -275,6 +275,68 @@ check_dynamic_sets() {
     echo 'PASS: dynamic-address-sets generated from real FWB AddressTable'
 }
 
+# Dynamic interface addresses historically aborted the final legacy-marker
+# validation ("Native nftables script contains legacy command: $i_"), so
+# fwb_nft wrote NO output file even though every rule compiled. The ruleset
+# heredoc is now unquoted and the shell resolves $i_* at activation time.
+check_dynamic_interface() {
+    local name=dynamic-interface
+    mkdir -p "$work/$name" "$output/../nft-dynif-output"
+    if ! "$compiler" -4 -f "$work/xml/$name.fwb" -d "$work/$name" nft-test \
+         > "$work/$name.compile.log" 2>&1; then
+        cat "$work/$name.compile.log" >&2
+        echo 'FAIL: dynamic interface address compile was rejected again' >&2
+        return 1
+    fi
+    if grep -Fq 'Native nftables script contains legacy command' \
+        "$work/$name.compile.log"; then
+        echo 'FAIL: stale legacy-marker abort for dynamic interface' >&2
+        return 1
+    fi
+    local -a generated=("$work/$name"/*.fw)
+    [[ ${#generated[@]} == 1 && -s ${generated[0]} ]] || {
+        echo 'FAIL: expected exactly one generated dynamic-interface script' >&2
+        return 1
+    }
+    sh -n "${generated[0]}" || return 1
+    if ! sh ci/check-nft-output.sh "${generated[0]}"; then
+        echo 'FAIL: invalid native script structure for dynamic-interface' >&2
+        return 1
+    fi
+    # The ruleset heredoc must be UNQUOTED so the shell can expand the
+    # fwbuilder $i_* variables while the transaction is being staged.
+    grep -Fq 'cat >> "$FWB_NFT_TXN" <<FWB_NFT_RULESET' "${generated[0]}" || {
+        echo 'FAIL: ruleset heredoc is not unquoted' >&2
+        return 1
+    }
+    if grep -Fq "<<'FWB_NFT_RULESET'" "${generated[0]}"; then
+        echo 'FAIL: quoted ruleset heredoc returned' >&2
+        return 1
+    fi
+    # configure_interfaces() resolves live interface addresses into the
+    # $i_eth1 / $i_eth1_network shell variables before the staging starts.
+    grep -Eq '^[[:space:]]*getaddr[[:space:]]+eth1[[:space:]]+i_eth1([[:space:]]|$)' "${generated[0]}" || {
+        echo 'FAIL: generated script never resolves the dynamic interface address' >&2
+        return 1
+    }
+    grep -Eq '^[[:space:]]*getnet[[:space:]]+eth1[[:space:]]+i_eth1_network([[:space:]]|$)' "${generated[0]}" || {
+        echo 'FAIL: generated script never resolves attached networks' >&2
+        return 1
+    }
+    grep -Eq 'add rule ip fwb_filter .*ip saddr \$i_eth1' "${generated[0]}" || {
+        echo 'FAIL: no rule references the dynamic interface address $i_eth1' >&2
+        return 1
+    }
+    grep -Eq 'add rule ip fwb_filter .*ip saddr \$i_eth1_network' "${generated[0]}" || {
+        echo 'FAIL: no rule references attached networks via $i_eth1_network' >&2
+        return 1
+    }
+    grep -Fq 'fwb_nft_begin_transaction || exit 1' "${generated[0]}" || return 1
+    grep -Fq 'fwb_nft_commit_transaction || exit 1' "${generated[0]}" || return 1
+    cp -- "${generated[0]}" "$output/../nft-dynif-output/nft-ci-dynamic-interface.fw"
+    echo 'PASS: dynamic-interface expands fwbuilder shell variables at activation time'
+}
+
 # Prolog place "after policy reset" used to abort every atomic-mode compile,
 # including single-rule compiles of migrated iptables firewalls. The prolog
 # must now be generated and must run right before script_body() commits the
@@ -440,6 +502,8 @@ run_case packet-udp-forward check_positive packet-udp-forward 4 'udp dport 53'
 run_case packet-snat check_positive packet-snat 4 'udp dport 53' 'snat to 192\.0\.2\.100'
 run_case packet-dnat check_positive packet-dnat 4 'tcp dport 80' 'ip daddr 192\.0\.2\.101' 'dnat to 192\.168\.1\.100'
 run_case dynamic-address-sets check_dynamic_sets
+run_case dynamic-interface check_dynamic_interface
+run_case reject-runtime-address-tables check_negative reject-runtime-address-tables 'requires named nftables sets'
 # Ancillary native runtime guard; not an additional FWB XML fixture.
 if ! check_dynamic_ipv6_routes; then
     failures=$((failures+1))

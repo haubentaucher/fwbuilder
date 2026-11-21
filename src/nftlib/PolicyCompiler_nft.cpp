@@ -4269,6 +4269,19 @@ bool PolicyCompiler_nft::processMultiAddressObjectsInRE::processNext()
                     compiler->abort(rule, "Firewall's data directory not set for address table: " + atrt->getName());
                     return true;
                 }
+                // Native nftables can only load a run-time address table
+                // into named sets. Without the use_nft_sets option the
+                // generated $at_ shell variable would be expanded by the
+                // ruleset heredoc but never filled, leaving a broken
+                // rule operand behind.
+                if (!compiler->getCachedFwOpt()->getBool("use_nft_sets"))
+                {
+                    compiler->abort(rule,
+                        "Run-time address table " + atrt->getName() +
+                        " requires named nftables sets: "
+                        "enable firewall option 'use_nft_sets'");
+                    return true;
+                }
                 rule->setStr("address_table_file", path);
                 osconf->registerMultiAddressObject(atrt);
             }
@@ -4314,6 +4327,16 @@ bool PolicyCompiler_nft::processMultiAddressObjectsInRE::processNext()
         string path = atrt->getSourceNameAsPath(compiler->getCachedFwOpt());
         if (path.empty() && !atrt->getSourceName().empty()) {
             compiler->abort(rule, "Firewall's data directory not set for address table: " + atrt->getName());
+            return true;
+        }
+        // See the single-object branch above: run-time address tables
+        // need named nftables sets in native mode.
+        if (!compiler->getCachedFwOpt()->getBool("use_nft_sets"))
+        {
+            compiler->abort(rule,
+                "Run-time address table " + atrt->getName() +
+                " requires named nftables sets: "
+                "enable firewall option 'use_nft_sets'");
             return true;
         }
         r->setStr("address_table_file", path);

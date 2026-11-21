@@ -21,7 +21,10 @@ for fw in "$@"; do
         rules="$temp_dir/$marker.nft"
         awk -v marker="$marker" '
             {
-                if (index($0, "<<\047" marker "\047")) {
+                # The ruleset heredoc is unquoted so that the shell can
+                # expand fwbuilder $i_*/$at_* variables while the batch is
+                # staged; block/stop transactions are static and quoted.
+                if (index($0, "<<" marker) || index($0, "<<\047" marker "\047")) {
                     if (start || seen) bad=1
                     start=1
                     seen++

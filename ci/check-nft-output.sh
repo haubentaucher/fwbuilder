@@ -18,7 +18,7 @@ for fw in "$@"; do
         next
     }
     in_reload && /"\$0"[[:space:]]+start/ { reload_starts++; next }
-    /<<\047FWB_NFT_RULESET\047/ {
+    /<<FWB_NFT_RULESET/ {
         if (active) fail("nested native nftables ruleset")
         active=1; opened++; next
     }
@@ -75,7 +75,17 @@ for fw in "$@"; do
             if ($0 ~ /[io]ifname[[:space:]]+"\*"/) fail("bare interface wildcard: " $0)
             if ($0 ~ /(^|[[:space:]])(--[[:alnum:]]+|-j|-m)([[:space:]]|$)/)
                 fail("iptables option in native rule: " $0)
-            if ($0 ~ /\$/) fail("unexpanded variable in native ruleset: " $0)
+            if ($0 ~ /\$/) {
+                # fwbuilder emits $i_<iface> (dynamic interface addresses,
+                # attached networks) and $at_<name> (run-time address
+                # tables) shell variables. The ruleset heredoc is
+                # unquoted, so the shell expands exactly these names
+                # while the transaction is staged. Any other dollar must
+                # be rejected as an unexpanded leftover.
+                probe=$0
+                gsub(/\$(i|at)_[A-Za-z0-9_]+/, "", probe)
+                if (probe ~ /\$/) fail("unexpanded variable in native ruleset: " $0)
+            }
             rules++
             next
         }

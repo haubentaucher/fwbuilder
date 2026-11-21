@@ -163,6 +163,11 @@ string CompilerDriver_nft::dumpScript(Firewall *fw,
         have_auto = false;
         conf = new Configlet(fw, "linux24", "script_body_single_rule");
         conf->collapseEmptyStrings(true);
+        // The single-rule preview shows plain native nftables syntax.
+        // iptables-restore table markers ("*filter" etc.) would be
+        // misleading because the generated firewall script no longer
+        // contains them.
+        conf->setVariable("iptables_restore_format", false);
     } else
     {
         if (useNftablesAtomic(fw->getOptionsObject()))
@@ -170,12 +175,11 @@ string CompilerDriver_nft::dumpScript(Firewall *fw,
             conf = new Configlet(fw, "nftables", "script_body_nftables_atomic");
         } else
             conf = new Configlet(fw, "nftables", "script_body_nftables_shell");
+        conf->setVariable("iptables_restore_format",
+                          useNftablesAtomic(fw->getOptionsObject()));
     }
 
     conf->setVariable("auto", have_auto);
-
-    conf->setVariable("iptables_restore_format",
-                      useNftablesAtomic(fw->getOptionsObject()));
 
     conf->setVariable("filter", !filter_script.empty());
     conf->setVariable("filter_or_auto", have_auto || !filter_script.empty());

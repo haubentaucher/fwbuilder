@@ -760,6 +760,71 @@ def case_dynamic_address_sets(tree):
     option.text = 'True'
 
 
+def case_dynamic_interface(tree):
+    """Dynamic interface address must compile, not abort on $i_ markers.
+
+    Regression test: native compiles that referenced a dynamic interface
+    (or the networks attached to it) emitted fwbuilder $i_* shell
+    variables which the final legacy-marker validation rejected, so
+    fwb_nft produced no output file at all even though every rule
+    compiled. The ruleset heredoc is unquoted and expands those
+    variables at activation time now.
+    """
+    fw = prepare_packet_policy(tree, 'tcp-HTTP')
+    policy = only(fw, './' + tag('Policy'))
+    allow = only(policy, "./%s[@id='id9001X30989']" % tag('PolicyRule'))
+    eth1 = only(fw, "./%s[@name='eth1']" % tag('Interface'))
+    if eth1.get('dyn') != 'False' or not eth1.get('id'):
+        raise ValueError('unexpected baseline interface eth1')
+    # A dynamic interface has no fixed address; drop its IPv4 child.
+    for child in list(eth1):
+        if child.tag == tag('IPv4'):
+            eth1.remove(child)
+    eth1.set('dyn', 'True')
+    # Networks attached to a dynamic interface become run-time objects,
+    # resolved with getnet() into the $i_eth1_network shell variable.
+    attached = ET.Element(tag('AttachedNetworks'), {
+        'id': 'fwb-ci-att-nets-eth1',
+        'name': 'nft-test:eth1:attached',
+        'comment': 'CI run-time networks attached to eth1',
+        'ro': 'False',
+    })
+    options = only(eth1, './' + tag('InterfaceOptions'))
+    eth1.insert(list(eth1).index(options), attached)
+    # First rule: match the firewall's own dynamic interface address.
+    replace_ref(allow, 'Src', eth1.get('id'))
+    only(allow, './' + tag('Src')).set('neg', 'False')
+    allow.set('comment', 'CI: source is the dynamic eth1 address')
+    # Second rule: match a network attached to the dynamic interface.
+    attached_rule = deepcopy(allow)
+    attached_rule.set('id', 'fwb-ci-dynif-attached')
+    attached_rule.set('position', '1')
+    attached_rule.set('comment', 'CI: source is a network attached to eth1')
+    replace_ref(attached_rule, 'Src', attached.get('id'))
+    only(attached_rule, './' + tag('Src')).set('neg', 'False')
+    policy.insert(1, attached_rule)
+    only(policy, "./%s[@id='id2830X30989']" % tag('PolicyRule')).set('position', '2')
+
+
+def case_reject_runtime_address_tables(tree):
+    """Clear abort for run-time AddressTables without named nft sets.
+
+    The $at_ shell variables can not be filled at activation time
+    unless the run-time table is loaded into named nftables sets, so the
+    compiler must reject this combination with an actionable message
+    instead of generating a rule with an empty address operand.
+    """
+    root, fw, allow, _ = prepare(tree)
+    replace_ref(allow, 'Src', 'id3002X5927')
+    table = only(root, ".//" + tag('AddressTable') + "[@id='id3002X5927']")
+    if table.get('run_time') != 'True' or table.get('name') != 'bad_guys':
+        raise ValueError('unexpected baseline run-time address table')
+    table.set('filename', '/tmp/fwb-pr6-ci-address-set.data')
+    opts = only(fw, './' + tag('FirewallOptions'))
+    if opts.findall("./%s[@name='use_nft_sets']" % tag('Option')):
+        raise ValueError('baseline must not enable use_nft_sets for the reject fixture')
+
+
 CASES = {
     'reject-hashlimit-bad-mode': case_reject_hashlimit_bad_mode,
     'reject-hashlimit-icmp-port': case_reject_hashlimit_icmp_port,
@@ -814,6 +879,8 @@ CASES = {
     'reject-nat-lb-duplicate': case_reject_nat_lb_duplicate,
     'reject-nat-lb-port-translation': case_reject_nat_lb_port_translation,
     'dynamic-address-sets': case_dynamic_address_sets,
+    'dynamic-interface': case_dynamic_interface,
+    'reject-runtime-address-tables': case_reject_runtime_address_tables,
 }
 
 
