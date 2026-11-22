@@ -26,6 +26,7 @@
 #include "NATCompiler_nft.h"
 #include "OSConfigurator_linux24.h"
 #include "nftables_options.h"
+#include "nft_utils.h"
 #include "ipt_utils.h"
 
 #include "combinedAddress.h"
@@ -1648,6 +1649,43 @@ bool NATCompiler_nft::splitMultipleICMP::processNext()
     return true;
 }
 
+/*
+ * Fail closed for interfaces in OSrc, ODst, TSrc or TDst that carry no
+ * address. Compiler address expansion produces no address for such an
+ * interface, so _expand_addr clears the rule element and
+ * dropRuleWithEmptyRE even removes the rule: a match quietly widens to
+ * "any" and a translation target quietly disappears, without any
+ * diagnostic (iptables swallowed the empty "-s"/"-d" argument the same
+ * way). The printer-side abortEmptyAddressOperand can never fire for
+ * this shape because the rule is gone before printing. Abort here
+ * instead, naming the offending interface.
+ */
+bool NATCompiler_nft::checkForAddresslessInterface::processNext()
+{
+    NATRule *rule=getNext(); if (rule==nullptr) return false;
+
+    Interface *iface =
+        nft_utils::addresslessInterfaceInRuleElement(rule->getOSrc());
+    if (iface==nullptr)
+        iface = nft_utils::addresslessInterfaceInRuleElement(rule->getODst());
+    if (iface==nullptr)
+        iface = nft_utils::addresslessInterfaceInRuleElement(rule->getTSrc());
+    if (iface==nullptr)
+        iface = nft_utils::addresslessInterfaceInRuleElement(rule->getTDst());
+
+    if (iface!=nullptr)
+        compiler->abort(
+            rule,
+            string("Native nftables rules can not use interface '") +
+            iface->getName() +
+            "': it has no IP address and is not marked dynamic. "
+            "Assign an address to the interface, mark it dynamic, "
+            "or remove it from the rule.");
+
+    tmp_queue.push_back(rule);
+    return true;
+}
+
 bool NATCompiler_nft::doOSrcNegation::processNext()
 {
     NATRule *rule=getNext(); if (rule==nullptr) return false;
@@ -2730,6 +2768,9 @@ void NATCompiler_nft::compile()
              "split rule if ODst is dynamic interface" ) );
     add( new splitOnDynamicInterfaceInTSrc(
              "split rule if TSrc is dynamic interface" ) );
+
+    add( new checkForAddresslessInterface(
+             "check for interfaces without addresses") );
 
     add( new ExpandMultipleAddresses("expand multiple addresses") );
     add( new dropRuleWithEmptyRE("drop rules with empty rule elements"));

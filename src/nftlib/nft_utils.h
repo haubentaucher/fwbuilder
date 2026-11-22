@@ -22,6 +22,12 @@
 
 #include <string>
 
+namespace libfwbuilder
+{
+    class Interface;
+    class RuleElement;
+}
+
 namespace fwcompiler {
 namespace nft_utils {
 
@@ -59,6 +65,15 @@ std::string timeMatchExpression(const std::string &start_time,
                                 const std::string &stop_time,
                                 const std::string &days_of_week,
                                 bool use_kernel_tz);
+
+// Fail-closed helper for interface references in address rule elements:
+// return the first interface that carries no address and is neither
+// dynamic nor unnumbered. Address expansion silently drops such
+// interfaces from the rule element (and can drop the whole rule), which
+// widens the match to "any" without any diagnostic; callers abort the
+// compile naming the interface instead.
+libfwbuilder::Interface *addresslessInterfaceInRuleElement(
+    libfwbuilder::RuleElement *rel);
 
 }
 }

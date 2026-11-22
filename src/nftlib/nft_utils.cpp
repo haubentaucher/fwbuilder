@@ -19,6 +19,11 @@
 
 #include "nft_utils.h"
 
+#include "fwbuilder/FWObject.h"
+#include "fwbuilder/FWReference.h"
+#include "fwbuilder/Interface.h"
+#include "fwbuilder/RuleElement.h"
+
 #include <algorithm>
 #include <cctype>
 #include <iomanip>
@@ -393,6 +398,31 @@ std::string timeMatchExpression(const std::string &start_time,
         output << " }";
     }
     return output.str();
+}
+
+libfwbuilder::Interface *addresslessInterfaceInRuleElement(
+    libfwbuilder::RuleElement *rel)
+{
+    if (rel == nullptr || rel->isAny()) return nullptr;
+    for (libfwbuilder::FWObject::iterator it = rel->begin();
+         it != rel->end(); ++it)
+    {
+        libfwbuilder::FWObject *obj = *it;
+        if (libfwbuilder::FWReference::cast(obj) != nullptr)
+            obj = libfwbuilder::FWReference::cast(obj)->getPointer();
+        libfwbuilder::Interface *iface =
+            libfwbuilder::Interface::cast(obj);
+        if (iface == nullptr) continue;
+        // Dynamic interfaces expand to $i_<name> run-time wrappers and
+        // unnumbered interfaces are rejected by their own dedicated
+        // guards; both are handled elsewhere.
+        if (iface->isDyn() || iface->isUnnumbered()) continue;
+        // Do not use the "skip loopback" flag here: a loopback that
+        // carries an address is normal and expands correctly.
+        if (iface->countInetAddresses(false) == 0)
+            return iface;
+    }
+    return nullptr;
 }
 
 }

@@ -296,6 +296,17 @@ namespace fwcompiler
         DECLARE_NAT_RULE_PROCESSOR(dynamicInterfaceInODst);
 
         /**
+         *  Fail closed when OSrc, ODst, TSrc or TDst references an
+         *  interface that has no address, is not dynamic and is not
+         *  marked unnumbered (a pattern left behind by iptables
+         *  imports on appliances). Address expansion silently drops
+         *  such interfaces (and can drop the whole rule), changing
+         *  the translation without any diagnostic; abort naming the
+         *  interface.
+         */
+        DECLARE_NAT_RULE_PROCESSOR(checkForAddresslessInterface);
+
+        /**
          *  splits rule element if src or dst contains * address
          *  range. This inspector differs from the standard one * in
          *  the base class NATCompiler

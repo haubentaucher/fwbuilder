@@ -731,6 +731,16 @@ protected:
         DECLARE_POLICY_RULE_PROCESSOR(expandMultipleAddressesIfNotFWinDst);
 
         /**
+         * Fail closed when Src or Dst references an interface that has
+         * no address, is not dynamic and is not marked unnumbered (a
+         * pattern left behind by iptables imports on appliances).
+         * Address expansion silently drops such interfaces from the
+         * rule (and can drop the whole rule), widening its scope to
+         * "any" without any diagnostic; abort naming the interface.
+         */
+        DECLARE_POLICY_RULE_PROCESSOR(checkForAddresslessInterface);
+
+        /**
          * Compiler::_expandAddr skips loopback interface, so we need
          * to explicitly process the case when user puts loopback
          * interface object in the rule

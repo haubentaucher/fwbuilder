@@ -764,7 +764,11 @@ run_case user-service-outbound check_user_service user-service-outbound 'meta sk
 run_case negated-user-service-outbound check_user_service negated-user-service-outbound 'meta skuid != 1000'
 run_case policy-fragments check_positive policy-fragments 4 'ip frag-off'
 run_case nat-fragments check_positive nat-fragments 4 'ip frag-off'
-run_case negated-nat-odst check_negated_nat negated-nat-odst 'ip daddr 192\.0\.2\.10[12]' 'snat to 192\.0\.2\.100'
+# The native backend prints set-capable ODst as one inline nftables
+# address set, so this negation lowering stages ONE positive-match
+# return row ("ip daddr { 192.0.2.101, 192.0.2.102 } return") instead
+# of one row per object; the destination needle accepts both shapes.
+run_case negated-nat-odst check_negated_nat negated-nat-odst 'ip daddr (\{ )?192\.0\.2\.10[12]' 'snat to 192\.0\.2\.100'
 run_case multi-address-set check_multi_address_set multi-address-set
 run_case nat-multi-address-set check_nat_multi_address_set nat-multi-address-set
 run_case nat-masquerade check_nat_masquerade nat-masquerade

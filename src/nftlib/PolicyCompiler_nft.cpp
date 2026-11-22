@@ -3134,6 +3134,39 @@ bool PolicyCompiler_nft::checkForDynamicInterfacesOfOtherObjects::processNext()
 }
 
 /*
+ * Fail closed for interfaces in Src or Dst that carry no address.
+ * Compiler address expansion produces no address for an interface with
+ * no IPv4/IPv6 child, so _expand_addr clears the rule element and
+ * dropRuleWithEmptyRE even removes the rule: the match silently widens
+ * to "any" (iptables swallowed the empty "-s"/"-d" argument the same
+ * way, so imported appliance projects changed policy without any
+ * diagnostic). The printer-side abortEmptyAddressOperand can never
+ * fire for this shape because the rule is gone before printing.
+ * Abort here instead, naming the offending interface.
+ */
+bool PolicyCompiler_nft::checkForAddresslessInterface::processNext()
+{
+    PolicyRule *rule=getNext(); if (rule==nullptr) return false;
+
+    Interface *iface =
+        nft_utils::addresslessInterfaceInRuleElement(rule->getSrc());
+    if (iface==nullptr)
+        iface = nft_utils::addresslessInterfaceInRuleElement(rule->getDst());
+
+    if (iface!=nullptr)
+        compiler->abort(
+            rule,
+            string("Native nftables rules can not use interface '") +
+            iface->getName() +
+            "': it has no IP address and is not marked dynamic. "
+            "Assign an address to the interface, mark it dynamic, "
+            "or remove it from the rule.");
+
+    tmp_queue.push_back(rule);
+    return true;
+}
+
+/*
  * remember, behavior of this processor has been changed in virtual
  * method _expand_interface
  */
@@ -4800,6 +4833,9 @@ void PolicyCompiler_nft::compile()
 
     add( new specialCaseWithFW2(
              "replace fw with its interfaces if src==dst==fw" ) );
+
+    add( new checkForAddresslessInterface(
+             "check for interfaces without addresses in Src/Dst") );
 
     /* behavior of processors ExpandMultiple... has been changed in
      * the virtual method expandInterface
