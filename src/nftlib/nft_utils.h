@@ -41,6 +41,10 @@ std::string baseChainDefinition(const std::string &table,
                                 const std::string &policy);
 std::string markMatchExpression(const std::string &mark, bool negated);
 std::string markSetExpression(const std::string &mark);
+// The iptables CLASSIFY target takes a TC "major:minor" handle while
+// nftables assigns the raw skb priority; translate "M:S" into a numeric
+// nftables priority value and pass everything else through unchanged.
+std::string classifyToPriority(const std::string &classify_str);
 // Save or restore a packet mark to/from conntrack; reject unsupported xt actions.
 std::string connmarkActionExpression(const std::string &action);
 std::string setMatchExpression(const std::string &family,

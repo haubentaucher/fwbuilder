@@ -157,6 +157,30 @@ std::string markSetExpression(const std::string &mark)
     return "meta mark set " + mark;
 }
 
+std::string classifyToPriority(const std::string &classify_str)
+{
+    auto parts = split(classify_str, ':');
+    if (parts.size() != 2) return classify_str;
+    for (const auto &part : parts)
+        if (part.empty() ||
+            !std::all_of(part.begin(), part.end(),
+                         [](unsigned char c) { return std::isdigit(c); }))
+            return classify_str;
+    unsigned long major, minor;
+    try {
+        major = std::stoul(parts[0]);
+        minor = std::stoul(parts[1]);
+    } catch (const std::exception &) {
+        return classify_str;
+    }
+    if (major > 0xffffu || minor > 0xffffu) return classify_str;
+    const unsigned long priority = (major << 16) | minor;
+    std::ostringstream output;
+    output << "0x" << std::hex << std::setfill('0') << std::setw(8)
+           << priority;
+    return output.str();
+}
+
 std::string connmarkActionExpression(const std::string &action)
 {
     if (action == "--save-mark") return "ct mark set meta mark";

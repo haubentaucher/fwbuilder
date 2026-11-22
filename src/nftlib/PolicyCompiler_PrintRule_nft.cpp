@@ -661,7 +661,8 @@ string PolicyCompiler_nft::PrintRule::_printTarget(PolicyRule *rule)
 
     if (rule->getClassification())
     {
-        ostr << " meta priority set " << ruleopt->getStr("classify_str");
+        ostr << " meta priority set "
+             << nft_utils::classifyToPriority(ruleopt->getStr("classify_str"));
         return ostr.str();
     }
 
