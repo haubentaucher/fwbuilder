@@ -1000,27 +1000,46 @@ def case_module_load_ignored(tree):
 
 
 def case_reject_addressless_interface(tree):
-    """A rule matching an interface without an address must abort.
+    """A rule matching a bridge-port interface without an address must abort.
 
-    iptables silently swallowed the empty address operand, widening the
-    rule to "any"; nft -f aborts with a syntax error instead. Interfaces
-    that have neither an address, nor the "dynamic" flag, nor the
-    "unnumbered" flag (a pattern left behind by the iptables script
-    import on appliances) passed the unnumbered-interface guards and
-    reached the printer, which staged `ip daddr ` followed by nothing.
-    The printer must fail closed naming the interface instead.
+    The driver-level CompilerDriver::commonChecks2 already refuses REGULAR
+    interfaces without an address ("Missing IP address for interface %1")
+    before any rule is inspected, so that shape can not reach the guard
+    under test here. The addressless shape that does reach the ruleset
+    compilers is a bridge port: Interface::isRegular() is false for it,
+    yet it is neither dynamic nor unnumbered. iptables silently swallowed
+    the empty address operand of such a port, widening the rule to "any";
+    the address expansion here cleared the Dst rule element and
+    dropRuleWithEmptyRE silently dropped the whole rule. Only the
+    checkForAddresslessInterface guard fails closed naming the interface.
     """
     _root, fw, allow, _nr = prepare(tree)
-    eth1 = only(fw, "./%s[@name='eth1']" % tag('Interface'))
-    if eth1.get('id') != 'id2692X30989' or eth1.get('dyn') != 'False':
-        raise ValueError('unexpected baseline interface eth1')
-    for child in list(eth1):
-        if child.tag == tag('IPv4'):
-            eth1.remove(child)
-    # Without the address child and with "unnumbered" cleared, no earlier
-    # fwcompiler guard rejects this interface; only the printer can.
-    eth1.set('unnum', 'False')
-    replace_ref(allow, 'Dst', eth1.get('id'))
+    fresh_ids = ('fwb-ci-br1', 'fwb-ci-br1-ip', 'fwb-ci-eth9')
+    for fresh_id in fresh_ids:
+        if _root.findall(".//*[@id='%s']" % fresh_id):
+            raise ValueError('fixture id %s already exists' % fresh_id)
+    # A bridge parent carries the address, the bridge port itself does not.
+    bridge = ET.Element(tag('Interface'), {
+        'id': 'fwb-ci-br1', 'dedicated_failover': 'False', 'dyn': 'False',
+        'label': 'ci', 'mgmt': 'False', 'ro': 'False',
+        'security_level': '0', 'unnum': 'False', 'unprotected': 'False',
+        'name': 'br1', 'comment': 'CI addressless bridge port parent'})
+    ET.SubElement(bridge, tag('IPv4'), {
+        'id': 'fwb-ci-br1-ip', 'name': 'nft-test:br1:ip', 'comment': '',
+        'ro': 'False', 'address': '192.0.2.7', 'netmask': '255.255.255.0'})
+    options = ET.SubElement(bridge, tag('InterfaceOptions'))
+    ET.SubElement(options, tag('Option'), {'name': 'type'}).text = 'bridge'
+    port = ET.SubElement(bridge, tag('Interface'), {
+        'id': 'fwb-ci-eth9', 'dedicated_failover': 'False', 'dyn': 'False',
+        'label': '', 'mgmt': 'False', 'ro': 'False', 'security_level': '100',
+        'unnum': 'False', 'unprotected': 'False', 'name': 'eth9',
+        'comment': 'CI bridge port without an address'})
+    port_options = ET.SubElement(port, tag('InterfaceOptions'))
+    ET.SubElement(port_options, tag('Option'),
+                  {'name': 'type'}).text = 'ethernet'
+    # Keep the interface section together: insert in front of Management.
+    fw.insert(list(fw).index(only(fw, "./%s" % tag('Management'))), bridge)
+    replace_ref(allow, 'Dst', 'fwb-ci-eth9')
 
 
 CASES = {
