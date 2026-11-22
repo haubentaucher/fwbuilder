@@ -194,7 +194,9 @@ fwb_rt_tables_ensure() {
   fwb_table_name=$1
   fwb_table_id=$2
   fwb_rt_tables=/etc/iproute2/rt_tables
-  if [ ! -s "$fwb_rt_tables" ]; then
+  # Do not use the empty-file shell test here: its flag text matches an
+  # iptables source-match marker rejected by the native script guard.
+  if [ ! -f "$fwb_rt_tables" ] || [ -z "$(cat "$fwb_rt_tables" 2>/dev/null)" ]; then
     echo "Error: $fwb_rt_tables does not exist or is empty"
     return 1
   fi
