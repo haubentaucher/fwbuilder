@@ -200,14 +200,20 @@ for fw in "$@"; do
                 # fwbuilder emits $i_<iface> (dynamic interface addresses,
                 # attached networks), $at_<name> (run-time address tables)
                 # and $dn_<name> (run-time DNS names) shell variables.
-                # The ruleset heredoc is unquoted, so the shell expands
-                # exactly these names while the transaction is staged;
-                # dynamic and DNS wrappers stage them through their
-                # FWB_NFT_DYNRULE blocks. Any other dollar must be
-                # rejected as an unexpanded leftover.
+                # Those variables are only ever legal inside a
+                # FWB_NFT_DYNRULE wrapper body, where the wrapper loop has
+                # assigned them and the guard has proven them non-empty
+                # before the mini heredoc is read. Inside a plain ruleset
+                # heredoc the shell expands them while the heredoc is
+                # being read: unwrapped placeholders silently widen the
+                # match to an empty operand, exactly like the OpenWrt
+                # DNSName regression. Reject them there; any other dollar
+                # is an unexpanded leftover everywhere.
                 probe=$0
                 gsub(/\$(i|at|dn)_[A-Za-z0-9_]+/, "", probe)
                 if (probe ~ /\$/) fail("unexpanded variable in native ruleset: " $0)
+                if (sec == "ruleset")
+                    fail("run-time variable outside FWB_NFT_DYNRULE wrapper: " $0)
             }
             rules++
             next

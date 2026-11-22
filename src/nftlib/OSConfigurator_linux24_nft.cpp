@@ -315,12 +315,19 @@ string OSConfigurator_linux24_nft::printRunTimeWrappers(FWObject *rule,
         loop_vars.push_back(QString("i_") + name);
     }
 
-    // Run-time DNSName placeholders registered by the compilers.
+    // Run-time DNSName placeholders registered by the compilers. The
+    // regex captures the name WITHOUT the "$dn_" prefix; the map keys
+    // and the placeholders printed by the compilers DO carry it
+    // (registerRunTimeDNSName stores "dn_" + sanitized host). Restore
+    // the prefix for the lookup AND the emitted loop variable, or the
+    // lookup never succeeds, the loop is never emitted and the rule
+    // falls into the plain ruleset heredoc, where the placeholder
+    // expands to an empty address operand while the heredoc is read.
     QRegExp dns_re("\\$dn_([A-Za-z0-9_]+)");
     pos = -1;
     while ((pos = dns_re.indexIn(combined, pos + 1)) > -1)
     {
-        const QString var_name = dns_re.cap(1);
+        const QString var_name = QString("dn_") + dns_re.cap(1);
         map<string, string>::const_iterator it =
             run_time_dns_names.find(var_name.toStdString());
         // A placeholder without registration can not be produced by the
