@@ -1174,10 +1174,18 @@ public:
                                          libfwbuilder::PolicyRule *rule);
             virtual std::string _printTCPFlags(libfwbuilder::TCPService *srv);
             virtual std::string _printSrcAddr(libfwbuilder::RuleElement *rel,
-                                              libfwbuilder::Address *o);
+                                              libfwbuilder::Address *o,
+                                              libfwbuilder::PolicyRule *rule);
             virtual std::string _printDstAddr(libfwbuilder::RuleElement *rel,
-                                              libfwbuilder::Address *o);
+                                              libfwbuilder::Address *o,
+                                              libfwbuilder::PolicyRule *rule);
             virtual std::string _printAddr(libfwbuilder::Address *o);
+            // An address rule element that resolves to an empty match
+            // operand would widen the rule to "any" (iptables silently
+            // accepted that) or break "nft -f" with a syntax error. Fail
+            // the compile with the offending object instead.
+            void abortEmptyAddressOperand(libfwbuilder::PolicyRule *rule,
+                                          libfwbuilder::Address *o);
             virtual std::string _printIpSetMatch(
                 libfwbuilder::Address *o, libfwbuilder::RuleElement *rel);
             virtual std::string _printSingleObjectNegation(

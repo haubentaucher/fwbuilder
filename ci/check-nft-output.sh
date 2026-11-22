@@ -147,6 +147,16 @@ for fw in "$@"; do
         if ($1=="test") {
             fail("shell test guard leaked into nft heredoc: " $0); next
         }
+        # The iptables backend silently printed rules whose address object
+        # or unnumbered interface resolved to an empty operand, widening
+        # the match to "any". nft -f rejects such rules with a syntax
+        # error (OpenWrt appliance imports hit this). The compiler aborts
+        # on empty operands now; a generated script must never contain
+        # one: a saddr/daddr keyword followed by two spaces means the
+        # operand slot is empty.
+        if ($0 ~ /(ip6? (saddr|daddr))[[:space:]][[:space:]]/) {
+            fail("empty ip saddr/daddr operand in rule: " $0); next
+        }
         if ($1!="add") { fail("non-native command inside nft heredoc: " $0); next }
         # Hookless chains are ordinary jump targets which the native
         # compiler creates on demand for negation and NAT branching.

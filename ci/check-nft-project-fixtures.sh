@@ -814,6 +814,7 @@ run_case dynamic-address-sets check_dynamic_sets
 run_case dynamic-interface check_dynamic_interface
 run_case runtime-dns-name check_runtime_dns_name
 run_case module-load-ignored check_module_loading
+run_case reject-addressless-interface check_negative reject-addressless-interface 'it has no IP address and is not marked dynamic'
 run_case reject-runtime-address-tables check_negative reject-runtime-address-tables 'requires named nftables sets'
 # Ancillary native runtime guard; not an additional FWB XML fixture.
 if ! check_dynamic_ipv6_routes; then

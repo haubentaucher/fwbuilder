@@ -563,6 +563,37 @@ string NATCompiler_nft::PrintRule::_printIpSetMatch(Address  *o, RuleElement *re
 }
 
 // Note print_mask is true by default, print_range is false by default.
+/*
+ * An address or translation element that resolves to an empty operand
+ * must never reach the generated ruleset: with iptables the empty
+ * argument disappeared from the command line and the rule silently
+ * matched or translated "any"; nft -f rejects it as a syntax error
+ * instead. Abort the compile with the offending object.
+ */
+void NATCompiler_nft::PrintRule::abortEmptyAddressOperand(NATRule *rule,
+                                                          Address *o)
+{
+    std::ostringstream  err;
+
+    if (o==nullptr)
+        err << "Native nftables rules can not build an address match: "
+               "the rule element has no object with a usable address";
+    else
+    if (Interface::cast(o)!=nullptr)
+        err << "Native nftables rules can not use interface '"
+            << o->getName()
+            << "': it has no IP address and is not marked dynamic. "
+               "Assign an address to the interface, mark it dynamic, "
+               "or remove it from the rule.";
+    else
+        err << "Native nftables rules can not use address object '"
+            << o->getName() << "' ("
+            << FWObjectDatabase::getStringId(o->getId())
+            << "): the object has no address";
+
+    compiler->abort(rule, err.str());
+}
+
 string NATCompiler_nft::PrintRule::_printAddr(Address  *o,
                                               bool ,
                                               bool print_range)
@@ -799,12 +830,16 @@ bool NATCompiler_nft::PrintRule::processNext()
             } else if (osrcrel->size() > 1 &&
                        ipt_comp->canUseNftSetForAddresses(osrcrel))
             {
-                cmdout << printAddressSet(osrcrel, "saddr");
+                const string set_expr = printAddressSet(osrcrel, "saddr");
+                if (set_expr.empty())
+                    abortEmptyAddressOperand(rule, nullptr);
+                cmdout << set_expr;
             } else
             {
                 string osrc_out = _printAddr(osrc);
-                if (!osrc_out.empty())
-                    cmdout << _printSingleOptionWithNegation(ipt_comp->ipv6 ? "ip6 saddr" : "ip saddr", osrcrel, osrc_out);
+                if (osrc_out.empty())
+                    abortEmptyAddressOperand(rule, osrc);
+                cmdout << _printSingleOptionWithNegation(ipt_comp->ipv6 ? "ip6 saddr" : "ip saddr", osrcrel, osrc_out);
             }
         }
 
@@ -828,9 +863,17 @@ bool NATCompiler_nft::PrintRule::processNext()
         } else if (odstrel->size() > 1 &&
                    ipt_comp->canUseNftSetForAddresses(odstrel))
         {
-            cmdout << printAddressSet(odstrel, "daddr");
+            const string set_expr = printAddressSet(odstrel, "daddr");
+            if (set_expr.empty())
+                abortEmptyAddressOperand(rule, nullptr);
+            cmdout << set_expr;
         } else
-            cmdout << _printSingleOptionWithNegation(ipt_comp->ipv6 ? "ip6 daddr" : "ip daddr", odstrel, _printAddr(odst));
+        {
+            const string odst_out = _printAddr(odst);
+            if (odst_out.empty())
+                abortEmptyAddressOperand(rule, odst);
+            cmdout << _printSingleOptionWithNegation(ipt_comp->ipv6 ? "ip6 daddr" : "ip daddr", odstrel, odst_out);
+        }
     }
 
     cmdout << " ";
@@ -922,6 +965,8 @@ bool NATCompiler_nft::PrintRule::processNext()
             if (!tsrc->isAny())
             {
                 addr_part = _printAddr(tsrc, false, true).c_str();
+                if (addr_part.trimmed().isEmpty())
+                    abortEmptyAddressOperand(rule, tsrc);
             }
 	    string ports = _printSNATPorts(tsrv);
 	    if (!ports.empty())
@@ -965,7 +1010,11 @@ bool NATCompiler_nft::PrintRule::processNext()
                 addr_part = lb_map.c_str();
             }
             else if (!tdst->isAny())
+            {
                 addr_part = _printAddr(tdst, false, true).c_str();
+                if (addr_part.trimmed().isEmpty())
+                    abortEmptyAddressOperand(rule, tdst);
+            }
 
 	    string ports = _printDNATPorts(tsrv);
 	    if (!ports.empty())

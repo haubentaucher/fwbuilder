@@ -531,6 +531,12 @@ namespace fwcompiler
             virtual std::string _printAddr(libfwbuilder::Address  *o,
                                            bool print_mask=true,
                                            bool print_range=false);
+            // An address rule element that resolves to an empty match or
+            // translation operand would widen the rule to "any" (iptables
+            // silently accepted that) or break "nft -f" with a syntax
+            // error. Fail the compile with the offending object instead.
+            void abortEmptyAddressOperand(libfwbuilder::NATRule *rule,
+                                          libfwbuilder::Address *o);
             std::string trimSpaces(const std::string &value) const;
             std::string formatAddressSetEntry(libfwbuilder::Address *addr);
             std::vector<std::string> collectAddressSetEntries(

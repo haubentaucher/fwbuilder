@@ -1266,12 +1266,18 @@ string PolicyCompiler_nft::PrintRule::_printDstService(RuleElementSrv  *rel)
     return ostr.str();
 }
 
-string PolicyCompiler_nft::PrintRule::_printSrcAddr(RuleElement *rel, Address  *o)
+string PolicyCompiler_nft::PrintRule::_printSrcAddr(RuleElement *rel, Address  *o,
+                                                   PolicyRule *rule)
 {
     PolicyCompiler_nft *ipt_comp=dynamic_cast<PolicyCompiler_nft*>(compiler);
     string res;
     if (rel->size() > 1 && ipt_comp->canUseNftSetForAddresses(rel))
-        return printAddressSet(rel, "saddr");
+    {
+        const string set_expr = printAddressSet(rel, "saddr");
+        if (set_expr.empty())
+            abortEmptyAddressOperand(rule, nullptr);
+        return set_expr;
+    }
     if (AddressRange::cast(o)!=nullptr)
     {
         AddressRange *ar = AddressRange::cast(o);
@@ -1300,16 +1306,25 @@ string PolicyCompiler_nft::PrintRule::_printSrcAddr(RuleElement *rel, Address  *
         return _printIpSetMatch(o, rel);
     }
 
+    const string addr_expr = _printAddr(o);
+    if (addr_expr.empty())
+        abortEmptyAddressOperand(rule, o);
     return _printSingleOptionWithNegation(
-        ipt_comp->ipv6 ? "ip6 saddr" : "ip saddr", rel, _printAddr(o));
+        ipt_comp->ipv6 ? "ip6 saddr" : "ip saddr", rel, addr_expr);
 }
 
-string PolicyCompiler_nft::PrintRule::_printDstAddr(RuleElement *rel, Address  *o)
+string PolicyCompiler_nft::PrintRule::_printDstAddr(RuleElement *rel, Address  *o,
+                                                   PolicyRule *rule)
 {
     PolicyCompiler_nft *ipt_comp=dynamic_cast<PolicyCompiler_nft*>(compiler);
     string res;
     if (rel->size() > 1 && ipt_comp->canUseNftSetForAddresses(rel))
-        return printAddressSet(rel, "daddr");
+    {
+        const string set_expr = printAddressSet(rel, "daddr");
+        if (set_expr.empty())
+            abortEmptyAddressOperand(rule, nullptr);
+        return set_expr;
+    }
     if (AddressRange::cast(o)!=nullptr)
     {
         AddressRange *ar = AddressRange::cast(o);
@@ -1337,8 +1352,11 @@ string PolicyCompiler_nft::PrintRule::_printDstAddr(RuleElement *rel, Address  *
         return _printIpSetMatch(o, rel);
     }
 
+    const string addr_expr = _printAddr(o);
+    if (addr_expr.empty())
+        abortEmptyAddressOperand(rule, o);
     return _printSingleOptionWithNegation(
-        ipt_comp->ipv6 ? "ip6 daddr" : "ip daddr", rel, _printAddr(o));
+        ipt_comp->ipv6 ? "ip6 daddr" : "ip daddr", rel, addr_expr);
 }
 
 string PolicyCompiler_nft::PrintRule::_printIpSetMatch(Address *o, RuleElement *rel)
@@ -1355,6 +1373,38 @@ string PolicyCompiler_nft::PrintRule::_printIpSetMatch(Address *o, RuleElement *
         direction,
         set_name,
         rel->getBool("single_object_negation")) + " ";
+}
+
+/*
+ * An address rule element that resolves to an empty match operand must
+ * never reach the generated ruleset: with iptables the empty "-d" or
+ * "-s" argument disappeared from the command line and the rule
+ * silently matched any address; nft -f rejects it as a syntax error
+ * instead (appliance imports regularly reference interfaces that have
+ * no address). Abort the compile with the offending object.
+ */
+void PolicyCompiler_nft::PrintRule::abortEmptyAddressOperand(PolicyRule *rule,
+                                                             Address *o)
+{
+    std::ostringstream  err;
+
+    if (o==nullptr)
+        err << "Native nftables rules can not build an address match: "
+               "the rule element has no object with a usable address";
+    else
+    if (Interface::cast(o)!=nullptr)
+        err << "Native nftables rules can not use interface '"
+            << o->getName()
+            << "': it has no IP address and is not marked dynamic. "
+               "Assign an address to the interface, mark it dynamic, "
+               "or remove it from the rule.";
+    else
+        err << "Native nftables rules can not use address object '"
+            << o->getName() << "' ("
+            << FWObjectDatabase::getStringId(o->getId())
+            << "): the object has no address";
+
+    compiler->abort(rule, err.str());
 }
 
 string PolicyCompiler_nft::PrintRule::_printAddr(Address  *o)
@@ -1642,17 +1692,17 @@ string PolicyCompiler_nft::PrintRule::PolicyRuleToString(PolicyRule *rule)
  *
  */
             if (src->hasInetAddress() && !src->getAddressPtr()->isAny())
-                command_line << _printSrcAddr(srcrel, src);
+                command_line << _printSrcAddr(srcrel, src, rule);
 
         } else
-            command_line << _printSrcAddr(srcrel, src);
+            command_line << _printSrcAddr(srcrel, src, rule);
 
     }
     if (!omit_src_port_for_concat)
         command_line << _printSrcService(srvrel);
 
     if (dst!=nullptr && !omit_dst_addr_for_concat) 
-	command_line << _printDstAddr(dstrel, dst);
+	command_line << _printDstAddr(dstrel, dst, rule);
 
     if (!omit_dst_port_for_concat)
         command_line << _printDstService(srvrel);

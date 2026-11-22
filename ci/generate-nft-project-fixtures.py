@@ -999,6 +999,30 @@ def case_module_load_ignored(tree):
     option.text = 'True'
 
 
+def case_reject_addressless_interface(tree):
+    """A rule matching an interface without an address must abort.
+
+    iptables silently swallowed the empty address operand, widening the
+    rule to "any"; nft -f aborts with a syntax error instead. Interfaces
+    that have neither an address, nor the "dynamic" flag, nor the
+    "unnumbered" flag (a pattern left behind by the iptables script
+    import on appliances) passed the unnumbered-interface guards and
+    reached the printer, which staged `ip daddr ` followed by nothing.
+    The printer must fail closed naming the interface instead.
+    """
+    _root, fw, allow, _nr = prepare(tree)
+    eth1 = only(fw, "./%s[@name='eth1']" % tag('Interface'))
+    if eth1.get('id') != 'id2692X30989' or eth1.get('dyn') != 'False':
+        raise ValueError('unexpected baseline interface eth1')
+    for child in list(eth1):
+        if child.tag == tag('IPv4'):
+            eth1.remove(child)
+    # Without the address child and with "unnumbered" cleared, no earlier
+    # fwcompiler guard rejects this interface; only the printer can.
+    eth1.set('unnum', 'False')
+    replace_ref(allow, 'Dst', eth1.get('id'))
+
+
 CASES = {
     'reject-hashlimit-bad-mode': case_reject_hashlimit_bad_mode,
     'reject-hashlimit-icmp-port': case_reject_hashlimit_icmp_port,
@@ -1060,6 +1084,7 @@ CASES = {
     'dynamic-interface': case_dynamic_interface,
     'runtime-dns-name': case_runtime_dns_name,
     'module-load-ignored': case_module_load_ignored,
+    'reject-addressless-interface': case_reject_addressless_interface,
     'reject-runtime-address-tables': case_reject_runtime_address_tables,
 }
 
