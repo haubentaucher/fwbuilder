@@ -65,10 +65,17 @@ check_positive() {
         return 1
     fi
 
-    # Store the extracted ruleset for reproducible diagnostics.  Testing the
-    # script preamble could accidentally accept unrelated IPv6 addresses.
-    if ! awk '/<<FWB_NFT_RULESET/ { on=1; next } /^FWB_NFT_RULESET$/ { on=0 } on { print }' \
-        "$generated" > "$work/$name.ruleset.nft"; then
+    # Store the extracted start transaction for reproducible diagnostics.
+    # It concatenates the base chain declarations (FWB_NFT_START_BASE)
+    # with the rule heredoc (FWB_NFT_RULESET) in staging order; testing
+    # the script preamble could accidentally accept unrelated addresses.
+    if ! awk '
+        /<<FWB_NFT_START_BASE/ { in_decl = 1; next }
+        /^FWB_NFT_START_BASE$/ { in_decl = 0; next }
+        /<<FWB_NFT_RULESET/ { on = 1; next }
+        /^FWB_NFT_RULESET$/ { on = 0; next }
+        in_decl || on { print }
+    ' "$generated" > "$work/$name.ruleset.nft"; then
         echo "FAIL: could not extract native ruleset for $name" >&2
         return 1
     fi
@@ -415,13 +422,16 @@ check_dynamic_sets() {
     grep -Fq 'fwb_nft_stage_address_tables || exit 1' "${generated[0]}" || return 1
     grep -Eq 'add rule ip filter .*ip saddr @bad_guys' "${generated[0]}" || return 1
     grep -Fq "fwb_nft_stage_one_address_table 'bad_guys' '/tmp/fwb-pr6-ci-address-set.data'" "${generated[0]}" || return 1
-    # block_action() has a separate emergency-policy transaction, so its
-    # add-table declarations are not duplicates in the start transaction.
-    if awk '
-        /^block_action\(\) \{/ { in_block = 1; next }
-        in_block && /^}/ { in_block = 0; next }
-        !in_block && /^add table ip filter[[:space:]]*$/ { duplicate = 1 }
-        END { exit !duplicate }
+    # block_action() is a separate emergency-policy transaction. In set
+    # mode the start branch omits its add-table lines (fwb_nft_stage_
+    # address_tables declares the tables), so a literal add-table may
+    # only appear in the lockdown declarations shared by block_action.
+    if ! awk '
+        /<<FWB_NFT_BLOCK_BASE/ { in_block = 1; next }
+        /^FWB_NFT_BLOCK_BASE$/ { in_block = 0; next }
+        in_block && /^add table ip filter[[:space:]]*$/ { in_block_count++ }
+        !in_block && /^add table ip filter[[:space:]]*$/ { outside = 1 }
+        END { exit !(outside == 0 && in_block_count == 1) }
     ' "${generated[0]}"; then
         echo 'Unexpected duplicate add-table declaration in set mode' >&2
         return 1
