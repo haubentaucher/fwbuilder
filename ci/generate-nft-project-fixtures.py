@@ -586,6 +586,123 @@ def case_nat_masquerade(tree):
         other.set('disabled', 'False' if other is nr else 'True')
 
 
+def _widen_rule_element_to_any(rule, element, any_ref='sysid0'):
+    """Drop the baseline match/negation and match 'any' instead."""
+    node = only(rule, './' + tag(element))
+    node.clear()
+    node.set('neg', 'False')
+    ET.SubElement(node, tag('ObjectRef'), {'ref': any_ref})
+
+
+def _set_rule_options(rule, options):
+    """Replace the rule's PolicyRuleOptions with the given option values."""
+    opts = only(rule, './' + tag('PolicyRuleOptions'))
+    opts.clear()
+    for name in sorted(options):
+        ET.SubElement(opts, tag('Option'), {'name': name}).text = options[name]
+
+
+def _add_tag_service(root, service_id, tagcode, comment):
+    group = only(root, ".//%s[@id='id1565X1251']" % tag('ServiceGroup'))
+    if group.get('name') != 'TagServices':
+        raise ValueError('unexpected TagServices group id1565X1251')
+    if group.findall("./%s[@id='%s']" % (tag('TagService'), service_id)):
+        raise ValueError('TagService %s already exists' % service_id)
+    ET.SubElement(group, tag('TagService'), {
+        'id': service_id,
+        'name': 'ci-tag-' + tagcode,
+        'comment': comment,
+        'ro': 'False',
+        'tagcode': tagcode,
+    })
+
+
+def _promote_before_fallback(policy, rule, fallback):
+    """Move the baseline allow rule in front of the fallback deny.
+
+    Tagging/classify rules use action Continue, but the fwbuilder shadowing
+    check still rejects rules placed after an unconditional fallback deny.
+    """
+    if list(policy)[:2] != [fallback, rule]:
+        raise ValueError('unexpected baseline policy order for the mangle fixture')
+    policy.remove(rule)
+    policy.insert(0, rule)
+    rule.set('position', '0')
+    fallback.set('position', '1')
+
+
+def case_mangle_tag(tree):
+    """Tagging must produce native 'meta mark set' rows in the mangle table.
+
+    The mangle table pipeline was ported from the iptables backend but stayed
+    unreachable through the GUI because the Tag action was marked unsupported
+    for nftables. The rule additionally sets ipt_mark_connections, so the
+    compiled script must contain the CONNMARK save statement and the
+    automatic 'meta mark set ct mark' restoration rows.
+    """
+    root, fw, pr, _ = prepare(tree)
+    policy = only(fw, './%s' % tag('Policy'))
+    fallback = only(policy, "./%s[@id='id2830X30989']" % tag('PolicyRule'))
+    _promote_before_fallback(policy, pr, fallback)
+    _add_tag_service(root, 'fwb-ci-tag-64', '64', 'CI packet mark 64')
+    pr.set('action', 'Continue')
+    pr.set('direction', 'Both')
+    pr.set('comment', 'CI: mark every packet with fwmark 64')
+    _widen_rule_element_to_any(pr, 'Src')
+    _widen_rule_element_to_any(pr, 'Dst')
+    _set_rule_options(pr, {
+        'tagging': 'True',
+        'tagobject_id': 'fwb-ci-tag-64',
+        'ipt_mark_connections': 'True',
+    })
+
+
+def case_mark_match(tree):
+    """A TagService rule element matches packets, it never writes marks.
+
+    The baseline allow rule becomes 'accept packets carrying fwmark 42';
+    since the rule only reads the mark, the compiled script must not contain
+    any mangle table at all.
+    """
+    root, fw, pr, _ = prepare(tree)
+    policy = only(fw, './%s' % tag('Policy'))
+    fallback = only(policy, "./%s[@id='id2830X30989']" % tag('PolicyRule'))
+    _promote_before_fallback(policy, pr, fallback)
+    _add_tag_service(root, 'fwb-ci-tag-42', '42', 'CI packet mark 42')
+    pr.set('action', 'Accept')
+    pr.set('direction', 'Inbound')
+    pr.set('comment', 'CI: allow packets marked with fwmark 42')
+    _widen_rule_element_to_any(pr, 'Src')
+    _widen_rule_element_to_any(pr, 'Dst')
+    srv = only(pr, './' + tag('Srv'))
+    srv.clear()
+    srv.set('neg', 'False')
+    ET.SubElement(srv, tag('ServiceRef'), {'ref': 'fwb-ci-tag-42'})
+    _set_rule_options(pr, {'stateless': 'False'})
+
+
+def case_mangle_classify(tree):
+    """Classification must translate the TC handle into a numeric priority.
+
+    The iptables CLASSIFY target takes 'major:minor' TC handles while the
+    native backend emits 'meta priority set'; 1:10 must become 0x0001000a
+    rather than leaking the raw iptables syntax into the nftables script.
+    """
+    root, fw, pr, _ = prepare(tree)
+    policy = only(fw, './%s' % tag('Policy'))
+    fallback = only(policy, "./%s[@id='id2830X30989']" % tag('PolicyRule'))
+    _promote_before_fallback(policy, pr, fallback)
+    pr.set('action', 'Continue')
+    pr.set('direction', 'Both')
+    pr.set('comment', 'CI: classify every packet as 1:10')
+    _widen_rule_element_to_any(pr, 'Src')
+    _widen_rule_element_to_any(pr, 'Dst')
+    _set_rule_options(pr, {
+        'classification': 'True',
+        'classify_str': '1:10',
+    })
+
+
 def _case_nat_load_balancing(tree, destination, extra_address='192.168.1.101'):
     """Real FWB NAT LB using the existing DNAT rule and real host objects."""
     _, fw, _, _ = prepare(tree)
@@ -1077,6 +1194,9 @@ CASES = {
     'multi-address-set': case_multi_address_set,
     'nat-multi-address-set': case_nat_multi_address_set,
     'nat-masquerade': case_nat_masquerade,
+    'mangle-tag': case_mangle_tag,
+    'mark-match': case_mark_match,
+    'mangle-classify': case_mangle_classify,
     'reject-policy-options': case_reject_policy_options,
     'reject-nat-options': case_reject_nat_options,
     'reject-timezone': case_reject_timezone,

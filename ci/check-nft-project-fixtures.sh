@@ -248,6 +248,89 @@ print('PASS: ipt_use_masq flips SNAT into a native masquerade row')
 PY_NAT_MASQUERADE
 }
 
+# Tagging rules enrich packets in the mangle table: 'meta mark set' rows,
+# the CONNMARK save statement for ipt_mark_connections and the automatic
+# restoration rows. No mark expression may leak into filter or nat.
+check_mangle_tag() {
+    local name=$1
+    if ! check_positive "$name" 4 'meta mark set 64'; then
+        return 1
+    fi
+    python3 - "$work/$name.ruleset.nft" <<'PY_MANGLE_TAG'
+import sys
+from pathlib import Path
+
+lines = Path(sys.argv[1]).read_text().splitlines()
+marks = [line for line in lines if 'meta mark set 64' in line]
+saved = [line for line in lines if 'ct mark set meta mark' in line]
+restore = [line for line in lines if 'meta mark set ct mark' in line]
+if not marks:
+    sys.exit('FAIL: the Tag action produced no meta mark set row')
+if not saved:
+    sys.exit('FAIL: ipt_mark_connections produced no ct mark save row')
+if not restore:
+    sys.exit('FAIL: no automatic meta mark set ct mark restoration rows')
+for line in marks + saved + restore:
+    if not line.startswith('add rule ip mangle '):
+        sys.exit('FAIL: mark expression outside the mangle table: ' + line)
+    if line.rstrip().endswith('drop'):
+        sys.exit('FAIL: mark row ends in an unexpected drop: ' + line)
+print('PASS: Tag sets meta mark/ct mark inside the mangle table')
+PY_MANGLE_TAG
+}
+
+# Matching a TagService only reads the mark: flat filter rows, and the
+# compiled script must not declare a mangle table at all.
+check_mark_match() {
+    local name=$1
+    if ! check_positive "$name" 4 'meta mark == 42'; then
+        return 1
+    fi
+    python3 - "$work/$name.ruleset.nft" <<'PY_MARK_MATCH'
+import re
+import sys
+from pathlib import Path
+
+lines = Path(sys.argv[1]).read_text().splitlines()
+rows = [line for line in lines if 'meta mark == 42' in line]
+if not rows:
+    sys.exit('FAIL: the TagService match produced no meta mark == 42 row')
+for line in rows:
+    if not line.startswith('add rule ip filter '):
+        sys.exit('FAIL: TagService match outside the filter table: ' + line)
+    if not line.rstrip().endswith('accept'):
+        sys.exit('FAIL: TagService match does not accept: ' + line)
+if any(re.match(r'^add (table|chain|rule|set) ip mangle', line) for line in lines):
+    sys.exit('FAIL: a plain mark match must not create a mangle table')
+print('PASS: TagService matches meta mark in the filter table')
+PY_MARK_MATCH
+}
+
+# The iptables CLASSIFY handle 'major:minor' must be translated into the
+# numeric nftables skb priority; no raw 'M:N' syntax may reach the script.
+check_mangle_classify() {
+    local name=$1
+    if ! check_positive "$name" 4 'meta priority set 0x0001000a'; then
+        return 1
+    fi
+    python3 - "$work/$name.ruleset.nft" <<'PY_MANGLE_CLASSIFY'
+import re
+import sys
+from pathlib import Path
+
+lines = Path(sys.argv[1]).read_text().splitlines()
+priorities = [line for line in lines if 'meta priority set' in line]
+if not priorities:
+    sys.exit('FAIL: the Classify action produced no meta priority set row')
+for line in priorities:
+    if not line.startswith('add rule ip mangle '):
+        sys.exit('FAIL: priority expression outside the mangle table: ' + line)
+    if re.search(r'meta priority set [0-9]+:[0-9]+', line):
+        sys.exit('FAIL: untranslated iptables CLASSIFY handle leaked: ' + line)
+print('PASS: Classify translates the TC handle into a native priority')
+PY_MANGLE_CLASSIFY
+}
+
 # Validate the native three-row NAT negation lowering (regression for the
 # "Unsupported native nftables SNAT target" / "... NAT rule type" aborts):
 # the translation row in a base chain must jump to the temporary chain,
@@ -775,6 +858,9 @@ run_case negated-nat-odst check_negated_nat negated-nat-odst 'ip daddr (\{ )?192
 run_case multi-address-set check_multi_address_set multi-address-set
 run_case nat-multi-address-set check_nat_multi_address_set nat-multi-address-set
 run_case nat-masquerade check_nat_masquerade nat-masquerade
+run_case mangle-tag check_mangle_tag mangle-tag
+run_case mark-match check_mark_match mark-match
+run_case mangle-classify check_mangle_classify mangle-classify
 run_case ipv4-option-rr check_positive ipv4-option-rr 4 'ip option rr exists'
 run_case ipv4-option-lsrr check_positive ipv4-option-lsrr 4 'ip option lsrr exists'
 run_case ipv4-option-ssrr check_positive ipv4-option-ssrr 4 'ip option ssrr exists'
