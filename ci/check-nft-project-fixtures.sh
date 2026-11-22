@@ -854,6 +854,21 @@ check_routing_table_numeric() {
 }
 
 
+check_routing_in_deleted_objects() {
+    check_positive routing-in-deleted-objects 4 || return 1
+    local fw="$output/nft-ci-routing-in-deleted-objects.fw"
+    if ! grep -Fq '$IP route add default via 192.168.1.10 dev eth1' "$fw"; then
+        echo 'FAIL: parked Routing rule set changed the main default route' >&2
+        return 1
+    fi
+    if grep -Fq 'Routing_1' "$fw"; then
+        echo 'FAIL: parked Routing rule set leaked into the compiled script' >&2
+        return 1
+    fi
+    echo 'PASS: Routing rule set parked in Deleted Objects is ignored by the compiler'
+}
+
+
 failures=0
 cases=0
 run_case() {
@@ -931,6 +946,7 @@ run_case mangle-classify check_mangle_classify mangle-classify
 run_case routing-table check_routing_table
 run_case routing-table-numeric check_routing_table_numeric
 run_case reject-routing-table-duplicate check_negative reject-routing-table-duplicate 'use the same routing table id 101'
+run_case routing-in-deleted-objects check_routing_in_deleted_objects
 run_case ipv4-option-rr check_positive ipv4-option-rr 4 'ip option rr exists'
 run_case ipv4-option-lsrr check_positive ipv4-option-lsrr 4 'ip option lsrr exists'
 run_case ipv4-option-ssrr check_positive ipv4-option-ssrr 4 'ip option ssrr exists'

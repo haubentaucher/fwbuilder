@@ -941,6 +941,29 @@ def case_reject_routing_table_duplicate(tree):
     _add_named_routing_ruleset(tree, 'ci_other', '101', 'dup2')
 
 
+def case_routing_in_deleted_objects(tree):
+    """A Routing rule set parked in the Deleted Objects library.
+
+    Deleting a Routing rule set from the GUI parks it in the trash
+    library, and rule sets and rules can legally live directly under
+    Library (Policy and NAT already do). The baseline main route must
+    stay untouched.
+    """
+    root = tree.getroot()
+    trash = only(root, ".//%s[@id='sysid99']" % tag('Library'))
+    parked = ET.Element(tag('Routing'), {
+        'id': 'fwb-ci-route-trash',
+        'name': 'Routing_1',
+        'comment': 'parked routing rule set',
+        'ro': 'False',
+        'ipv4_rule_set': 'False',
+        'ipv6_rule_set': 'False',
+        'top_rule_set': 'False',
+    })
+    ET.SubElement(parked, tag('RuleSetOptions'))
+    trash.append(parked)
+
+
 def _route_group(root):
     return only(root, ".//%s[@id='id1550X1251']" % tag('ObjectGroup'))
 
@@ -1286,6 +1309,7 @@ CASES = {
     'routing-table': case_routing_table,
     'routing-table-numeric': case_routing_table_numeric,
     'reject-routing-table-duplicate': case_reject_routing_table_duplicate,
+    'routing-in-deleted-objects': case_routing_in_deleted_objects,
     'reject-policy-options': case_reject_policy_options,
     'reject-nat-options': case_reject_nat_options,
     'reject-timezone': case_reject_timezone,
