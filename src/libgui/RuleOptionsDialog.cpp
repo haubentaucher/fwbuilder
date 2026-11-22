@@ -106,6 +106,7 @@ void RuleOptionsDialog::loadFWObject(FWObject *o)
 
     int wid=0;
     if (platform=="iptables") wid=1;
+    if (platform=="nftables") wid=1;   // shares the iptables rule options page
     if (platform=="ipf")      wid=2;
     if (platform=="pf")       wid=3;
     if (platform=="ipfw")     wid=4;
@@ -137,7 +138,7 @@ void RuleOptionsDialog::loadFWObject(FWObject *o)
 
     data.clear();
 
-    if (platform=="iptables")
+    if (platform=="iptables" || platform=="nftables")
     {
         data.registerOption(m_dialog->ipt_logPrefix, ropt,  "log_prefix");
         data.registerOption(m_dialog->ipt_logLevel, ropt,
@@ -218,6 +219,27 @@ void RuleOptionsDialog::loadFWObject(FWObject *o)
         FWObject *o = policy_rule->getTagObject();
         m_dialog->iptTagDropArea->setObject(o);
         m_dialog->iptTagDropArea->update();
+
+        // The native nftables compiler shares these iptables rule options.
+        // Hide the widgets it either ignores silently or refuses outright:
+        // log level / NFLOG group (only the firewall-wide ulog_nlgroup
+        // fallback is honored), connlimit masklen, legacy hashlimit extras
+        // and the Route action page (the Route action stays disabled for
+        // nftables until policy-based routing is redesigned).
+        if (platform=="nftables")
+        {
+            QWidget *unsupported_options[] = {
+                m_dialog->ipt_logLevel,
+                m_dialog->ipt_nlgroup,
+                m_dialog->ipt_connlimit_masklen,
+                m_dialog->ipt_hashlimit_dstlimit,
+                m_dialog->ipt_hashlimit_size,
+                m_dialog->ipt_hashlimit_max,
+                m_dialog->ipt_hashlimit_gcinterval};
+            for (QWidget *w : unsupported_options)
+                w->setVisible(false);
+            m_dialog->tab_3->setVisible(false);
+        }
     }
 
 
@@ -380,7 +402,7 @@ void RuleOptionsDialog::applyChanges()
     {
         FWOptions *ropt = policy_rule->getOptionsObject();
 
-        if (platform=="iptables")
+        if (platform=="iptables" || platform=="nftables")
         {
             FWObject *tag_object = m_dialog->iptTagDropArea->getObject();
             // if tag_object==NULL, setTagObject clears setting in the rule

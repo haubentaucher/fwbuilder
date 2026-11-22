@@ -107,21 +107,38 @@ void RuleSetDialog::loadFWObject(FWObject *o)
         fwopt = Firewall::cast(fw)->getOptionsObject();
         FWOptions *rulesetopt = s->getOptionsObject();
 
-        if (platform == "iptables")
+        if (platform == "iptables" || platform == "nftables")
         {
-            m_dialog->top_rule_set->setToolTip(
-                QApplication::translate("RuleSetDialog_q",
-                                        "On iptables \"top\" rule set goes into \n"
-                                        "the built-in chains INPUT, OUTPUT,\n"
-                                        "FORWARD; if this flag is unchecked,\n"
-                                        "rules go into user-defined chain \n"
-                                        "with the name the same as the name of \n"
-                                        "the rule set.",
+            if (platform == "iptables")
+            {
+                m_dialog->top_rule_set->setToolTip(
+                    QApplication::translate("RuleSetDialog_q",
+                                            "On iptables \"top\" rule set goes into \n"
+                                            "the built-in chains INPUT, OUTPUT,\n"
+                                            "FORWARD; if this flag is unchecked,\n"
+                                            "rules go into user-defined chain \n"
+                                            "with the name the same as the name of \n"
+                                            "the rule set.",
 #if QT_VERSION < QT_VERSION_CHECK(5, 0, 0)
-                                        0, QApplication::UnicodeUTF8));
+                                            0, QApplication::UnicodeUTF8));
 #else
-                                        0));
+                                            0));
 #endif
+            } else
+            {
+                m_dialog->top_rule_set->setToolTip(
+                    QApplication::translate("RuleSetDialog_q",
+                                            "On nftables a \"top\" rule set feeds\n"
+                                            "the base chains of table 'filter'; if\n"
+                                            "this flag is unchecked, rules go into\n"
+                                            "a regular chain named after the rule\n"
+                                            "set (jumped to from other rules).",
+#if QT_VERSION < QT_VERSION_CHECK(5, 0, 0)
+                                            0, QApplication::UnicodeUTF8));
+#else
+                                            0));
+#endif
+            }
 
             if (Policy::isA(obj))
             {
@@ -219,7 +236,7 @@ void RuleSetDialog::applyChanges()
 
     s->setTop(m_dialog->top_rule_set->isChecked());
 
-    if (platform == "iptables" && Policy::isA(s))
+    if ((platform == "iptables" || platform == "nftables") && Policy::isA(s))
     {
         rulesetopt->setBool("mangle_only_rule_set",
                             m_dialog->ipt_mangle_table->isChecked());
