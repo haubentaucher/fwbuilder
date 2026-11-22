@@ -210,7 +210,9 @@ namespace fwcompiler {
          * underscores only. When the firewall option manage_rt_tables
          * is set the generated commands and the rt_tables maintenance
          * use the table name, otherwise the plain numeric id.
+         * Public: the driver calls this once per routing rule set.
          */
+    public:
         void setRoutingTable(const std::string &table_name,
                              const std::string &table_id);
         bool usesNamedTable() const { return !routing_table_name.empty(); }
@@ -223,6 +225,7 @@ namespace fwcompiler {
         // "main" for the main table, name or numeric id otherwise.
         std::string routingTableToken() const;
 
+    protected:
 	virtual std::string myPlatformName();
 
         // These buffers are needed to collect output generated from the single ECMP rules belonging to one destination,
