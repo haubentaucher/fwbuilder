@@ -1,0 +1,24 @@
+## -*- mode: shell-script; -*-
+## Single place where a generated script declares the FWB-owned nftables
+## tables and their base chains. Both the "start" and the "block"
+## transactions stage these declarations between fwb_nft_begin_transaction
+## and fwb_nft_commit_transaction, so each action stays one atomic
+## nft -f transaction with no gap between the declaration and the rules.
+
+fwb_nft_declare_base_chains() {
+    # $1: "start" declares the tables and base chains this activation
+    #     uses; "block" is the emergency lockdown: filter policy drop
+    #     for ip and ip6, plus this firewall's mangle / nat base chains.
+    case "$1" in
+    block)
+        cat >> "$FWB_NFT_TXN" <<FWB_NFT_BLOCK_BASE
+{{$block_base_decl}}
+FWB_NFT_BLOCK_BASE
+        ;;
+    start|*)
+        cat >> "$FWB_NFT_TXN" <<FWB_NFT_START_BASE
+{{$start_base_decl}}
+FWB_NFT_START_BASE
+        ;;
+    esac
+}

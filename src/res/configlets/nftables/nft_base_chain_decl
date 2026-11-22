@@ -1,0 +1,33 @@
+## -*- mode: shell-script; -*-
+## Declarations of the FWB-owned nftables tables and their base chains
+## for ONE address family. CompilerDriver_nft_run.cpp expands this
+## configlet into the start and block branches of
+## fwb_nft_declare_base_chains(), so every generated script declares
+## its tables and chains in exactly one place.
+##
+## "block" forces the filter section so the emergency lockdown drops
+## traffic even for a family that the normal activation does not use.
+{{if filter_or_auto}}
+{{if not_using_ipset}}add table {{if ipv4}}ip{{endif}}{{if ipv6}}ip6{{endif}} filter{{endif}}
+add chain {{if ipv4}}ip{{endif}}{{if ipv6}}ip6{{endif}} filter INPUT { type filter hook input priority 0; policy drop; }
+add chain {{if ipv4}}ip{{endif}}{{if ipv6}}ip6{{endif}} filter OUTPUT { type filter hook output priority 0; policy drop; }
+add chain {{if ipv4}}ip{{endif}}{{if ipv6}}ip6{{endif}} filter FORWARD { type filter hook forward priority 0; policy drop; }
+{{endif}}
+{{if mangle_or_auto}}
+{{if not_using_ipset}}add table {{if ipv4}}ip{{endif}}{{if ipv6}}ip6{{endif}} mangle{{endif}}
+# Declare the mangle base chains before any automatic or user rules.
+add chain {{if ipv4}}ip{{endif}}{{if ipv6}}ip6{{endif}} mangle PREROUTING { type filter hook prerouting priority -150; policy accept; }
+add chain {{if ipv4}}ip{{endif}}{{if ipv6}}ip6{{endif}} mangle INPUT { type filter hook input priority -150; policy accept; }
+add chain {{if ipv4}}ip{{endif}}{{if ipv6}}ip6{{endif}} mangle FORWARD { type filter hook forward priority -150; policy accept; }
+add chain {{if ipv4}}ip{{endif}}{{if ipv6}}ip6{{endif}} mangle OUTPUT { type route hook output priority -150; policy accept; }
+add chain {{if ipv4}}ip{{endif}}{{if ipv6}}ip6{{endif}} mangle POSTROUTING { type filter hook postrouting priority -150; policy accept; }
+{{endif}}
+{{if nat}}
+{{if not_using_ipset}}add table {{if ipv4}}ip{{endif}}{{if ipv6}}ip6{{endif}} nat{{endif}}
+# Standard NAT chains are considered pre-existing by NATCompiler_nft.
+# The hook priorities are the native dstnat (-100) and srcnat (100).
+add chain {{if ipv4}}ip{{endif}}{{if ipv6}}ip6{{endif}} nat PREROUTING { type nat hook prerouting priority -100; policy accept; }
+add chain {{if ipv4}}ip{{endif}}{{if ipv6}}ip6{{endif}} nat INPUT { type nat hook input priority 100; policy accept; }
+add chain {{if ipv4}}ip{{endif}}{{if ipv6}}ip6{{endif}} nat OUTPUT { type nat hook output priority -100; policy accept; }
+add chain {{if ipv4}}ip{{endif}}{{if ipv6}}ip6{{endif}} nat POSTROUTING { type nat hook postrouting priority 100; policy accept; }
+{{endif}}

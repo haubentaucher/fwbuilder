@@ -322,6 +322,33 @@ QString CompilerDriver_nft::run(const std::string &cluster_id,
             if (ipv4_run) ipv4_6_runs.push_back(AF_INET);
         }
 
+        /*
+         * Single source of the FWB-owned nftables tables and base chain
+         * declarations. The start fragment mirrors the {{if}} conditions
+         * that dumpScript() applies to the script body, so declarations
+         * and rules can never disagree. The block fragment is assembled
+         * for both families after the loop. See the nft_base_chain_decl
+         * and nft_declare_base_chains configlets.
+         */
+        std::string start_base_decl;
+        bool fam_mangle[2] = { false, false };
+        bool fam_nat[2] = { false, false };
+        auto expandBaseChainDecl = [&fw](bool ipv6,
+                                         bool filter,
+                                         bool mangle,
+                                         bool nat,
+                                         bool declare_tables)
+        {
+            Configlet decl(fw, "nftables", "nft_base_chain_decl");
+            decl.setVariable("ipv4", !ipv6);
+            decl.setVariable("ipv6", ipv6);
+            decl.setVariable("filter_or_auto", filter);
+            decl.setVariable("mangle_or_auto", mangle);
+            decl.setVariable("nat", nat);
+            decl.setVariable("not_using_ipset", declare_tables);
+            return decl.expand().toStdString();
+        };
+
         for (vector<int>::iterator i=ipv4_6_runs.begin(); i!=ipv4_6_runs.end(); ++i)
         {
             int policy_af = *i;
@@ -609,6 +636,39 @@ QString CompilerDriver_nft::run(const std::string &cluster_id,
                                            nftSetDeclarations(minus_n_commands_mangle) + mangle_rules_stream.str(),
                                            nftSetDeclarations(minus_n_commands_filter) + filter_rules_stream.str(),
                                            ipv6_policy);
+            // Accumulate the start branch of the declaration function
+            // with exactly the same conditions dumpScript() applied to
+            // the per-family script body.
+            if (!single_rule_compile_on)
+            {
+                const std::string filter_script_frag =
+                    nftSetDeclarations(minus_n_commands_filter) +
+                    filter_rules_stream.str();
+                const std::string mangle_script_frag =
+                    nftSetDeclarations(minus_n_commands_mangle) +
+                    mangle_rules_stream.str();
+                const std::string nat_script_frag = nat_rules_stream.str();
+                const std::string auto_mangle_frag =
+                    automaitc_mangle_stream.str();
+                const bool auto_frag =
+                    !automaitc_rules_stream.str().empty() ||
+                    !auto_mangle_frag.empty();
+                const bool filter_frag = auto_frag || !filter_script_frag.empty();
+                const bool mangle_frag =
+                    !mangle_script_frag.empty() || !auto_mangle_frag.empty();
+                const bool nat_frag = !nat_script_frag.empty();
+                if (auto_frag || !filter_script_frag.empty() ||
+                    !mangle_script_frag.empty() || !nat_script_frag.empty())
+                {
+                    start_base_decl += expandBaseChainDecl(
+                        ipv6_policy, filter_frag, mangle_frag, nat_frag,
+                        !options->getBool("use_nft_sets"));
+                }
+                // The emergency block always protects both families; its
+                // mangle / nat base chains follow the compiled flags.
+                fam_mangle[ipv6_policy ? 1 : 0] = mangle_frag;
+                fam_nat[ipv6_policy ? 1 : 0] = nat_frag;
+            }
             if (single_rule_compile_on)
                 generated_script += "\n\n";
         }
@@ -888,6 +948,10 @@ QString CompilerDriver_nft::run(const std::string &cluster_id,
             script << "fwb_nft_begin_transaction || exit 1\n";
             if (options->getBool("use_nft_sets"))
                 script << "fwb_nft_stage_address_tables || exit 1\n";
+            // All FWB-owned tables and base chains are declared in one
+            // shared function, staged into the same transaction file
+            // after the staged deletes and before the rules.
+            script << "fwb_nft_declare_base_chains start || exit 1\n";
             // The ruleset heredoc is deliberately UNQUOTED. The native
             // compilers emit fwbuilder shell variables for dynamic
             // interface addresses ($i_<iface>), for networks attached
@@ -956,10 +1020,26 @@ QString CompilerDriver_nft::run(const std::string &cluster_id,
 
         script_buffer = "";
 
+        // "block" is the emergency lockdown: it always protects both
+        // families, even when the normal activation compiled only one.
+        // The block branch declares the tables itself because the block
+        // transaction never stages address tables.
+        Configlet declare_base_chains(fw, "nftables", "nft_declare_base_chains");
+        declare_base_chains.collapseEmptyStrings(true);
+        declare_base_chains.setVariable(
+            "start_base_decl", QString::fromStdString(start_base_decl));
+        declare_base_chains.setVariable(
+            "block_base_decl",
+            QString::fromStdString(
+                expandBaseChainDecl(false, true,
+                                    fam_mangle[0], fam_nat[0], true) +
+                expandBaseChainDecl(true, true,
+                                    fam_mangle[1], fam_nat[1], true)));
+        script_skeleton.setVariable("declare_base_chains",
+                                    declare_base_chains.expand());
+
         Configlet block_action(fw, "nftables", "nft_block_action");
         block_action.collapseEmptyStrings(true);
-        block_action.setVariable("have_ipv4", have_ipv4);
-        block_action.setVariable("have_ipv6", have_ipv6);
         block_action.setVariable("mgmt_access", 0);
         block_action.setVariable("mgmt_access_ipv4", 0);
         block_action.setVariable("mgmt_access_ipv6", 0);

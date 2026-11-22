@@ -68,6 +68,8 @@ reset_all() {
     {{$reset_all}}
 }
 
+{{$declare_base_chains}}
+
 {{$block_action}}
 
 {{$stop_action}}

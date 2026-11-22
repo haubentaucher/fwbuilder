@@ -12,22 +12,17 @@
 ## {{if var}} is conditional operator.
 ##
 ## This configlet defines commands executed when nftables script is ran
-## with command line argument "block". By default it resets nftables
-## ruleset using function reset_all and optionally adds backup
-## ssh access rules.
+## with command line argument "block". The FWB-owned tables and their
+## base chains are declared by fwb_nft_declare_base_chains() so the
+## emergency policy and the normal activation always agree about the
+## table and chain layout.
 
 block_action() {
     # Replace FWB-owned tables atomically, preserving third-party policies.
     fwb_nft_begin_transaction || return 1
+    fwb_nft_declare_base_chains block || return 1
     cat >> "$FWB_NFT_TXN" <<'FWB_NFT_BLOCK'
-add table ip filter
-add chain ip filter INPUT { type filter hook input priority 0; policy drop; }
-add chain ip filter OUTPUT { type filter hook output priority 0; policy drop; }
-add chain ip filter FORWARD { type filter hook forward priority 0; policy drop; }
-add table ip6 filter
-add chain ip6 filter INPUT { type filter hook input priority 0; policy drop; }
-add chain ip6 filter OUTPUT { type filter hook output priority 0; policy drop; }
-add chain ip6 filter FORWARD { type filter hook forward priority 0; policy drop; }
+# Emergency management access rules for the backup ssh access option.
 {{if mgmt_access_ipv4}}
 add rule ip filter INPUT ip saddr {{$ssh_management_address_ipv4}} tcp dport 22 ct state { new, established } accept
 add rule ip filter OUTPUT ip daddr {{$ssh_management_address_ipv4}} tcp sport 22 ct state { established, related } accept
