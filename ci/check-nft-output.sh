@@ -4,11 +4,17 @@
 #
 # The generated script stages three nft -f transactions through heredocs:
 #   FWB_NFT_START_BASE + FWB_NFT_RULESET  (the "start" activation,
-#       preceded at run time by the staged deletes and address tables)
+#       preceded at run time by the staged deletes and address tables;
+#       the ruleset may be split into several FWB_NFT_RULESET segments,
+#       separated by the run-time wrapper shell blocks)
 #   FWB_NFT_BLOCK_BASE + FWB_NFT_BLOCK    (the emergency "block" policy)
 #   FWB_NFT_STOP                          (empty FWB-owned tables batch)
 # Every heredoc body is validated here, and rules may only reference
 # chains that the matching transaction declared before them.
+# Wrapper blocks for dynamic interface addresses and run-time DNS names
+# run OUTSIDE the ruleset heredoc, appending their resolved copies into
+# the same open transaction through small per-rule FWB_NFT_DYNRULE
+# heredocs; those bodies are validated by the same rule checks.
 set -eu
 [ "$#" -gt 0 ] || { echo 'Usage: check-nft-output.sh SCRIPT.fw ...' >&2; exit 2; }
 for fw in "$@"; do
@@ -37,8 +43,22 @@ for fw in "$@"; do
         sec="block_rules"; open_block++; next
     }
     sec == "" && /<<FWB_NFT_RULESET/ { sec="ruleset"; open_ruleset++; next }
+    sec == "" && /<<FWB_NFT_DYNRULE/ {
+        # Run-time wrapper loops (dynamic interface addresses, run-time
+        # DNS names) stage with a guarded append into the SAME open
+        # transaction: every loop value must pass the rule checks below,
+        # and the emitter must never run unguarded, or an empty variable
+        # value could corrupt the staged transaction.
+        n = split($0, seg, " && ")
+        ok = (n >= 2)
+        for (s = 1; s < n; s++)
+            if (seg[s] !~ /^test -n "\$[A-Za-z0-9_]+"$/) ok = 0
+        if (seg[n] !~ /^cat >> "\$FWB_NFT_TXN" <<FWB_NFT_DYNRULE[[:space:]]*$/) ok = 0
+        if (!ok) fail("unsafe run-time wrapper emitter: " $0)
+        sec="dyn"; open_dyn++; next
+    }
     sec == "" && /<<.FWB_NFT_STOP/ { sec="stop"; open_stop++; next }
-    /^(FWB_NFT_START_BASE|FWB_NFT_BLOCK_BASE|FWB_NFT_BLOCK|FWB_NFT_RULESET|FWB_NFT_STOP)[[:space:]]*$/ {
+    /^(FWB_NFT_START_BASE|FWB_NFT_BLOCK_BASE|FWB_NFT_BLOCK|FWB_NFT_RULESET|FWB_NFT_DYNRULE|FWB_NFT_STOP)[[:space:]]*$/ {
         if (sec == "") fail("nft heredoc end marker outside heredoc: " $0)
         sec=""
         next
@@ -109,20 +129,23 @@ for fw in "$@"; do
     # -------- policy rules (the "start" transaction rule heredoc) --------
     {
         if ($0 ~ /^[[:space:]]*$/ || $0 ~ /^[[:space:]]*#/) next
-        # Dynamic interfaces stage their rules through small shell loops in
-        # the unquoted heredoc: for/do/done only drive the loop over the
-        # addresses resolved by configure_interfaces().
-        if ($0 ~ /^[[:space:]]*(for|do|done)([[:space:]]|$)/) next
+        # Shell loops executing at activation time live OUTSIDE the staged
+        # heredocs as small FWB_NFT_DYNRULE wrapper blocks. Text inside a
+        # staged heredoc is read verbatim by "nft -f": loop keywords would
+        # be syntax errors (or worse, semi-valid rules after the
+        # variables had already expanded empty while the heredoc was
+        # read).
+        if ($0 ~ /^[[:space:]]*(for|do|done|while)([[:space:]]|$)/) {
+            fail("shell loop keyword leaked into nft heredoc: " $0); next
+        }
         n=split($0, part, /[[:space:]]+/)
         if ($2=="table") { fail("table declared outside fwb_nft_declare_base_chains: " $0); next }
-        # "test -n "$var" && add ..." stages one native rule per existing
-        # address and stages nothing when the interface is down; validate
-        # the embedded native command.
+        # The iptables-era wrapper emitted "test -n ... && <command>"; the
+        # atomic backend stages run-time values through FWB_NFT_DYNRULE
+        # blocks outside the heredoc, so a test guard must never remain
+        # inside staged text.
         if ($1=="test") {
-            if ($0 !~ /^test -n "[^"]+"[[:space:]]*&&[[:space:]]*/)
-                { fail("non-native command inside nft heredoc: " $0); next }
-            sub(/^test -n "[^"]+"[[:space:]]*&&[[:space:]]*/, "", $0)
-            n=split($0, part, /[[:space:]]+/)
+            fail("shell test guard leaked into nft heredoc: " $0); next
         }
         if ($1!="add") { fail("non-native command inside nft heredoc: " $0); next }
         # Hookless chains are ordinary jump targets which the native
@@ -165,13 +188,15 @@ for fw in "$@"; do
                 fail("iptables option in native rule: " $0)
             if ($0 ~ /\$/) {
                 # fwbuilder emits $i_<iface> (dynamic interface addresses,
-                # attached networks) and $at_<name> (run-time address
-                # tables) shell variables. The ruleset heredoc is
-                # unquoted, so the shell expands exactly these names
-                # while the transaction is staged. Any other dollar must
-                # be rejected as an unexpanded leftover.
+                # attached networks), $at_<name> (run-time address tables)
+                # and $dn_<name> (run-time DNS names) shell variables.
+                # The ruleset heredoc is unquoted, so the shell expands
+                # exactly these names while the transaction is staged;
+                # dynamic and DNS wrappers stage them through their
+                # FWB_NFT_DYNRULE blocks. Any other dollar must be
+                # rejected as an unexpanded leftover.
                 probe=$0
-                gsub(/\$(i|at)_[A-Za-z0-9_]+/, "", probe)
+                gsub(/\$(i|at|dn)_[A-Za-z0-9_]+/, "", probe)
                 if (probe ~ /\$/) fail("unexpanded variable in native ruleset: " $0)
             }
             rules++
@@ -183,7 +208,7 @@ for fw in "$@"; do
         if (reload_count!=1 || reload_starts!=1 || in_reload)
             fail("reload must invoke atomic start exactly once without stop")
         if (open_start!=1 || sec!="") fail("expected exactly one complete FWB_NFT_START_BASE")
-        if (open_ruleset!=1) fail("expected exactly one complete FWB_NFT_RULESET")
+        if (open_ruleset<1) fail("expected at least one complete FWB_NFT_RULESET")
         if (open_block_base!=1) fail("expected exactly one complete FWB_NFT_BLOCK_BASE")
         if (open_block!=1) fail("expected exactly one complete FWB_NFT_BLOCK")
         if (open_stop!=1) fail("expected exactly one complete FWB_NFT_STOP")

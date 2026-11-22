@@ -13,15 +13,15 @@
 ##
 ## Known variables:
 ##
-## need_modprobe     : set to true if "load modules" option is on, or
-##                     script needs to manage vlan or bonding interfaces.
-##                     See configlets for vlan and bonding interfaces to find
-##                     how modprobe is used to load corresponding modules
+## need_modprobe     : set to true if the script needs to manage vlan or
+##                     bonding interfaces (the kernel autoloads the
+##                     nftables modules itself). See configlets for vlan
+##                     and bonding interfaces to find how modprobe is used
+##                     to load corresponding modules
 ## need_vconfig      : set to true if script manages vlans
-## need_brctl        : set to true if script manages bridge ports
+## need_brctl       : set to true if script manages bridge ports
 ## need_ifenslave    : set to true if script manages bonding interfaces
 ## need_ipset        : set to true if ipset is used for run-time address tables
-## load_modules      : set to true if "load modules" option is on
 ##
 ## These variables are set in OSConfigurator_linux24_nft::printShellFunctions()
 ##

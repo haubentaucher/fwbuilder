@@ -110,6 +110,39 @@ diff_intf() {
     done
 }
 
+# Resolve a DNS name (arg 1) to a whitespace-separated list of addresses of
+# one family (arg 2: "4" or "6"). Run-time DNSName objects in rules use this
+# while the nftables transaction is being staged: nftables itself resolves
+# names at commit time and refuses names that map to several addresses
+# ("... resolves to multiple addresses"), so activation expands every
+# record into its own staged copy of the rule. A name that resolves to
+# nothing stages no copy (the rule is skipped, like a rule on a dynamic
+# interface that is down). Both busybox and classic nslookup output place
+# the answer section after a "Name:" line, which keeps the resolver's own
+# address out; address-looking tokens are validated by shape so host name
+# leftovers and "#53" suffixes can never leak into the ruleset.
+fwb_nft_resolve() {
+    fwb_dns_host=$1
+    fwb_dns_family=$2
+    nslookup "$fwb_dns_host" 2>/dev/null | awk -v fam="$fwb_dns_family" '
+        /^Name:/ { answer = 1 }
+        answer && /^Address/ {
+            for (i = 2; i <= NF; i++) {
+                tok = $i
+                sub(/[.,]$/, "", tok)
+                if (tok ~ /#/) continue
+                if (fam == 4 && tok ~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/) {
+                    print tok
+                } else if (fam == 6 && tok ~ /^[0-9A-Fa-f:.]+$/ && gsub(/:/, ":", tok) >= 2) {
+                    # every real IPv6 literal, "::1" included, has at least
+                    # two colons; one colon is an old busybox "Address N:" tag
+                    print tok
+                }
+            }
+        }
+    '
+}
+
 # Stage deletion of only FWB-owned tables in the SAME nft transaction as
 # replacement rules. A temporary file avoids an unsafe expand-and-eval heredoc.
 # The generator owns the standard table names (filter, mangle, nat). The

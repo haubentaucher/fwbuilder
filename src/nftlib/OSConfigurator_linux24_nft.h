@@ -29,11 +29,16 @@
 #include "OSConfigurator_linux24.h"
 #include "OSData_nft.h"
 
+#include <map>
+
 namespace fwcompiler {
 
     class OSConfigurator_linux24_nft : public OSConfigurator_linux24 {
 
         OSData_nft os_data;
+
+        // shell variable name -> DNS name it was registered for
+        std::map<std::string, std::string> run_time_dns_names;
 
         std::string getPathForATool(const std::string &os_variant,
                                     OSData_nft::tools tool_name);
@@ -46,6 +51,16 @@ namespace fwcompiler {
         virtual std::string printShellFunctions(bool have_ipv6);
         virtual std::string printPathForAllTools(const std::string &os);
         virtual std::string printRunTimeAddressTablesCode();
+
+        virtual std::string printRunTimeWrappers(libfwbuilder::FWObject *rule,
+                                                 const std::string &command,
+                                                 bool ipv6);
+
+        // Returns the stable shell variable name (without the "$") that
+        // the activation script assigns one resolved address of a
+        // run-time DNSName per loop iteration. Registering the same DNS
+        // name again returns the original variable.
+        std::string registerRunTimeDNSName(const std::string &hostname);
     };
 };
 

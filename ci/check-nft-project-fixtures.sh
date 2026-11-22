@@ -442,8 +442,13 @@ check_dynamic_sets() {
 
 # Dynamic interface addresses historically aborted the final legacy-marker
 # validation ("Native nftables script contains legacy command: $i_"), so
-# fwb_nft wrote NO output file even though every rule compiled. The ruleset
-# heredoc is now unquoted and the shell resolves $i_* at activation time.
+# fwb_nft wrote NO output file even though every rule compiled. Later the
+# iptables-era loop wrappers leaked INTO the unquoted ruleset heredoc: the
+# heredoc expanded the loop variables while it was read (empty for a down
+# interface), and the for/do/test lines themselves reached "nft -f" as
+# staged input. The atomic driver now stages multi-value rules through
+# dedicated FWB_NFT_DYNRULE wrapper blocks OUTSIDE the ruleset heredoc; the
+# wrapper appends every resolved copy into the same open transaction.
 check_dynamic_interface() {
     local name=dynamic-interface
     mkdir -p "$work/$name" "$output/../nft-dynif-output"
@@ -468,18 +473,47 @@ check_dynamic_interface() {
         echo 'FAIL: invalid native script structure for dynamic-interface' >&2
         return 1
     fi
-    # The ruleset heredoc must be UNQUOTED so the shell can expand the
-    # fwbuilder $i_* variables while the transaction is being staged.
+    # The plain ruleset segments must use an UNQUOTED heredoc.
     grep -Fq 'cat >> "$FWB_NFT_TXN" <<FWB_NFT_RULESET' "${generated[0]}" || {
-        echo 'FAIL: ruleset heredoc is not unquoted' >&2
+        echo 'FAIL: ruleset heredoc is missing or quoted' >&2
         return 1
     }
     if grep -Fq "<<'FWB_NFT_RULESET'" "${generated[0]}"; then
         echo 'FAIL: quoted ruleset heredoc returned' >&2
         return 1
     fi
-    # configure_interfaces() resolves live interface addresses into the
-    # $i_eth1 / $i_eth1_network shell variables before the staging starts.
+    # Multi-value rules stage through wrapper loops OUTSIDE the heredoc.
+    grep -Fq 'for i_eth1 in $i_eth1_list' "${generated[0]}" || {
+        echo 'FAIL: no dynamic-interface wrapper loop for $i_eth1' >&2
+        return 1
+    }
+    grep -Fq 'for i_eth1_network in $i_eth1_network_list' "${generated[0]}" || {
+        echo 'FAIL: no attached-network wrapper loop for $i_eth1_network' >&2
+        return 1
+    }
+    # The emitter must guard the per-value append and stay fail-soft: an
+    # interface without addresses stages no rule instead of a broken one.
+    grep -Fq 'test -n "$i_eth1" && cat >> "$FWB_NFT_TXN" <<FWB_NFT_DYNRULE' \
+        "${generated[0]}" || {
+        echo 'FAIL: dynamic rule copies are not guarded transaction appends' >&2
+        return 1
+    }
+    grep -Fq 'test -n "$i_eth1_network" && cat >> "$FWB_NFT_TXN" <<FWB_NFT_DYNRULE' \
+        "${generated[0]}" || {
+        echo 'FAIL: attached-network copies are not guarded transaction appends' >&2
+        return 1
+    }
+    # The wrapped rule itself still references the shell variable; it is
+    # expanded by the per-rule FWB_NFT_DYNRULE heredoc at activation time.
+    grep -Eq 'add rule ip filter .*ip saddr \$i_eth1([^_A-Za-z0-9]|$)' "${generated[0]}" || {
+        echo 'FAIL: no rule references the dynamic interface address $i_eth1' >&2
+        return 1
+    }
+    grep -Eq 'add rule ip filter .*ip saddr \$i_eth1_network' "${generated[0]}" || {
+        echo 'FAIL: no rule references attached networks via $i_eth1_network' >&2
+        return 1
+    }
+    # configure_interfaces() fills the loop lists before the staging starts.
     grep -Eq '^[[:space:]]*getaddr[[:space:]]+eth1[[:space:]]+i_eth1([[:space:]]|$)' "${generated[0]}" || {
         echo 'FAIL: generated script never resolves the dynamic interface address' >&2
         return 1
@@ -488,18 +522,124 @@ check_dynamic_interface() {
         echo 'FAIL: generated script never resolves attached networks' >&2
         return 1
     }
-    grep -Eq 'add rule ip filter .*ip saddr \$i_eth1' "${generated[0]}" || {
-        echo 'FAIL: no rule references the dynamic interface address $i_eth1' >&2
-        return 1
-    }
-    grep -Eq 'add rule ip filter .*ip saddr \$i_eth1_network' "${generated[0]}" || {
-        echo 'FAIL: no rule references attached networks via $i_eth1_network' >&2
-        return 1
-    }
     grep -Fq 'fwb_nft_begin_transaction || exit 1' "${generated[0]}" || return 1
     grep -Fq 'fwb_nft_commit_transaction || exit 1' "${generated[0]}" || return 1
     cp -- "${generated[0]}" "$output/../nft-dynif-output/nft-ci-dynamic-interface.fw"
-    echo 'PASS: dynamic-interface expands fwbuilder shell variables at activation time'
+    echo 'PASS: dynamic-interface stages resolved copies outside the ruleset heredoc'
+}
+
+# Run-time DNSName objects used to print their raw host name into the
+# staged ruleset; nft resolves names itself at commit time and aborts the
+# whole atomic activation when a name carries several records
+# ("Hostname resolves to multiple addresses"). Real-world projects use
+# such names (e.g. imap.gmail.com), so atomic activation was effectively
+# unusable. The compilers now register a sanitized $dn_ placeholder and
+# the script expands every record at activation time through
+# fwb_nft_resolve(), staging one rule copy per address into the same
+# open transaction.
+check_runtime_dns_name() {
+    local name=runtime-dns-name
+    mkdir -p "$work/$name" "$output/../nft-dns-output"
+    if ! "$compiler" -4 -f "$work/xml/$name.fwb" -d "$work/$name" nft-test \
+         > "$work/$name.compile.log" 2>&1; then
+        cat "$work/$name.compile.log" >&2
+        echo 'FAIL: run-time DNSName compile was rejected' >&2
+        return 1
+    fi
+    local -a generated=("$work/$name"/*.fw)
+    [[ ${#generated[@]} == 1 && -s ${generated[0]} ]] || {
+        echo 'FAIL: expected exactly one generated runtime-dns-name script' >&2
+        return 1
+    }
+    sh -n "${generated[0]}" || return 1
+    if ! sh ci/check-nft-output.sh "${generated[0]}"; then
+        echo 'FAIL: invalid native script structure for runtime-dns-name' >&2
+        return 1
+    fi
+    # The resolver helper must ship with the generated script itself.
+    grep -Fq 'fwb_nft_resolve() {' "${generated[0]}" || {
+        echo 'FAIL: fwb_nft_resolve helper is missing' >&2
+        return 1
+    }
+    # The wrapper loop resolves at activation time, IPv4 family pinned by
+    # the compiled family of the rule.
+    grep -Fq 'for dn_fwb_ci_rt_dns_example_org in $(fwb_nft_resolve "fwb-ci-rt-dns.example.org" 4)' \
+        "${generated[0]}" || {
+        echo 'FAIL: no resolver wrapper loop for the run-time DNSName' >&2
+        return 1
+    }
+    # Every resolved record stages through a guarded transaction append.
+    grep -Fq 'test -n "$dn_fwb_ci_rt_dns_example_org" && cat >> "$FWB_NFT_TXN" <<FWB_NFT_DYNRULE' \
+        "${generated[0]}" || {
+        echo 'FAIL: DNS rule copies are not guarded transaction appends' >&2
+        return 1
+    }
+    grep -Eq 'add rule ip filter .*ip saddr \$dn_fwb_ci_rt_dns_example_org([^_A-Za-z0-9]|$)' \
+        "${generated[0]}" || {
+        echo 'FAIL: no rule references the DNS placeholder $dn_fwb_ci_rt_dns_example_org' >&2
+        return 1
+    }
+    # A raw host name operand must never reach "nft -f" again.
+    if grep -Eq 'ip saddr fwb-ci-rt-dns\.example\.org' "${generated[0]}"; then
+        echo 'FAIL: raw DNS name printed as a rule operand' >&2
+        return 1
+    fi
+    cp -- "${generated[0]}" "$output/../nft-dns-output/nft-ci-runtime-dns-name.fw"
+    echo 'PASS: run-time DNSName stages one resolver-loop copy per record'
+}
+
+# Kernel-native nftables autoloads its conntrack/NAT modules, and appliance
+# systems (OpenWrt 25.x) ship neither /lib/modules/$(uname -r) nor a
+# modprobe binary: the iptables-era "find $MODULES_DIR ... modprobe"
+# search aborted generated scripts right at the tool check. The
+# load_modules() body must stay a documented no-op even when the
+# "load kernel modules" firewall option is enabled, which imported
+# iptables projects do.
+check_module_loading() {
+    local name=module-load-ignored
+    mkdir -p "$work/$name"
+    if ! "$compiler" -4 -f "$work/xml/$name.fwb" -d "$work/$name" nft-test \
+         > "$work/$name.compile.log" 2>&1; then
+        cat "$work/$name.compile.log" >&2
+        echo 'FAIL: module-load-ignored compile was rejected' >&2
+        return 1
+    fi
+    local -a generated=("$work/$name"/*.fw)
+    [[ ${#generated[@]} == 1 && -s ${generated[0]} ]] || {
+        echo 'FAIL: expected exactly one generated module-load-ignored script' >&2
+        return 1
+    }
+    sh -n "${generated[0]}" || return 1
+    if ! sh ci/check-nft-output.sh "${generated[0]}"; then
+        echo 'FAIL: invalid native script structure for module-load-ignored' >&2
+        return 1
+    fi
+    # The function stays (vlan/bonding modprobe users may follow later),
+    # but its body must be a documented no-op: only ':' and comments.
+    grep -Fq 'load_modules() {' "${generated[0]}" || {
+        echo 'FAIL: load_modules function disappeared from the script' >&2
+        return 1
+    }
+    if ! awk '/^load_modules\(\) \{$/ { in_body = 1; next }
+              in_body && /^\}$/ { in_body = 0; exit !(body_ok == 1) }
+              in_body && /^[[:space:]]*:([[:space:]]|$)/ { body_ok = 1; next }
+              in_body && /^[[:space:]]*($|#)/ { next }
+              in_body { body_ok = 0 }' "${generated[0]}"; then
+        echo 'FAIL: load_modules body is not a pure no-op' >&2
+        return 1
+    fi
+    # The activation path still calls load_modules (inert, kept for layout
+    # compatibility), but nothing may reference the iptables-era module
+    # search: no $MODPROBE use, no MODULES_DIR, no /lib/modules scan.
+    grep -Fq 'load_modules "' "${generated[0]}" || {
+        echo 'FAIL: activation no longer calls load_modules' >&2
+        return 1
+    }
+    if grep -Eq '\$MODPROBE|MODULES_DIR|/lib/modules' "${generated[0]}"; then
+        echo 'FAIL: iptables-era module search code still present' >&2
+        return 1
+    fi
+    echo 'PASS: load_modules option stays accepted and emits a no-op'
 }
 
 # Prolog place "after policy reset" used to abort every atomic-mode compile,
@@ -672,6 +812,8 @@ run_case packet-snat check_positive packet-snat 4 'udp dport 53' 'snat to 192\.0
 run_case packet-dnat check_positive packet-dnat 4 'tcp dport 80' 'ip daddr 192\.0\.2\.101' 'dnat to 192\.168\.1\.100'
 run_case dynamic-address-sets check_dynamic_sets
 run_case dynamic-interface check_dynamic_interface
+run_case runtime-dns-name check_runtime_dns_name
+run_case module-load-ignored check_module_loading
 run_case reject-runtime-address-tables check_negative reject-runtime-address-tables 'requires named nftables sets'
 # Ancillary native runtime guard; not an additional FWB XML fixture.
 if ! check_dynamic_ipv6_routes; then

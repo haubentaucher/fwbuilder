@@ -915,8 +915,18 @@ QString CompilerDriver_nft::run(const std::string &cluster_id,
             prolog_done = true;
         }
 
-        script_skeleton.setVariable("load_modules",
-                                    oscnf->generateCodeForProtocolHandlers().c_str());
+        // Nftables is native kernel machinery: conntrack, NAT and address
+        // family modules are autoloaded by the kernel on demand. The
+        // iptables-era module search (find /lib/modules/... + modprobe)
+        // does not apply and actively breaks on appliance systems such
+        // as OpenWrt (25.x) that ship no kernel modules on disk and no
+        // modprobe binary. Keep the generated load_modules() a documented
+        // no-op; the firewall option stays accepted for imported
+        // iptables projects.
+        if (options->getBool("load_modules"))
+            info(" The 'load kernel modules' option is not used by the "
+                 "native nftables backend and is ignored");
+        script_skeleton.setVariable("load_modules", QString());
         script_skeleton.setVariable("load_modules_with_nat", (have_nat)?"nat":"");
         script_skeleton.setVariable("load_modules_with_ipv6", (have_ipv6)?"ipv6":"");
 
@@ -952,20 +962,67 @@ QString CompilerDriver_nft::run(const std::string &cluster_id,
             // shared function, staged into the same transaction file
             // after the staged deletes and before the rules.
             script << "fwb_nft_declare_base_chains start || exit 1\n";
-            // The ruleset heredoc is deliberately UNQUOTED. The native
+            // The ruleset heredocs are deliberately UNQUOTED. The native
             // compilers emit fwbuilder shell variables for dynamic
-            // interface addresses ($i_<iface>), for networks attached
-            // to dynamic interfaces ($i_<iface>_network) and for
-            // run-time address tables ($at_<name>). The shell expands
-            // them while it reads the heredoc, after
-            // configure_interfaces() has run getaddr()/getnet(), so
-            // the staged transaction file holds plain nftables syntax
-            // again by the time "nft -f" commits it. This mirrors the
-            // classic iptables-restore activation, which expanded the
-            // same variables in a subshell at run time.
-            script << "cat >> \"$FWB_NFT_TXN\" <<FWB_NFT_RULESET\n";
-            script << QString::fromUtf8(generated_script.c_str());
-            script << "\nFWB_NFT_RULESET\n";
+            // interface addresses ($i_<iface>), for networks attached to
+            // dynamic interfaces ($i_<iface>_network) and for run-time
+            // address tables ($at_<name>). The shell expands them while
+            // it reads the heredoc, after configure_interfaces() has run
+            // getaddr()/getnet(), so the staged transaction file holds
+            // plain nftables syntax again by the time "nft -f" commits
+            // it. This mirrors the classic iptables-restore activation,
+            // which expanded the same variables in a subshell at run time.
+            //
+            // Multi-value rules (dynamic interface addresses, run-time
+            // DNS names) can not live inside one heredoc: their loops and
+            // resolver calls must execute at activation time, and a
+            // heredoc expands instantly. OSConfigurator_linux24_nft::
+            // printRunTimeWrappers() marks those wrapper blocks in the
+            // rule stream with "#FWB_NFT_WRAPPER_BEGIN"/"_END" lines;
+            // here they are moved out between heredoc segments. Every
+            // block appends its resolved copies into the SAME open
+            // transaction with its own tiny unquoted heredoc, so
+            // transaction atomicity, fail-closed staging and rule order
+            // are preserved.
+            const QString rule_text = QString::fromUtf8(generated_script.c_str());
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 15, 0))
+            const QStringList rule_lines = rule_text.split("\n", Qt::KeepEmptyParts);
+#else
+            const QStringList rule_lines = rule_text.split("\n", QString::KeepEmptyParts);
+#endif
+            QStringList plain_segment;
+            bool in_wrapper_block = false;
+            auto flushPlainSegment = [&]()
+            {
+                bool plain_content = false;
+                for (const QString &line : plain_segment)
+                    if (!line.trimmed().isEmpty()) { plain_content = true; break; }
+                if (!plain_content) { plain_segment.clear(); return; }
+                script << "cat >> \"$FWB_NFT_TXN\" <<FWB_NFT_RULESET\n";
+                for (const QString &line : plain_segment)
+                    script << line << "\n";
+                script << "FWB_NFT_RULESET\n";
+                plain_segment.clear();
+            };
+            for (const QString &line : rule_lines)
+            {
+                if (!in_wrapper_block && line.trimmed() == "#FWB_NFT_WRAPPER_BEGIN")
+                {
+                    flushPlainSegment();
+                    in_wrapper_block = true;
+                    continue;
+                }
+                if (in_wrapper_block && line.trimmed() == "#FWB_NFT_WRAPPER_END")
+                {
+                    in_wrapper_block = false;
+                    continue;
+                }
+                if (in_wrapper_block)
+                    script << line << "\n";
+                else
+                    plain_segment.push_back(line);
+            }
+            flushPlainSegment();
             script << "fwb_nft_commit_transaction || exit 1\n";
         } else
         {
@@ -1141,12 +1198,14 @@ QString CompilerDriver_nft::run(const std::string &cluster_id,
             " -m state", " --state ", " -j ", " -s ", " -d ",
             "--to-source", "--to-destination", "{{opt_wait}}",
             // The fwbuilder shell variables $i_<iface> (dynamic interface
-            // addresses and attached networks) and $at_<name> (run-time
-            // address tables) are expanded by the unquoted
-            // FWB_NFT_RULESET heredoc while the transaction is staged
-            // (see script_body above). They are generated by this
-            // compiler itself, not by the legacy iptables backend,
-            // and must not be rejected here.
+            // addresses and attached networks), $at_<name> (run-time
+            // address tables) and $dn_<name> (run-time DNS names) are
+            // expanded by the unquoted FWB_NFT_RULESET heredoc while the
+            // transaction is staged or, for the multi-value wrappers,
+            // resolved by run-time loops outside it (see
+            // OSConfigurator_linux24_nft::printRunTimeWrappers). They are
+            // generated by this compiler itself, not by the legacy
+            // iptables backend, and must not be rejected here.
             "{{"
         };
         for (const char *marker : legacy_markers)

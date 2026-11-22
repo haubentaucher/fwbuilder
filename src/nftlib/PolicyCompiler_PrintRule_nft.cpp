@@ -25,6 +25,7 @@
 
 #include "PolicyCompiler_nft.h"
 #include "OSConfigurator_linux24.h"
+#include "OSConfigurator_linux24_nft.h"
 
 #include "fwbuilder/RuleElement.h"
 #include "fwbuilder/IPService.h"
@@ -1372,6 +1373,17 @@ string PolicyCompiler_nft::PrintRule::_printAddr(Address  *o)
 
         if (atrt->getSubstitutionTypeName()==DNSName::TYPENAME)
         {
+            // nftables resolves names itself at commit time and refuses
+            // names that map to several addresses ("... resolves to
+            // multiple addresses"). Emit a placeholder variable and let
+            // printRunTimeWrappers() stage one resolved copy per record
+            // through fwb_nft_resolve() while the transaction is staged.
+            OSConfigurator_linux24_nft *nft_osconfigurator =
+                dynamic_cast<OSConfigurator_linux24_nft*>(
+                    ipt_comp->osconfigurator);
+            if (nft_osconfigurator!=nullptr)
+                return "$" + nft_osconfigurator->registerRunTimeDNSName(
+                    atrt->getSourceName());
             return atrt->getSourceName();
         }
 

@@ -951,6 +951,54 @@ def case_reject_runtime_address_tables(tree):
         raise ValueError('baseline must not enable use_nft_sets for the reject fixture')
 
 
+def case_runtime_dns_name(tree):
+    """Run-time DNSName stages a resolver loop instead of a name literal.
+
+    nftables resolves names itself when the transaction is committed and
+    refuses names with several records ("... resolves to multiple
+    addresses"), which killed whole atomic activations of projects with
+    run-time DNSName objects (e.g. imap.gmail.com). The generated script
+    must expand every record at activation time through fwb_nft_resolve()
+    and stage one copy of the rule per address into the same open
+    transaction.
+    """
+    root, fw, allow, _ = prepare(tree)
+    dns_group = only(root, ".//" + tag('ObjectGroup') + "[@id='id1551X1251']")
+    if dns_group.get('name') != 'DNS Names':
+        raise ValueError('unexpected baseline DNS Names group')
+    if dns_group.findall('./' + tag('DNSName')):
+        raise ValueError('baseline DNS Names group is not empty')
+    ET.SubElement(dns_group, tag('DNSName'), {
+        'id': 'fwb-ci-rt-dns',
+        'name': 'fwb-ci-rt-dns.example.org',
+        'comment': 'CI run-time DNSName (several A records at activation)',
+        'ro': 'False',
+        'dnsrec': 'fwb-ci-rt-dns.example.org',
+        'dnsrectype': 'A',
+        'run_time': 'True',
+    })
+    replace_ref(allow, 'Src', 'fwb-ci-rt-dns')
+    only(allow, './' + tag('Src')).set('neg', 'False')
+    allow.set('comment', 'CI: source is a run-time DNS name')
+
+
+def case_module_load_ignored(tree):
+    """load_modules must not emit iptables-era module search code.
+
+    Kernel-native nftables autoloads its modules; searching
+    /lib/modules/... for conntrack/NAT modules breaks on appliance
+    systems (OpenWrt) that ship no kernel modules on disk and no
+    modprobe binary. Pin the option explicitly so the generated script
+    with load_modules enabled stays a no-op.
+    """
+    _root, fw, _allow, _nr = prepare(tree)
+    opts = only(fw, './' + tag('FirewallOptions'))
+    option = opts.find("./%s[@name='load_modules']" % tag('Option'))
+    if option is None:
+        option = ET.SubElement(opts, tag('Option'), {'name': 'load_modules'})
+    option.text = 'True'
+
+
 CASES = {
     'reject-hashlimit-bad-mode': case_reject_hashlimit_bad_mode,
     'reject-hashlimit-icmp-port': case_reject_hashlimit_icmp_port,
@@ -1010,6 +1058,8 @@ CASES = {
     'reject-nat-lb-port-translation': case_reject_nat_lb_port_translation,
     'dynamic-address-sets': case_dynamic_address_sets,
     'dynamic-interface': case_dynamic_interface,
+    'runtime-dns-name': case_runtime_dns_name,
+    'module-load-ignored': case_module_load_ignored,
     'reject-runtime-address-tables': case_reject_runtime_address_tables,
 }
 
