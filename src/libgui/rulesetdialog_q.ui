@@ -211,7 +211,67 @@
            </layout>
           </widget>
          </item>
-         <item row="4" column="1">
+         <item row="4" column="0" colspan="2">
+          <widget class="QGroupBox" name="nftables_routing">
+           <property name="title">
+            <string>iproute2 routing table</string>
+           </property>
+           <layout class="QGridLayout" name="routingTableLayout">
+            <item row="0" column="0" colspan="2">
+             <widget class="QCheckBox" name="nft_own_routing_table">
+              <property name="toolTip">
+               <string>Compile this rule set into its own named routing
+table instead of the main table. Other rule sets can then direct
+traffic here with fwmark rules or ip rule policies.</string>
+              </property>
+              <property name="text">
+               <string>Own routing table</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="nft_routing_table_name_label">
+              <property name="text">
+               <string>Table name:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QLineEdit" name="nft_routing_table_name">
+              <property name="toolTip">
+               <string>Letters, digits and underscores only. The name
+is written to /etc/iproute2/rt_tables when the firewall option
+is enabled, otherwise commands use the numeric table id.</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="0">
+             <widget class="QLabel" name="nft_routing_table_id_label">
+              <property name="text">
+               <string>Table ID:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="QSpinBox" name="nft_routing_table_number">
+              <property name="toolTip">
+               <string>Table number in /etc/iproute2/rt_tables, range 1-252.</string>
+              </property>
+              <property name="minimum">
+               <number>1</number>
+              </property>
+              <property name="maximum">
+               <number>252</number>
+              </property>
+              <property name="value">
+               <number>100</number>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item row="5" column="1">
           <spacer name="verticalSpacer">
            <property name="orientation">
             <enum>Qt::Vertical</enum>

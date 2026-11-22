@@ -1,8 +1,10 @@
 ## -*- mode: shell-script; -*-
 ## Native nftables routing activation.
 ## Declares, installs and rolls back only routes this script owns.
-## Kernel, DHCP and RA routes are left in place. The routing table is
-## never flushed.
+## Kernel, DHCP and RA routes are left in place. Routing tables are
+## never flushed. Routes compiled from a rule set with a named
+## iproute2 table always carry the "table <name>" keyword; the main
+## table keeps the historical keyword-less commands.
 ##
 ## {{$firewall_name}} is the firewall object name, restricted to a
 ## safe state-file suffix by the compiler.
@@ -34,11 +36,42 @@ fwb_routing_restore_output() {
     FWB_ROUTING_REDIRECTED=0
   fi
 }
+# State entries are "family|table|destination|spec". Entries written
+# by scripts generated before named tables existed have three fields
+# and always name the main table.
+fwb_route_state_fields() {
+  # Splits $1 into FWB_STATE_FAM, FWB_STATE_TABLE, FWB_STATE_DEST,
+  # FWB_STATE_SPEC. Route specifications never contain "|".
+  set -f
+  IFS='|'
+  set -- $1
+  IFS=' 	
+'
+  set +f
+  FWB_STATE_FAM=$1
+  if [ $# -ge 4 ]; then
+    FWB_STATE_TABLE=$2
+    FWB_STATE_DEST=$3
+    FWB_STATE_SPEC=$4
+  else
+    FWB_STATE_TABLE=main
+    FWB_STATE_DEST=$2
+    FWB_STATE_SPEC=$3
+  fi
+}
 fwb_route_show() {
   if [ "$1" = 6 ]; then
-    $IP -6 route show "$2" 2>/dev/null || true
+    if [ "$2" = main ]; then
+      $IP -6 route show "$3" 2>/dev/null || true
+    else
+      $IP -6 route show table "$2" "$3" 2>/dev/null || true
+    fi
   else
-    $IP route show "$2" 2>/dev/null || true
+    if [ "$2" = main ]; then
+      $IP route show "$3" 2>/dev/null || true
+    else
+      $IP route show table "$2" "$3" 2>/dev/null || true
+    fi
   fi
 }
 fwb_route_is_protected() {
@@ -46,33 +79,52 @@ fwb_route_is_protected() {
 }
 fwb_route_owned() {
   [ -f "$FWB_ROUTE_STATE" ] || return 1
-  awk -F '|' -v fam="$1" -v dest="$2" 'BEGIN { found=0 } $1==fam && $2==dest { found=1 } END { exit found ? 0 : 1 }' "$FWB_ROUTE_STATE"
+  awk -F '|' -v fam="$1" -v table="$2" -v dest="$3" 'BEGIN { found=0 }
+    NF == 3 { if ($1==fam && table=="main" && $2==dest) found=1 }
+    NF >= 4 { if ($1==fam && $2==table && $3==dest) found=1 }
+    END { exit found ? 0 : 1 }' "$FWB_ROUTE_STATE"
 }
 fwb_route_del_spec() {
   fam=$1
-  shift
+  table=$2
+  shift 2
   set -f
-  if [ "$fam" = 6 ]; then
-    $IP -6 route del "$@"
-    status=$?
+  if [ "$table" = main ]; then
+    if [ "$fam" = 6 ]; then
+      $IP -6 route del "$@"
+    else
+      $IP route del "$@"
+    fi
   else
-    $IP route del "$@"
-    status=$?
+    if [ "$fam" = 6 ]; then
+      $IP -6 route del "$@" table "$table"
+    else
+      $IP route del "$@" table "$table"
+    fi
   fi
+  status=$?
   set +f
   return $status
 }
 fwb_route_add_line() {
   fam=$1
-  shift
+  table=$2
+  shift 2
   set -f
-  if [ "$fam" = 6 ]; then
-    $IP -6 route replace "$@"
-    status=$?
+  if [ "$table" = main ]; then
+    if [ "$fam" = 6 ]; then
+      $IP -6 route replace "$@"
+    else
+      $IP route replace "$@"
+    fi
   else
-    $IP route replace "$@"
-    status=$?
+    if [ "$fam" = 6 ]; then
+      $IP -6 route replace "$@" table "$table"
+    else
+      $IP route replace "$@" table "$table"
+    fi
   fi
+  status=$?
   set +f
   return $status
 }
@@ -80,22 +132,19 @@ fwb_routing_retire() {
   [ -f "$FWB_ROUTE_STATE" ] || return 0
   while IFS= read -r line; do
     [ -n "$line" ] || continue
-    fam=${line%%|*}
-    rest=${line#*|}
-    dest=${rest%%|*}
-    spec=${rest#*|}
-    current=$(fwb_route_show "$fam" "$dest")
+    fwb_route_state_fields "$line"
+    current=$(fwb_route_show "$FWB_STATE_FAM" "$FWB_STATE_TABLE" "$FWB_STATE_DEST")
     [ -n "$current" ] || continue
     if fwb_route_is_protected "$current"; then
-      echo "Keeping protected route $dest"
+      echo "Keeping protected route $FWB_STATE_DEST"
       continue
     fi
     flat=$(printf '%s\n' "$current" | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g; s/^ //; s/ $//')
-    printf '%s|%s|%s\n' "$fam" "$dest" "$flat" >> "$FWB_ROUTE_RETIRED"
-    if [ "$dest" = default ]; then
-      fwb_route_del_spec "$fam" $spec || return 1
+    printf '%s|%s|%s|%s\n' "$FWB_STATE_FAM" "$FWB_STATE_TABLE" "$FWB_STATE_DEST" "$flat" >> "$FWB_ROUTE_RETIRED"
+    if [ "$FWB_STATE_DEST" = default ]; then
+      fwb_route_del_spec "$FWB_STATE_FAM" "$FWB_STATE_TABLE" $FWB_STATE_SPEC || return 1
     else
-      fwb_route_del_spec "$fam" $dest || return 1
+      fwb_route_del_spec "$FWB_STATE_FAM" "$FWB_STATE_TABLE" "$FWB_STATE_DEST" || return 1
     fi
   done < "$FWB_ROUTE_STATE"
 }
@@ -103,47 +152,68 @@ fwb_routing_rollback() {
   if [ -f "$FWB_ROUTE_COMMITTED" ]; then
     while IFS= read -r line; do
       [ -n "$line" ] || continue
-      fam=${line%%|*}
-      rest=${line#*|}
-      dest=${rest%%|*}
-      spec=${rest#*|}
-      if [ "$dest" = default ]; then
-        fwb_route_del_spec "$fam" $spec || true
+      fwb_route_state_fields "$line"
+      if [ "$FWB_STATE_DEST" = default ]; then
+        fwb_route_del_spec "$FWB_STATE_FAM" "$FWB_STATE_TABLE" $FWB_STATE_SPEC || true
       else
-        fwb_route_del_spec "$fam" $dest || true
+        fwb_route_del_spec "$FWB_STATE_FAM" "$FWB_STATE_TABLE" "$FWB_STATE_DEST" || true
       fi
     done < "$FWB_ROUTE_COMMITTED"
   fi
   if [ -f "$FWB_ROUTE_RETIRED" ]; then
     while IFS= read -r line; do
       [ -n "$line" ] || continue
-      fam=${line%%|*}
-      rest=${line#*|}
-      saved=${rest#*|}
-      fwb_route_add_line "$fam" $saved || true
+      fwb_route_state_fields "$line"
+      fwb_route_add_line "$FWB_STATE_FAM" "$FWB_STATE_TABLE" $FWB_STATE_SPEC || true
     done < "$FWB_ROUTE_RETIRED"
   fi
 }
 fwb_route_prepare() {
   fam=$1
-  dest=$2
+  table=$2
+  dest=$3
   if [ "$dest" = default ]; then
     return 0
   fi
-  current=$(fwb_route_show "$fam" "$dest")
+  current=$(fwb_route_show "$fam" "$table" "$dest")
   [ -n "$current" ] || return 0
   if fwb_route_is_protected "$current"; then
     echo "Error: refusing to replace protected route $dest"
     return 1
   fi
-  if ! fwb_route_owned "$fam" "$dest"; then
+  if ! fwb_route_owned "$fam" "$table" "$dest"; then
     echo "Error: refusing to replace foreign route $dest"
     return 1
   fi
   return 0
 }
 fwb_route_committed() {
-  printf '%s|%s|%s\n' "$1" "$2" "$3" >> "$FWB_ROUTE_COMMITTED"
+  printf '%s|%s|%s|%s\n' "$1" "$2" "$3" "$4" >> "$FWB_ROUTE_COMMITTED"
+}
+fwb_rt_tables_ensure() {
+  fwb_table_name=$1
+  fwb_table_id=$2
+  fwb_rt_tables=/etc/iproute2/rt_tables
+  if [ ! -s "$fwb_rt_tables" ]; then
+    echo "Error: $fwb_rt_tables does not exist or is empty"
+    return 1
+  fi
+  if grep -Eq "^[[:space:]]*$fwb_table_id[[:space:]]+$fwb_table_name([[:space:]]|$)" "$fwb_rt_tables"; then
+    return 0
+  fi
+  if grep -Eq "^[[:space:]]*[0-9]+[[:space:]]+$fwb_table_name([[:space:]]|$)" "$fwb_rt_tables"; then
+    echo "Error: routing table name $fwb_table_name already has a different number in $fwb_rt_tables"
+    return 1
+  fi
+  if grep -Eq "^[[:space:]]*$fwb_table_id[[:space:]]" "$fwb_rt_tables"; then
+    echo "Error: routing table number $fwb_table_id is already used by another name in $fwb_rt_tables"
+    return 1
+  fi
+  if ! printf '%s\t%s\n' "$fwb_table_id" "$fwb_table_name" >> "$fwb_rt_tables"; then
+    echo "Error: cannot append routing table $fwb_table_name to $fwb_rt_tables"
+    return 1
+  fi
+  echo "Added routing table $fwb_table_name ($fwb_table_id) to $fwb_rt_tables"
 }
 route_command_error() {
   fwb_routing_rollback

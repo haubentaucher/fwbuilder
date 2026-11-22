@@ -202,6 +202,27 @@ namespace fwcompiler {
         std::string activationCommand(const std::string &spec,
                                       const std::string &label);
 
+        /**
+         * Selects the iproute2 table this rule set compiles into. An
+         * empty table name keeps the main table and the historical
+         * command output. A named table requires a numeric table id
+         * (1-252); the name must consist of letters, digits and
+         * underscores only. When the firewall option manage_rt_tables
+         * is set the generated commands and the rt_tables maintenance
+         * use the table name, otherwise the plain numeric id.
+         */
+        void setRoutingTable(const std::string &table_name,
+                             const std::string &table_id);
+        bool usesNamedTable() const { return !routing_table_name.empty(); }
+        const std::string &routingTableName() const {return routing_table_name; }
+        const std::string &routingTableId() const { return routing_table_id; }
+        // Keyword appended to every ip route command, e.g.
+        // "table route_vpn". Empty for the main table.
+        std::string routingTableKeyword() const;
+        // Token passed to the shell helpers as the table argument:
+        // "main" for the main table, name or numeric id otherwise.
+        std::string routingTableToken() const;
+
 	virtual std::string myPlatformName();
 
         // These buffers are needed to collect output generated from the single ECMP rules belonging to one destination,
@@ -213,6 +234,9 @@ namespace fwcompiler {
         std::map< std::string, std::string> ecmp_comments_buffer; // sortedDstId+metric-->rule's info for the fw script
         bool have_default_route;
         bool defined_restore_script_output;
+        std::string routing_table_name;
+        std::string routing_table_id;
+        bool routing_table_managed;
         
     public:
 
@@ -223,6 +247,7 @@ namespace fwcompiler {
         {
             have_default_route = false;
             defined_restore_script_output = false;
+            routing_table_managed = false;
         }
 
 

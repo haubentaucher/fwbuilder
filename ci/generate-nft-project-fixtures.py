@@ -859,6 +859,92 @@ def _route_group(root):
     return only(root, ".//%s[@id='id1550X1251']" % tag('ObjectGroup'))
 
 
+def _add_named_routing_ruleset(tree, table_name, table_id, uid_suffix):
+    """Second Routing rule set compiled into its own iproute2 table.
+
+    The route reuses the real baseline gateway and interface objects,
+    so the named table compiles to
+    "$IP route add 192.168.2.0/24 via 192.168.1.10 dev eth1 table <t>"
+    while the untouched main rule set keeps its default route.
+    """
+    root = tree.getroot()
+    fw = only(root, ".//%s[@name='nft-test']" % tag('Firewall'))
+    # The baseline project name is stable even after other generated
+    # fixtures added further Routing rule sets.
+    baseline_rulesets = [r for r in fw.findall('./' + tag('Routing'))
+                         if r.get('name') == 'Routing']
+    if len(baseline_rulesets) != 1:
+        raise ValueError('expected exactly the baseline Routing rule set')
+    routing = baseline_rulesets[0]
+    enabled = [r for r in routing.findall('./' + tag('RoutingRule'))
+               if r.get('disabled') != 'True']
+    if len(enabled) != 1:
+        raise ValueError('expected exactly one baseline routing rule')
+    baseline = enabled[0]
+    gtw_ref = only(baseline, './' + tag('RGtw'))[0].get('ref')
+    itf_ref = only(baseline, './' + tag('RItf'))[0].get('ref')
+    if gtw_ref != 'id3D84EECE' or itf_ref != 'id2692X30989':
+        raise ValueError('unexpected baseline gateway or interface object')
+    new_rs = ET.Element(tag('Routing'), {
+        'id': 'fwb-ci-route-' + uid_suffix,
+        'name': 'route_' + uid_suffix,
+        'comment': 'CI named iproute2 routing table',
+        'ro': 'False',
+        'ipv4_rule_set': 'False',
+        'ipv6_rule_set': 'False',
+        'top_rule_set': 'False',
+    })
+    rule = ET.Element(tag('RoutingRule'), {
+        'id': 'fwb-ci-route-' + uid_suffix + '-rule',
+        'disabled': 'False',
+        'group': '',
+        'metric': '0',
+        'position': '0',
+        'comment': 'CI route into named routing table',
+    })
+    # id3DC75CE7-2 is the real FWB network object 192.168.2.0/24.
+    for child_name, ref in (('RDst', 'id3DC75CE7-2'),
+                            ('RGtw', gtw_ref), ('RItf', itf_ref)):
+        child = ET.SubElement(rule, tag(child_name), {'neg': 'False'})
+        ET.SubElement(child, tag('ObjectRef'), {'ref': ref})
+    ET.SubElement(rule, tag('RoutingRuleOptions'))
+    new_rs.append(rule)
+    options = ET.SubElement(new_rs, tag('RuleSetOptions'))
+    ET.SubElement(options, tag('Option'),
+                  {'name': 'routing_table_name'}).text = table_name
+    ET.SubElement(options, tag('Option'),
+                  {'name': 'routing_table_id'}).text = table_id
+    fw.insert(list(fw).index(routing) + 1, new_rs)
+
+
+def _set_manage_rt_tables(tree, value):
+    fw = only(tree.getroot(), ".//%s[@name='nft-test']" % tag('Firewall'))
+    opts = only(fw, './' + tag('FirewallOptions'))
+    if opts.findall("./%s[@name='manage_rt_tables']" % tag('Option')):
+        raise ValueError('baseline must not set manage_rt_tables')
+    option = ET.SubElement(opts, tag('Option'), {'name': 'manage_rt_tables'})
+    option.text = value
+    return opts
+
+
+def case_routing_table(tree):
+    _add_named_routing_ruleset(tree, 'ci_pbr', '101', 'ci1')
+    _set_manage_rt_tables(tree, 'True')
+
+
+def case_routing_table_numeric(tree):
+    _add_named_routing_ruleset(tree, 'ci_pbr', '102', 'numeric')
+
+
+def case_reject_routing_table_duplicate(tree):
+    _add_named_routing_ruleset(tree, 'ci_pbr', '101', 'dup1')
+    _add_named_routing_ruleset(tree, 'ci_other', '101', 'dup2')
+
+
+def _route_group(root):
+    return only(root, ".//%s[@id='id1550X1251']" % tag('ObjectGroup'))
+
+
 def _add_route_object(group, kind, obj_id, name, address, netmask):
     element = ET.Element(tag(kind), {
         'id': obj_id,
@@ -1197,6 +1283,9 @@ CASES = {
     'mangle-tag': case_mangle_tag,
     'mark-match': case_mark_match,
     'mangle-classify': case_mangle_classify,
+    'routing-table': case_routing_table,
+    'routing-table-numeric': case_routing_table_numeric,
+    'reject-routing-table-duplicate': case_reject_routing_table_duplicate,
     'reject-policy-options': case_reject_policy_options,
     'reject-nat-options': case_reject_nat_options,
     'reject-timezone': case_reject_timezone,

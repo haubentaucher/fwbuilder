@@ -139,6 +139,10 @@ iptAdvancedDialog::iptAdvancedDialog(QWidget *parent,FWObject *o)
 
     data.registerOption(m_dialog->useModuleSet, fwoptions, "use_m_set");
     data.registerOption(m_dialog->useKernelTz, fwoptions, "use_kerneltz");
+    // nftables reuses this dialog; the routing table maintenance is a
+    // native nftables backend option.
+    data.registerOption(m_dialog->manageRtTables, fwoptions, "manage_rt_tables");
+    if (platform != "nftables") m_dialog->manageRtTables->hide();
 
 
     data.registerOption(m_dialog->mgmt_ssh, fwoptions, "mgmt_ssh");

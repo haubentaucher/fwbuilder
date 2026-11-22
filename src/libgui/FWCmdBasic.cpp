@@ -135,7 +135,10 @@ void FWCmdBasic::addStatistics(Rule *rule, DiffType::Type diffType, DiffType::Ty
         std::list<RuleSet *> rulesets;
         rulesets.push_back(fw->getPolicy());
         rulesets.push_back(fw->getNAT());
-        rulesets.push_back(fw->getRouting());
+        for (FWObjectTypedChildIterator it =
+                 fw->findByType(Routing::TYPENAME);
+             it != it.end(); ++it)
+            rulesets.push_back(RuleSet::cast(*it));
 
         foreach(RuleSet *ruleSet, rulesets) {
             if (ruleSet && rule->isChildOf(ruleSet)) {
@@ -170,7 +173,10 @@ void FWCmdBasic::removeStatistics(Rule *rule, DiffType::Type diffType, DiffType:
         std::list<RuleSet *> rulesets;
         rulesets.push_back(fw->getPolicy());
         rulesets.push_back(fw->getNAT());
-        rulesets.push_back(fw->getRouting());
+        for (FWObjectTypedChildIterator it =
+                 fw->findByType(Routing::TYPENAME);
+             it != it.end(); ++it)
+            rulesets.push_back(RuleSet::cast(*it));
 
         foreach(RuleSet *ruleSet, rulesets) {
             if (ruleSet && rule->isChildOf(ruleSet)) {

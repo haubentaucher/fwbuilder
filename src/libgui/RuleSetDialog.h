@@ -53,6 +53,11 @@ public slots:
     virtual void applyChanges();
     virtual void loadFWObject(libfwbuilder::FWObject *obj);
     virtual void validate(bool*);
+
+private slots:
+    // Enables or disables the routing table name and id fields of the
+    // nftables routing rule set options.
+    void toggleRoutingTableFields(bool on);
 };
 
 #endif // RULESETDIALOG_H

@@ -786,7 +786,74 @@ check_prolog_after_flush() {
     echo 'PASS: prolog-after-flush compiles and surrounds the nftables transaction'
 }
 
-# Do not let the first failing fixture hide the other six outcomes.
+# Named iproute2 routing tables (W3). The second Routing rule set must
+# land in table ci_pbr while the main rule set keeps its historical
+# keyword-less commands. With manage_rt_tables the script also appends
+# the missing rt_tables entry; without it the commands use table 102.
+_common_routing_table_greps() {
+    local fw=$1 token=$2
+    local -a needles=(
+        "\$IP route add 192.168.2.0/24 via 192.168.1.10 dev eth1 table $token"
+        "fwb_route_prepare 4 $token '192.168.2.0/24'"
+        "fwb_route_committed 4 $token '192.168.2.0/24' '192.168.2.0/24 via 192.168.1.10 dev eth1'"
+        "\$IP route add default via 192.168.1.10 dev eth1"
+        "fwb_route_prepare 4 main 'default'"
+    )
+    local needle
+    for needle in "${needles[@]}"; do
+        if ! grep -Fq "$needle" "$fw"; then
+            echo "FAIL: routing-table fixture is missing: $needle" >&2
+            return 1
+        fi
+    done
+    # The main table must not gain a table keyword.
+    if grep -Fq 'route add default via 192.168.1.10 dev eth1 table' "$fw"; then
+        echo 'FAIL: main-table default route carries a table keyword' >&2
+        return 1
+    fi
+    if grep -Eq "fwb_route_(prepare|committed) 4 $token 'default'" "$fw"; then
+        echo 'FAIL: named table token was applied to the main default route' >&2
+        return 1
+    fi
+    local begins finishes
+    begins=$(grep -c 'FWB_ROUTING_INITIALIZED=1' "$fw")
+    finishes=$(grep -c '^fwb_routing_finish$' "$fw")
+    if [[ "$begins" != 1 || "$finishes" != 1 ]]; then
+        echo "FAIL: routing functions initialized ${begins} times and finished ${finishes} times" >&2
+        return 1
+    fi
+    return 0
+}
+
+check_routing_table() {
+    check_positive routing-table 4 || return 1
+    local fw="$output/nft-ci-routing-table.fw"
+    _common_routing_table_greps "$fw" ci_pbr || return 1
+    local ensures
+    ensures=$(grep -c '^fwb_rt_tables_ensure ci_pbr 101 ' "$fw")
+    if [[ "$ensures" != 1 ]]; then
+        echo "FAIL: expected exactly one rt_tables maintenance call for ci_pbr; found $ensures" >&2
+        return 1
+    fi
+    echo 'PASS: named routing table ci_pbr compiled with rt_tables maintenance'
+}
+
+check_routing_table_numeric() {
+    check_positive routing-table-numeric 4 || return 1
+    local fw="$output/nft-ci-routing-table-numeric.fw"
+    _common_routing_table_greps "$fw" 102 || return 1
+    if grep -Eq '^fwb_rt_tables_ensure +[^ ]+' "$fw"; then
+        echo 'FAIL: numeric routing table must not maintain /etc/iproute2/rt_tables' >&2
+        return 1
+    fi
+    if grep -Fq 'table ci_pbr' "$fw"; then
+        echo 'FAIL: numeric-only routing table leaked the table name ci_pbr' >&2
+        return 1
+    fi
+    echo 'PASS: named routing table compiles with its numeric table id'
+}
+
+
 failures=0
 cases=0
 run_case() {
@@ -861,6 +928,9 @@ run_case nat-masquerade check_nat_masquerade nat-masquerade
 run_case mangle-tag check_mangle_tag mangle-tag
 run_case mark-match check_mark_match mark-match
 run_case mangle-classify check_mangle_classify mangle-classify
+run_case routing-table check_routing_table
+run_case routing-table-numeric check_routing_table_numeric
+run_case reject-routing-table-duplicate check_negative reject-routing-table-duplicate 'use the same routing table id 101'
 run_case ipv4-option-rr check_positive ipv4-option-rr 4 'ip option rr exists'
 run_case ipv4-option-lsrr check_positive ipv4-option-lsrr 4 'ip option lsrr exists'
 run_case ipv4-option-ssrr check_positive ipv4-option-ssrr 4 'ip option ssrr exists'

@@ -205,15 +205,12 @@ Routing* Firewall::getRouting()
 
 
 bool  Firewall::validateChild(FWObject *o)
-{ 
+{
     string otype=o->getTypeName();
-    if (Routing::isA(o))
-    {
-        // there can be only one
-        list<FWObject*> routing_objects = getByType(Routing::TYPENAME);
-        if (routing_objects.size() > 0) return false;
-    }
-    return (FWObject::validateChild(o) && 
+    // Multiple Routing rule sets are supported since named iproute2
+    // routing tables: a rule set without table options compiles into
+    // the main table, one with table options into its own table.
+    return (FWObject::validateChild(o) &&
 	    (otype==Interface::TYPENAME  ||
 	     otype==RuleSet::TYPENAME    ||
 	     otype==Policy::TYPENAME     ||

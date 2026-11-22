@@ -41,6 +41,7 @@
 #include "fwbuilder/Firewall.h"
 #include "fwbuilder/Cluster.h"
 #include "fwbuilder/Policy.h"
+#include "fwbuilder/Routing.h"
 
 #include <memory>
 
@@ -63,6 +64,9 @@ RuleSetDialog::RuleSetDialog(QWidget *parent) : BaseObjectDialog(parent)
     m_dialog->setupUi(this);
     obj = NULL;
     platform = "";
+
+    connect(m_dialog->nft_own_routing_table, SIGNAL(toggled(bool)),
+            this, SLOT(toggleRoutingTableFields(bool)));
 
     connectSignalsOfAllWidgetsToSlotChange();
 }
@@ -152,9 +156,28 @@ void RuleSetDialog::loadFWObject(FWObject *o)
             } else
                 m_dialog->iptables_only->hide();
 
+            if (platform == "nftables" && Routing::isA(obj))
+            {
+                // A routing rule set without table options compiles into
+                // the main table (historical behavior); the table name/id
+                // options move it into its own named iproute2 table.
+                m_dialog->nftables_routing->show();
+                QString table_name = QString::fromUtf8(
+                    rulesetopt->getStr("routing_table_name").c_str());
+                bool own_table = !table_name.isEmpty();
+                m_dialog->nft_own_routing_table->setChecked(own_table);
+                m_dialog->nft_routing_table_name->setText(table_name);
+                int table_id = rulesetopt->getInt("routing_table_id");
+                if (table_id < 1 || table_id > 252) table_id = 100;
+                m_dialog->nft_routing_table_number->setValue(table_id);
+                toggleRoutingTableFields(own_table);
+            } else
+                m_dialog->nftables_routing->hide();
+
         } else
         {
             m_dialog->iptables_only->hide();
+            m_dialog->nftables_routing->hide();
         }
 
 
@@ -176,6 +199,12 @@ void RuleSetDialog::loadFWObject(FWObject *o)
             m_dialog->top_rule_set->show();
     }
     init=false;
+}
+
+void RuleSetDialog::toggleRoutingTableFields(bool on)
+{
+    m_dialog->nft_routing_table_name->setEnabled(on);
+    m_dialog->nft_routing_table_number->setEnabled(on);
 }
 
 void RuleSetDialog::validate(bool *res)
@@ -209,6 +238,84 @@ void RuleSetDialog::validate(bool *res)
         }
         return ;
     }
+
+    // nftables Routing rule sets: the optional named iproute2 table
+    // must carry a well-formed name, a valid numeric table id and
+    // neither must already be used by another Routing rule set of
+    // this firewall.
+    if (platform == "nftables" && Routing::isA(obj) &&
+        m_dialog->nft_own_routing_table->isChecked())
+    {
+        QRegExp trx("[A-Za-z0-9_]+");
+        if (!trx.exactMatch(m_dialog->nft_routing_table_name->text()))
+        {
+            *res = false;
+            if (QApplication::focusWidget() != NULL)
+            {
+                blockSignals(true);
+                QMessageBox::critical(
+                    this,
+                    "Firewall Builder",
+                    tr("Routing table name '%1' is invalid. "
+                       "Only letters, digits and underscores are allowed.")
+                        .arg(m_dialog->nft_routing_table_name->text()),
+                    tr("&Continue"), 0, 0, 0);
+                blockSignals(false);
+            }
+            return ;
+        }
+
+        QString table_name = m_dialog->nft_routing_table_name->text();
+        int table_id = m_dialog->nft_routing_table_number->value();
+
+        FWObject *fw_object = obj->getParent();
+        for (std::list<FWObject*>::const_iterator it =
+                 fw_object->begin(); it != fw_object->end(); ++it)
+        {
+            RuleSet *other = RuleSet::cast(*it);
+            if (other == NULL || other == obj ||
+                other->getTypeName() != Routing::TYPENAME) continue;
+            FWOptions *other_opt = other->getOptionsObject();
+            if (other_opt == NULL) continue;
+            if (QString::fromUtf8(
+                    other_opt->getStr("routing_table_name").c_str())
+                == table_name)
+            {
+                *res = false;
+                if (QApplication::focusWidget() != NULL)
+                {
+                    blockSignals(true);
+                    QMessageBox::critical(
+                        this, "Firewall Builder",
+                        tr("Routing table name '%1' is already used by "
+                           "rule set '%2'.")
+                            .arg(table_name)
+                            .arg(QString::fromUtf8(other->getName().c_str())),
+                        tr("&Continue"), 0, 0, 0);
+                    blockSignals(false);
+                }
+                return ;
+            }
+            int other_id = other_opt->getInt("routing_table_id");
+            if (other_id == table_id)
+            {
+                *res = false;
+                if (QApplication::focusWidget() != NULL)
+                {
+                    blockSignals(true);
+                    QMessageBox::critical(
+                        this, "Firewall Builder",
+                        tr("Routing table number '%1' is already used by "
+                           "rule set '%2'.")
+                            .arg(table_id)
+                            .arg(QString::fromUtf8(other->getName().c_str())),
+                        tr("&Continue"), 0, 0, 0);
+                    blockSignals(false);
+                }
+                return ;
+            }
+        }
+    }
 }
 
 
@@ -240,6 +347,21 @@ void RuleSetDialog::applyChanges()
     {
         rulesetopt->setBool("mangle_only_rule_set",
                             m_dialog->ipt_mangle_table->isChecked());
+    }
+
+    if (platform == "nftables" && Routing::isA(s))
+    {
+        if (m_dialog->nft_own_routing_table->isChecked())
+        {
+            rulesetopt->setStr("routing_table_name",
+                m_dialog->nft_routing_table_name->text().toUtf8().constData());
+            rulesetopt->setInt("routing_table_id",
+                               m_dialog->nft_routing_table_number->value());
+        } else
+        {
+            rulesetopt->setStr("routing_table_name", "");
+            rulesetopt->setInt("routing_table_id", 0);
+        }
     }
 
     if (!cmd->getOldState()->cmp(new_state, true))

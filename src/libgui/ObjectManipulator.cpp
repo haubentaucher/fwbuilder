@@ -728,6 +728,8 @@ void ObjectManipulator::contextMenuRequested(const QPoint &pos)
                 addNewObjectMenuItem(popup_menu, Policy::TYPENAME));
             AddObjectActions.append(
                 addNewObjectMenuItem(popup_menu, NAT::TYPENAME));
+            AddObjectActions.append(
+                addNewObjectMenuItem(popup_menu, Routing::TYPENAME));
         }
 
         if (Interface::isA(currentObj) && ! currentObj->isReadOnly())

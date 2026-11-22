@@ -191,6 +191,7 @@ class ObjectManipulator : public QWidget
     libfwbuilder::FWObject* newPhysicalAddress(QUndoCommand* macro);
     libfwbuilder::FWObject* newPolicyRuleSet (QUndoCommand* macro);
     libfwbuilder::FWObject* newNATRuleSet (QUndoCommand* macro);
+    libfwbuilder::FWObject* newRoutingRuleSet (QUndoCommand* macro);
     libfwbuilder::FWObject* newAttachedNetworks(QUndoCommand* macro);
 
    

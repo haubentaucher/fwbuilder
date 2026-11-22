@@ -675,11 +675,67 @@ QString CompilerDriver_nft::run(const std::string &cluster_id,
 
         // IPv4 and IPv6 routing are separate compiler passes. The shared
         // shell preamble is emitted once later, after both passes.
+        // Every Routing rule set compiles into its own iproute2 table;
+        // rule sets without table options keep the main table for
+        // backwards compatibility.
         std::string routing_script;
         bool routing_installs = false;
-        RuleSet *routing = RuleSet::cast(fw->getFirstByType(Routing::TYPENAME));
-        if (routing)
+        const bool manage_rt_tables = options->getBool("manage_rt_tables");
+        struct RoutingTableDecl
         {
+            std::string name;
+            std::string id;
+        };
+        std::vector<RoutingTableDecl> routing_tables;
+        std::map<std::string, std::string> routing_table_name_ruleset;
+        std::map<std::string, std::string> routing_table_id_ruleset;
+        std::list<FWObject*> routing_sets = fw->getByType(Routing::TYPENAME);
+        for (std::list<FWObject*>::iterator routing_set_it = routing_sets.begin();
+             routing_set_it != routing_sets.end(); ++routing_set_it)
+        {
+            RuleSet *routing = RuleSet::cast(*routing_set_it);
+            if (routing == nullptr) continue;
+
+            std::string table_name;
+            std::string table_id;
+            FWOptions *routing_options = routing->getOptionsObject();
+            if (routing_options != nullptr)
+            {
+                table_name = routing_options->getStr("routing_table_name");
+                table_id = routing_options->getStr("routing_table_id");
+            }
+
+            if (!table_name.empty())
+            {
+                std::map<std::string, std::string>::const_iterator seen =
+                    routing_table_name_ruleset.find(table_name);
+                if (seen != routing_table_name_ruleset.end())
+                    abort("Routing rule sets \"" + seen->second + "\" and \"" +
+                          routing->getName() +
+                          "\" use the same routing table name \"" +
+                          table_name + "\"");
+                seen = routing_table_id_ruleset.find(table_id);
+                if (seen != routing_table_id_ruleset.end())
+                    abort("Routing rule sets \"" + seen->second + "\" and \"" +
+                          routing->getName() +
+                          "\" use the same routing table id " + table_id);
+                routing_table_name_ruleset[table_name] = routing->getName();
+                routing_table_id_ruleset[table_id] = routing->getName();
+                RoutingTableDecl decl;
+                decl.name = table_name;
+                decl.id = table_id;
+                routing_tables.push_back(decl);
+            }
+
+            if (!single_rule_compile_on)
+            {
+                routing_script += "#\n# Routing rule set " + routing->getName();
+                if (!table_name.empty())
+                    routing_script += " (iproute2 table " +
+                        (manage_rt_tables ? table_name : table_id) + ")";
+                routing_script += "\n#\n";
+            }
+
             for (int pass = 0; pass < 2; ++pass)
             {
                 const bool routing_ipv6 = (pass == 1);
@@ -688,6 +744,7 @@ QString CompilerDriver_nft::run(const std::string &cluster_id,
                 routing_compiler->setSourceRuleSet(routing);
                 routing_compiler->setRuleSetName(routing->getName());
                 routing_compiler->setPersistentObjects(persistent_objects);
+                routing_compiler->setRoutingTable(table_name, table_id);
 
                 routing_compiler->setSingleRuleCompileMode(single_rule_id);
                 routing_compiler->setDebugLevel( dl );
@@ -1048,6 +1105,23 @@ QString CompilerDriver_nft::run(const std::string &cluster_id,
                 "firewall_name", QString::fromStdString(firewall_name));
             script << routing_functions.expand();
             script << "\n";
+            // Named tables are appended to /etc/iproute2/rt_tables only
+            // when their entry is missing; the maintenance never edits
+            // or removes lines this script did not add. It runs inside
+            // the redirected output block, so failures roll back the
+            // routing activation and still print the collected output.
+            if (manage_rt_tables)
+            {
+                for (std::vector<RoutingTableDecl>::const_iterator
+                         table_it = routing_tables.begin();
+                     table_it != routing_tables.end(); ++table_it)
+                {
+                    script << "fwb_rt_tables_ensure " << table_it->name
+                           << " " << table_it->id
+                           << " || route_command_error \"rt_tables "
+                           << table_it->name << "\"\n";
+                }
+            }
         }
         script << QString::fromUtf8(routing_script.c_str());
         if (routing_installs && !single_rule_compile_on)

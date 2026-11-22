@@ -38,12 +38,14 @@
 #include "fwbuilder/IPv4.h"
 #include "fwbuilder/IPv6.h"
 #include "fwbuilder/Firewall.h"
+#include "fwbuilder/FWOptions.h"
 #include "fwbuilder/Host.h"
 #include "fwbuilder/Network.h"
 #include "fwbuilder/NetworkIPv6.h"
 #include "fwbuilder/InetAddrMask.h"
 
 #include <assert.h>
+#include <stdlib.h>
 #include <sstream>
 #include <list>
 
@@ -574,10 +576,64 @@ string RoutingCompiler_nft::routeAddPrefix() const
     return ipv6 ? "$IP -6 route add " : "$IP route add ";
 }
 
+void RoutingCompiler_nft::setRoutingTable(const std::string &table_name,
+                                          const std::string &table_id)
+{
+    routing_table_name = table_name;
+    routing_table_id = table_id;
+    if (!table_name.empty())
+    {
+        static const std::string name_allowed =
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_";
+        for (std::string::const_iterator c = table_name.begin();
+             c != table_name.end(); ++c)
+        {
+            if (name_allowed.find(*c) == std::string::npos)
+                abort("Routing rule set '" + source_ruleset->getName() +
+                      "': routing table name '" + table_name +
+                      "' may only contain letters, digits and underscores");
+        }
+        int number = 0;
+        bool numeric = !table_id.empty();
+        for (std::string::const_iterator c = table_id.begin();
+             c != table_id.end(); ++c)
+        {
+            if (*c < '0' || *c > '9') numeric = false;
+        }
+        if (numeric) number = atoi(table_id.c_str());
+        if (!numeric || number < 1 || number > 252)
+            abort("Routing rule set '" + source_ruleset->getName() +
+                  "': routing table '" + table_name +
+                  "' needs a numeric table id between 1 and 252");
+    } else
+        routing_table_id = "";
+
+    FWOptions *fw_options = fw->getOptionsObject();
+    routing_table_managed =
+        fw_options != nullptr && fw_options->getBool("manage_rt_tables");
+}
+
+string RoutingCompiler_nft::routingTableKeyword() const
+{
+    if (routing_table_name.empty()) return "";
+    if (routing_table_managed) return "table " + routing_table_name;
+    return "table " + routing_table_id;
+}
+
+string RoutingCompiler_nft::routingTableToken() const
+{
+    if (routing_table_name.empty()) return "main";
+    if (routing_table_managed) return routing_table_name;
+    return routing_table_id;
+}
+
 string RoutingCompiler_nft::activationCommand(const string &spec,
                                               const string &label)
 {
-    string command = routeAddPrefix() + spec;
+    const string table_keyword = routingTableKeyword();
+    const string table_token = routingTableToken();
+    string command = routeAddPrefix() + spec +
+        (table_keyword.empty() ? "" : " " + table_keyword);
     if (inSingleRuleCompileMode())
         return command + "\n";
 
@@ -586,11 +642,12 @@ string RoutingCompiler_nft::activationCommand(const string &spec,
     if (space != string::npos) destination.erase(space);
 
     ostringstream out;
-    out << "fwb_route_prepare " << (ipv6 ? "6" : "4") << " "
-        << shellQuote(destination) << " && \\\n"
+    out << "fwb_route_prepare " << (ipv6 ? "6" : "4") << " " << table_token
+        << " " << shellQuote(destination) << " && \\\n"
         << command << " && \\\n"
         << "fwb_route_committed " << (ipv6 ? "6" : "4") << " "
-        << shellQuote(destination) << " " << shellQuote(spec) << " \\\n"
+        << table_token << " " << shellQuote(destination) << " "
+        << shellQuote(spec) << " \\\n"
         << "|| route_command_error \"" << label << "\"\n";
     return out.str();
 }

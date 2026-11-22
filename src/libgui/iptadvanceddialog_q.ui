@@ -488,6 +488,19 @@ packets to IPv6 policies</string>
            </property>
           </widget>
          </item>
+         <item row="8" column="0" colspan="2">
+          <widget class="QCheckBox" name="manageRtTables">
+           <property name="toolTip">
+            <string>Append missing entries for the named routing tables of
+Routing rule sets to /etc/iproute2/rt_tables at activation time.
+Existing lines are never modified or deleted. Without this option
+the generated commands use the numeric table ids.</string>
+           </property>
+           <property name="text">
+            <string>Maintain routing table definitions in /etc/iproute2/rt_tables</string>
+           </property>
+          </widget>
+         </item>
         </layout>
        </item>
        <item row="7" column="0" colspan="2">
