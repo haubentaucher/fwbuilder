@@ -201,6 +201,11 @@ void RoutingCompiler_nft::compile()
         
     add( new singleRuleFilter());
 
+    // IPRule objects (policy-based routing) never reach the shared
+    // RoutingRule processors: this one pulls them out of the stream
+    // right after the single rule filter, validates and prints them.
+    add(new processIPRules("compile ip rules"));
+
     add(new recursiveGroupsInRDst("Check for recursive Groups in RDst"));
     add(new emptyGroupsInRDst("Check for empty Groups in RDst"));
     add(new emptyRDstAndRItf("Check if RDst and RItf are both empty"));

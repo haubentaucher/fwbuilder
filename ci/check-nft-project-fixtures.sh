@@ -869,6 +869,90 @@ check_routing_in_deleted_objects() {
 }
 
 
+# IPRule objects (policy-based routing, W4). Every compiled ip rule is
+# wrapped by the fwb_rule_prepare/fwb_rule_committed helpers; the quoted
+# spec is the retire key of the shell state management.
+check_ip_rule() {
+    check_positive ip-rule 4 || return 1
+    local fw="$output/nft-ci-ip-rule.fw"
+    local spec="from 192.0.2.0/24 fwmark 64 iif eth0 oif eth1 lookup ci_iprule"
+    local -a needles=(
+        "# ip rule (policy-based routing)"
+        "FWB_RULE_REPLACE=0"
+        "fwb_rule_prepare 4 100 '$spec' && \\"
+        "\$IP rule add pref 100 $spec && \\"
+        "fwb_rule_committed 4 100 '$spec' \\"
+        "|| route_command_error \"1 (main)\""
+        'fwb_rt_tables_ensure ci_iprule 103 '
+        '\$IP route add default via 192.168.1.10 dev eth1'
+    )
+    local needle
+    for needle in "${needles[@]}"; do
+        if ! grep -Fq "$needle" "$fw"; then
+            echo "FAIL: ip-rule fixture is missing: $needle" >&2
+            return 1
+        fi
+    done
+    if grep -Fq 'FWB_RULE_REPLACE=1' "$fw"; then
+        echo 'FAIL: strict default strategy must not set FWB_RULE_REPLACE=1' >&2
+        return 1
+    fi
+    if grep -Fq '$IP -6 rule add pref 100' "$fw"; then
+        echo 'FAIL: the IPv4-marked ip rule leaked into the IPv6 command form' >&2
+        return 1
+    fi
+    echo 'PASS: IPRule compiled into the strict ci_iprule lookup section'
+}
+
+check_ip_rule_ipv6() {
+    check_positive ip-rule-ipv6 6 || return 1
+    local fw="$output/nft-ci-ip-rule-ipv6.fw"
+    local spec="from 2001:db8::/32 lookup main"
+    local -a needles=(
+        "FWB_RULE_REPLACE=0"
+        "fwb_rule_prepare 6 200 '$spec' && \\"
+        "\$IP -6 rule add pref 200 $spec && \\"
+        "fwb_rule_committed 6 200 '$spec' \\"
+    )
+    local needle
+    for needle in "${needles[@]}"; do
+        if ! grep -Fq "$needle" "$fw"; then
+            echo "FAIL: ip-rule-ipv6 fixture is missing: $needle" >&2
+            return 1
+        fi
+    done
+    if grep -Fq '$IP rule add pref 200' "$fw"; then
+        echo 'FAIL: the IPv6 ip rule emitted a plain v4 rule line' >&2
+        return 1
+    fi
+    echo 'PASS: IPv6 IPRule compiled into the $IP -6 rule form'
+}
+
+check_ip_rule_replace() {
+    check_positive ip-rule-replace 4 || return 1
+    local fw="$output/nft-ci-ip-rule-replace.fw"
+    local spec="fwmark 65 lookup 104"
+    local -a needles=(
+        "FWB_RULE_REPLACE=1"
+        "fwb_rule_prepare 4 300 '$spec' && \\"
+        "\$IP rule add pref 300 $spec && \\"
+        "fwb_rule_committed 4 300 '$spec' \\"
+    )
+    local needle
+    for needle in "${needles[@]}"; do
+        if ! grep -Fq "$needle" "$fw"; then
+            echo "FAIL: ip-rule-replace fixture is missing: $needle" >&2
+            return 1
+        fi
+    done
+    if grep -Fq 'FWB_RULE_REPLACE=0' "$fw"; then
+        echo 'FAIL: the replace strategy still emits FWB_RULE_REPLACE=0' >&2
+        return 1
+    fi
+    echo 'PASS: ip_rule_strategy=replace selects the flush helpers'
+}
+
+
 failures=0
 cases=0
 run_case() {
@@ -947,6 +1031,10 @@ run_case routing-table check_routing_table
 run_case routing-table-numeric check_routing_table_numeric
 run_case reject-routing-table-duplicate check_negative reject-routing-table-duplicate 'use the same routing table id 101'
 run_case routing-in-deleted-objects check_routing_in_deleted_objects
+run_case ip-rule check_ip_rule
+run_case ip-rule-ipv6 check_ip_rule_ipv6
+run_case ip-rule-replace check_ip_rule_replace
+run_case reject-ip-rule-duplicate-priority check_negative reject-ip-rule-duplicate-priority 'use the same ip rule priority 100'
 run_case ipv4-option-rr check_positive ipv4-option-rr 4 'ip option rr exists'
 run_case ipv4-option-lsrr check_positive ipv4-option-lsrr 4 'ip option lsrr exists'
 run_case ipv4-option-ssrr check_positive ipv4-option-ssrr 4 'ip option ssrr exists'

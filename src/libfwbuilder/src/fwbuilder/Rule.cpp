@@ -1204,3 +1204,151 @@ string RoutingRule::getSortedDstIds() const
 {
     return sorted_dst_ids;
 }
+
+const char *IPRule::TYPENAME={"IPRule"};
+
+IPRule::IPRule() : Rule()
+{
+    setPriority(100);
+}
+
+bool IPRule::isEmpty()
+{
+    RuleElement *src = getSrc();
+    RuleElement *dst = getDst();
+    RuleElement *srv = getSrv();
+    RuleElement *itfinb = getItfInb();
+    RuleElement *itfoutb = getItfOutb();
+
+    return (src->isAny() && dst->isAny() && srv->isAny() &&
+            itfinb->isAny() && itfoutb->isAny());
+}
+
+void IPRule::init(FWObjectDatabase *root)
+{
+    FWObject *re = getFirstByType(RuleElementSrc::TYPENAME);
+    if (re == NULL)
+    {
+        re = root->createRuleElementSrc(); assert(re!=NULL); add(re);
+        re = root->createRuleElementDst(); assert(re!=NULL); add(re);
+        re = root->createRuleElementSrv(); assert(re!=NULL); add(re);
+        re = root->createRuleElementItfInb(); assert(re!=NULL); add(re);
+        re = root->createRuleElementItfOutb(); assert(re!=NULL); add(re);
+        add(root->createIPRuleOptions());
+    }
+}
+
+int IPRule::getPriority() const
+{
+    return getInt("priority");
+}
+
+string IPRule::getPriorityAsString() const
+{
+    stringstream s;
+    s << getPriority();
+    return s.str();
+}
+
+void IPRule::setPriority(int priority)
+{
+    setInt("priority", priority);
+}
+
+void IPRule::setPriority(string priority)
+{
+    setInt("priority", atoi(priority.c_str()));
+}
+
+void IPRule::fromXML(xmlNodePtr root)
+{
+    const char* n;
+
+    FWObject::fromXML(root);
+
+    n=XMLTools::FromXmlCast(xmlGetProp(root,XMLTools::ToXmlCast("disabled")));
+    if(n)
+    {
+        setStr("disabled",n);
+        XMLTools::FreeXmlBuff(n);
+    }
+
+    n=XMLTools::FromXmlCast(xmlGetProp(root,XMLTools::ToXmlCast("priority")));
+    if(n)
+    {
+        setStr("priority",n);
+        XMLTools::FreeXmlBuff(n);
+    }
+
+    n=XMLTools::FromXmlCast(xmlGetProp(root,XMLTools::ToXmlCast("position")));
+    if(n)
+    {
+        setStr("position",n);
+        XMLTools::FreeXmlBuff(n);
+    }
+
+    n= XMLTools::FromXmlCast(xmlGetProp(root,XMLTools::ToXmlCast("group")));
+    if(n)
+    {
+        setStr("group",n);
+        XMLTools::FreeXmlBuff(n);
+    }
+}
+
+xmlNodePtr IPRule::toXML(xmlNodePtr parent)
+{
+    xmlNodePtr me = FWObject::toXML(parent, false);
+    xmlNewProp(me, XMLTools::ToXmlCast("comment"), XMLTools::StrToXmlCast(getComment()));
+
+    FWObject *o;
+
+    if ( (o=getFirstByType( RuleElementSrc::TYPENAME ))!=NULL )
+	o->toXML(me);
+
+    if ( (o=getFirstByType( RuleElementDst::TYPENAME ))!=NULL )
+	o->toXML(me);
+
+    if ( (o=getFirstByType( RuleElementSrv::TYPENAME ))!=NULL )
+	o->toXML(me);
+
+    if ( (o=getFirstByType( RuleElementItfInb::TYPENAME ))!=NULL )
+	o->toXML(me);
+
+    if ( (o=getFirstByType( RuleElementItfOutb::TYPENAME ))!=NULL )
+	o->toXML(me);
+
+    if ( (o=getFirstByType( IPRuleOptions::TYPENAME ))!=NULL )
+	o->toXML(me);
+
+    return me;
+}
+
+RuleElementSrc* IPRule::getSrc() const
+{
+    return RuleElementSrc::cast(getFirstByType(RuleElementSrc::TYPENAME));
+}
+
+RuleElementDst* IPRule::getDst() const
+{
+    return RuleElementDst::cast(getFirstByType(RuleElementDst::TYPENAME));
+}
+
+RuleElementSrv* IPRule::getSrv() const
+{
+    return RuleElementSrv::cast(getFirstByType(RuleElementSrv::TYPENAME));
+}
+
+RuleElementItfInb* IPRule::getItfInb() const
+{
+    return RuleElementItfInb::cast(getFirstByType(RuleElementItfInb::TYPENAME));
+}
+
+RuleElementItfOutb* IPRule::getItfOutb() const
+{
+    return RuleElementItfOutb::cast(getFirstByType(RuleElementItfOutb::TYPENAME));
+}
+
+FWOptions* IPRule::getOptionsObject() const
+{
+    return FWOptions::cast(getFirstByType(IPRuleOptions::TYPENAME));
+}

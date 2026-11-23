@@ -478,6 +478,46 @@ class RoutingRule : public Rule
     virtual FWObject& duplicate(const FWObject *obj, bool preserve_id = true);
 };
 
+/**
+ * A single `ip rule` (policy routing) line. IP rules live mixed with
+ * plain RoutingRule objects in Routing rule sets, exactly like NAT
+ * rule sets mix SNAT and DNAT rows. The selectors reference ordinary
+ * address objects; the optional mark selector references TagService
+ * objects; the inbound and outbound interface rule elements reference
+ * interfaces of the firewall. The lookup target names another Routing
+ * rule set (identified in IPRuleOptions) and selects the iproute2
+ * table that rule set compiles into. The rule priority is an explicit
+ * attribute so reordering rules never changes the generated policy.
+ */
+class IPRule : public Rule 
+{
+    public:
+
+    IPRule();
+
+    virtual void init(FWObjectDatabase *root);
+    virtual void fromXML(xmlNodePtr parent);
+    virtual xmlNodePtr toXML(xmlNodePtr parent);
+
+    DECLARE_FWOBJECT_SUBTYPE(IPRule);
+
+    DECLARE_DISPATCH_METHODS(IPRule);
+    
+    virtual FWOptions* getOptionsObject() const;
+    virtual bool isEmpty();
+
+    int  getPriority() const;
+    void setPriority(int priority);
+    void setPriority(std::string priority);
+    std::string getPriorityAsString() const;
+
+    libfwbuilder::RuleElementSrc* getSrc() const;
+    libfwbuilder::RuleElementDst* getDst() const;
+    libfwbuilder::RuleElementSrv* getSrv() const;
+    libfwbuilder::RuleElementItfInb* getItfInb() const;
+    libfwbuilder::RuleElementItfOutb* getItfOutb() const;
+};
+
 }
 
 #endif //__RULE_HH_FLAG__

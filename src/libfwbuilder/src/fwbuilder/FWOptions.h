@@ -112,6 +112,16 @@ class RoutingRuleOptions : public FWOptions
     DECLARE_DISPATCH_METHODS(RoutingRuleOptions);
 };
 
+class IPRuleOptions : public FWOptions
+{
+    public:
+
+    IPRuleOptions();
+
+    DECLARE_FWOBJECT_SUBTYPE(IPRuleOptions);
+    DECLARE_DISPATCH_METHODS(IPRuleOptions);
+};
+
 class ClusterGroupOptions : public FWOptions
 {
     public:

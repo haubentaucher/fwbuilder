@@ -680,6 +680,10 @@ QString CompilerDriver_nft::run(const std::string &cluster_id,
         // backwards compatibility.
         std::string routing_script;
         bool routing_installs = false;
+        // IPRule objects are validated and printed by the routing
+        // compiler passes, but collected here: priorities must be
+        // unique across all rule sets of the firewall.
+        std::vector<PrintedIPRule> printed_ip_rules;
         const bool manage_rt_tables = options->getBool("manage_rt_tables");
         struct RoutingTableDecl
         {
@@ -766,8 +770,33 @@ QString CompilerDriver_nft::run(const std::string &cluster_id,
                 if (pass_script.find("route add") != std::string::npos)
                     routing_installs = true;
                 routing_script += pass_script;
+
+                const std::vector<PrintedIPRule> &printed =
+                    routing_compiler->getPrintedIPRules();
+                printed_ip_rules.insert(printed_ip_rules.end(),
+                                         printed.begin(), printed.end());
+                if (!printed.empty()) routing_installs = true;
             }
         }
+
+        // An ip rule priority identifies exactly one rule per address
+        // family and firewall: priorities are global, not per rule
+        // set. The shell helpers key their state by the priority.
+        for (std::vector<PrintedIPRule>::size_type i = 0;
+             i < printed_ip_rules.size(); ++i)
+            for (std::vector<PrintedIPRule>::size_type j = i + 1;
+                 j < printed_ip_rules.size(); ++j)
+                if (printed_ip_rules[i].family == printed_ip_rules[j].family &&
+                    printed_ip_rules[i].priority == printed_ip_rules[j].priority)
+                {
+                    abort("IP rules \"" + printed_ip_rules[i].label + "\" (" +
+                          printed_ip_rules[i].ruleset + ") and \"" +
+                          printed_ip_rules[j].label + "\" (" +
+                          printed_ip_rules[j].ruleset +
+                          ") use the same ip rule priority " +
+                          std::to_string(printed_ip_rules[i].priority));
+                    return "";
+                }
 
         /*
          * compilers detach persistent objects when they finish, this
@@ -1124,6 +1153,22 @@ QString CompilerDriver_nft::run(const std::string &cluster_id,
             }
         }
         script << QString::fromUtf8(routing_script.c_str());
+        if (!printed_ip_rules.empty() && !single_rule_compile_on)
+        {
+            std::stable_sort(printed_ip_rules.begin(), printed_ip_rules.end(),
+                             [](const PrintedIPRule &a, const PrintedIPRule &b)
+                             {
+                                 if (a.family != b.family)
+                                     return a.family < b.family;
+                                 return a.priority < b.priority;
+                             });
+            script << "\n#\n# ip rule (policy-based routing)\n#\n";
+            script << "FWB_RULE_REPLACE="
+                   << (options->getStr("ip_rule_strategy") == "replace"
+                           ? "1" : "0") << "\n";
+            for (const PrintedIPRule &printed : printed_ip_rules)
+                script << QString::fromUtf8(printed.text.c_str());
+        }
         if (routing_installs && !single_rule_compile_on)
             script << "fwb_routing_finish\n";
 

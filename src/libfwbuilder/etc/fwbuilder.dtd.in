@@ -87,7 +87,7 @@
 >
 
 <!ELEMENT Library
-((AnyNetwork|AnyIPService|AnyInterval|ObjectGroup|DynamicGroup|StateSyncClusterGroup|FailoverClusterGroup|Host|Firewall|Cluster|Network|NetworkIPv6|AttachedNetworks|IPv4|IPv6|DNSName|AddressTable|physAddress|AddressRange|ObjectRef|ServiceGroup|IPService|ICMPService|ICMP6Service|TCPService|UDPService|CustomService|ServiceRef|IntervalGroup|Interval|IntervalRef|Interface|Policy|NAT|PolicyRule|NATRule|Routing|RoutingRule|Library|TagService|UserService|DummyNetwork|DummyIPService|DummyInterface)*)>
+((AnyNetwork|AnyIPService|AnyInterval|ObjectGroup|DynamicGroup|StateSyncClusterGroup|FailoverClusterGroup|Host|Firewall|Cluster|Network|NetworkIPv6|AttachedNetworks|IPv4|IPv6|DNSName|AddressTable|physAddress|AddressRange|ObjectRef|ServiceGroup|IPService|ICMPService|ICMP6Service|TCPService|UDPService|CustomService|ServiceRef|IntervalGroup|Interval|IntervalRef|Interface|Policy|NAT|PolicyRule|NATRule|Routing|RoutingRule|IPRule|Library|TagService|UserService|DummyNetwork|DummyIPService|DummyInterface)*)>
 <!ATTLIST Library
  %STD_ATTRIBUTES;
  color   %STRING;  #IMPLIED
@@ -194,6 +194,7 @@ own compiler) we do not define content model for this element.
 <!ELEMENT PolicyRuleOptions (Option*)>
 <!ELEMENT NATRuleOptions    (Option*)>
 <!ELEMENT RoutingRuleOptions (Option*)>
+<!ELEMENT IPRuleOptions (Option*)>
 <!ELEMENT FirewallOptions   (Option*)>
 <!ELEMENT InterfaceOptions  (Option*)>
 <!ELEMENT HostOptions       (Option*)>
@@ -257,6 +258,16 @@ own compiler) we do not define content model for this element.
  disabled  %BOOLEAN;   "False"
  position  %NUMBER;    #REQUIRED
  metric    %NUMBER;    "0"
+ comment   %STRING;    #IMPLIED
+ group     %STRING;    #IMPLIED
+>
+
+<!ELEMENT IPRule (Src,Dst,Srv,ItfInb,ItfOutb,When?,IPRuleOptions?)>
+<!ATTLIST IPRule
+ id      ID       #REQUIRED
+ disabled  %BOOLEAN;   "False"
+ position  %NUMBER;    #REQUIRED
+ priority  %NUMBER;    #REQUIRED
  comment   %STRING;    #IMPLIED
  group     %STRING;    #IMPLIED
 >
@@ -631,7 +642,7 @@ some can't (ipfilter, IOS, PIX)
  top_rule_set        %BOOLEAN; #IMPLIED
 >
 
-<!ELEMENT Routing (RoutingRule*, RuleSetOptions)>
+<!ELEMENT Routing ((RoutingRule|IPRule)*, RuleSetOptions)>
 <!ATTLIST Routing
  %STD_ATTRIBUTES;
  ipv4_rule_set       %BOOLEAN; #IMPLIED

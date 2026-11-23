@@ -13,6 +13,7 @@ if [ "${FWB_ROUTING_INITIALIZED:-0}" != 1 ]; then
 FWB_ROUTING_INITIALIZED=1
 FWB_ROUTE_STATE_DIR=/var/lib/fwbuilder
 FWB_ROUTE_STATE="$FWB_ROUTE_STATE_DIR/nft-routes.{{$firewall_name}}"
+FWB_RULE_STATE="$FWB_ROUTE_STATE_DIR/nft-iprules.{{$firewall_name}}"
 FWB_ROUTING_REDIRECTED=0
 HAVE_MKTEMP=$(which mktemp)
 test -n "$HAVE_MKTEMP" && {
@@ -26,8 +27,12 @@ test -z "$HAVE_MKTEMP" && {
 TMPFILENAME="$TMPDIRNAME/.fwbuilder.out"
 FWB_ROUTE_COMMITTED="$TMPDIRNAME/.committed"
 FWB_ROUTE_RETIRED="$TMPDIRNAME/.retired"
+FWB_RULE_COMMITTED="$TMPDIRNAME/.iprules-committed"
+FWB_RULE_RETIRED="$TMPDIRNAME/.iprules-retired"
 : > "$FWB_ROUTE_COMMITTED"
 : > "$FWB_ROUTE_RETIRED"
+: > "$FWB_RULE_COMMITTED"
+: > "$FWB_RULE_RETIRED"
 fwb_routing_restore_output() {
   if [ "${FWB_ROUTING_REDIRECTED:-0}" = 1 ]; then
     exec 1>&3 2>&1
@@ -167,6 +172,20 @@ fwb_routing_rollback() {
       fwb_route_add_line "$FWB_STATE_FAM" "$FWB_STATE_TABLE" $FWB_STATE_SPEC || true
     done < "$FWB_ROUTE_RETIRED"
   fi
+  if [ -f "$FWB_RULE_COMMITTED" ]; then
+    while IFS= read -r line; do
+      [ -n "$line" ] || continue
+      fwb_rule_state_fields "$line"
+      fwb_rule_del_state "$FWB_RULE_STATE_FAM" "$FWB_RULE_STATE_PRIO" "$FWB_RULE_STATE_SPEC" || true
+    done < "$FWB_RULE_COMMITTED"
+  fi
+  if [ -f "$FWB_RULE_RETIRED" ]; then
+    while IFS= read -r line; do
+      [ -n "$line" ] || continue
+      fwb_rule_state_fields "$line"
+      fwb_rule_add_state "$FWB_RULE_STATE_FAM" "$FWB_RULE_STATE_PRIO" "$FWB_RULE_STATE_SPEC" || true
+    done < "$FWB_RULE_RETIRED"
+  fi
 }
 fwb_route_prepare() {
   fam=$1
@@ -189,6 +208,105 @@ fwb_route_prepare() {
 }
 fwb_route_committed() {
   printf '%s|%s|%s|%s\n' "$1" "$2" "$3" "$4" >> "$FWB_ROUTE_COMMITTED"
+}
+# Rule state entries are "family|priority|spec". Unlike routes, the
+# kernel accumulates multiple ip rules at the same priority silently,
+# so every helper deletes by the exact priority plus specification.
+fwb_rule_state_fields() {
+  # Splits $1 into FWB_RULE_STATE_FAM, FWB_RULE_STATE_PRIO,
+  # FWB_RULE_STATE_SPEC. Ip rule specifications never contain "|".
+  set -f
+  IFS='|'
+  set -- $1
+  IFS=' 	
+'
+  set +f
+  FWB_RULE_STATE_FAM=$1
+  FWB_RULE_STATE_PRIO=$2
+  FWB_RULE_STATE_SPEC=$3
+}
+fwb_rule_del_state() {
+  fam=$1
+  prio=$2
+  spec=$3
+  set -f
+  if [ "$fam" = 6 ]; then
+    $IP -6 rule del pref "$prio" $spec
+  else
+    $IP rule del pref "$prio" $spec
+  fi
+  status=$?
+  set +f
+  return $status
+}
+fwb_rule_add_state() {
+  fam=$1
+  prio=$2
+  spec=$3
+  set -f
+  if [ "$fam" = 6 ]; then
+    $IP -6 rule add pref "$prio" $spec
+  else
+    $IP rule add pref "$prio" $spec
+  fi
+  status=$?
+  set +f
+  return $status
+}
+fwb_rule_del_pref() {
+  set -f
+  if [ "$1" = 6 ]; then
+    $IP -6 rule del pref "$2"
+  else
+    $IP rule del pref "$2"
+  fi
+  status=$?
+  set +f
+  return $status
+}
+fwb_rule_has_priority() {
+  if [ "$1" = 6 ]; then
+    $IP -6 rule list 2>/dev/null || true
+  else
+    $IP rule list 2>/dev/null || true
+  fi | grep -Eq "^[[:space:]]*$2:"
+}
+fwb_rules_retire() {
+  [ -f "$FWB_RULE_STATE" ] || return 0
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    fwb_rule_state_fields "$line"
+    # An outdated rule may already be gone; never fail the
+    # activation for that.
+    fwb_rule_del_state "$FWB_RULE_STATE_FAM" "$FWB_RULE_STATE_PRIO" "$FWB_RULE_STATE_SPEC" || true
+    printf '%s|%s|%s\n' "$FWB_RULE_STATE_FAM" "$FWB_RULE_STATE_PRIO" "$FWB_RULE_STATE_SPEC" >> "$FWB_RULE_RETIRED"
+  done < "$FWB_RULE_STATE"
+}
+fwb_rule_prepare() {
+  # $1 family, $2 priority, $3 plain specification
+  fam=$1
+  prio=$2
+  spec=$3
+  # Self-inflicted duplicates: adding the identical rule again would
+  # create a silent twin at the same priority.
+  fwb_rule_del_state "$fam" "$prio" "$spec" || true
+  if [ "${FWB_RULE_REPLACE:-0}" = 1 ]; then
+    # Replace strategy: flush every rule at this priority, ours were
+    # already retired above, the rest is foreign.
+    n=0
+    while fwb_rule_del_pref "$fam" "$prio" 2>/dev/null && [ "$n" -lt 64 ]; do
+      n=$((n+1))
+    done
+    return 0
+  fi
+  if fwb_rule_has_priority "$fam" "$prio"; then
+    echo "Error: refusing to add ip rule at priority $prio: the priority is already in use"
+    return 1
+  fi
+  return 0
+}
+fwb_rule_committed() {
+  printf '%s|%s|%s\n' "$1" "$2" "$3" >> "$FWB_RULE_COMMITTED"
 }
 fwb_rt_tables_ensure() {
   fwb_table_name=$1
@@ -234,6 +352,12 @@ fwb_routing_finish() {
     : > "$FWB_ROUTE_STATE.new"
   fi
   mv -f "$FWB_ROUTE_STATE.new" "$FWB_ROUTE_STATE"
+  if [ -n "$(cat "$FWB_RULE_COMMITTED" 2>/dev/null)" ]; then
+    cp "$FWB_RULE_COMMITTED" "$FWB_RULE_STATE.new"
+  else
+    : > "$FWB_RULE_STATE.new"
+  fi
+  mv -f "$FWB_RULE_STATE.new" "$FWB_RULE_STATE"
   fwb_routing_restore_output
   echo "Routing rules activated."
 }
@@ -244,6 +368,10 @@ fwb_routing_begin() {
     echo "Error: could not retire previously managed routes." >&2
     return 1
   fi
+  # Previous-generation ip rules of this firewall are retired with the
+  # same lookup-by-state approach as routes. A missing state file
+  # (first activation or reboot) simply means nothing to retire.
+  fwb_rules_retire
   exec 3>&1
   exec 1>"$TMPFILENAME"
   exec 2>&1

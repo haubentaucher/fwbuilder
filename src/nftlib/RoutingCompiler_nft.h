@@ -35,6 +35,9 @@
 #include "fwcompiler/RoutingCompiler.h"
 #include "fwbuilder/RuleElement.h"
 
+#include <vector>
+#include <string>
+
 namespace libfwbuilder {
     class RuleElementRDst;
     class RuleElementRItf;
@@ -43,6 +46,19 @@ namespace libfwbuilder {
 
 
 namespace fwcompiler {
+
+    // One compiled ip rule (policy-based routing). The driver
+    // collects these from every rule set and address family pass,
+    // checks priority uniqueness across the whole firewall and
+    // emits one sorted "ip rule" section in the script.
+    struct PrintedIPRule
+    {
+        int family;             // 4 or 6
+        int priority;           // 0-32767, unique per family
+        std::string ruleset;    // routing rule set the rule lives in
+        std::string label;      // rule label for messages
+        std::string text;       // complete generated script text
+    };
 
 
     class RoutingCompiler_nft : public RoutingCompiler {
@@ -197,6 +213,29 @@ namespace fwcompiler {
         };
         friend class RoutingCompiler_nft::PrintRule;
 
+        /**
+         * Processes IPRule objects (policy-based routing, "ip rule").
+         * This must be a plain BasicRuleProcessor rather than a
+         * RoutingRuleProcessor: the shared Conveyor rule machinery
+         * casts to RoutingRule, and IPRule objects live in the same
+         * Routing rule sets next to RoutingRule objects. This
+         * processor runs early, right after singleRuleFilter, and
+         * pulls IPRule objects out of the stream before any
+         * RoutingRule-specific processor can trip over them.
+         * RoutingRule objects are passed through unchanged. Printed
+         * ip rule commands are collected in the compiler member
+         * printed_ip_rules instead of compiler->output so the
+         * historical route output stays byte-identical.
+         */
+        class processIPRules : public BasicRuleProcessor
+        {
+        public:
+            explicit processIPRules(const std::string &name)
+                : BasicRuleProcessor(name) {}
+            virtual bool processNext();
+        };
+        friend class RoutingCompiler_nft::processIPRules;
+
         bool compilingIPv6() const { return ipv6; }
         std::string routeAddPrefix() const;
         std::string activationCommand(const std::string &spec,
@@ -240,7 +279,14 @@ namespace fwcompiler {
         std::string routing_table_name;
         std::string routing_table_id;
         bool routing_table_managed;
-        
+
+        std::vector<PrintedIPRule> printed_ip_rules;
+
+    public:
+
+        const std::vector<PrintedIPRule> &getPrintedIPRules() const
+        { return printed_ip_rules; }
+
     public:
 
 	RoutingCompiler_nft(libfwbuilder::FWObjectDatabase *_db,

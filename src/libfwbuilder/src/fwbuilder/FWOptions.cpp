@@ -119,6 +119,9 @@ NATRuleOptions::NATRuleOptions() : FWOptions() {}
 const char *RoutingRuleOptions::TYPENAME={"RoutingRuleOptions"};
 RoutingRuleOptions::RoutingRuleOptions() : FWOptions() {}
 
+const char *IPRuleOptions::TYPENAME={"IPRuleOptions"};
+IPRuleOptions::IPRuleOptions() : FWOptions() {}
+
 const char *ClusterGroupOptions::TYPENAME={"ClusterGroupOptions"};
 ClusterGroupOptions::ClusterGroupOptions() : FWOptions() {}
 

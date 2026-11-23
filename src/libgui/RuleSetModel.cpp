@@ -1326,6 +1326,8 @@ QModelIndexList RuleSetModel::findObject(FWObject* object)
                 // try to find the object
                 RuleElement* re = getRuleElementByRole(
                     rule, colDesc.origin.toStdString());
+                // IPRule rows do not provide the RoutingRule elements
+                if (re == nullptr) continue;
                 if (re->isAny()) continue;
 
                 for (FWObject::iterator i=re->begin(); i!=re->end(); i++)
@@ -1746,6 +1748,8 @@ QVariant RoutingModel::getRuleDataForDisplayRole(const QModelIndex &index, RuleN
         switch (header[idx].type)
         {
             case ColDesc::Metric :
+                // IPRule rows have no metric
+                if (RoutingRule::cast(node->rule) == nullptr) break;
                 res.setValue<QString>(QString::fromUtf8(RoutingRule::cast(node->rule)->getMetricAsString().c_str()));
                 break;
 

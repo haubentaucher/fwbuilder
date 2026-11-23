@@ -34,6 +34,13 @@
 
 #include "fwbuilder/RuleElement.h"
 #include "fwbuilder/Routing.h"
+#include "fwbuilder/FWReference.h"
+#include "fwbuilder/AddressRange.h"
+#include "fwbuilder/Cluster.h"
+#include "fwbuilder/Group.h"
+#include "fwbuilder/InetAddrMask.h"
+#include "fwbuilder/RuleSet.h"
+#include "fwbuilder/TagService.h"
 #include "fwbuilder/Network.h"
 #include "fwbuilder/FWObjectDatabase.h"
 #include "fwbuilder/RuleElement.h"
@@ -55,6 +62,8 @@
 
 #include <assert.h>
 #include <list>
+#include <vector>
+#include <string>
 
 using namespace libfwbuilder;
 using namespace fwcompiler;
@@ -362,4 +371,491 @@ string RoutingCompiler_nft::PrintRule::_printRDst(RoutingRule *rule)
         compiler->abort(rule, "Broken DST");
     
     return _printAddr(dst);
+}
+
+/**
+ * RoutingCompiler_nft::processIPRules
+ *
+ * Defined in RoutingCompiler_nft.cpp and RoutingCompiler_nft.h.
+ */
+std::string shellQuote(const std::string &value);
+void noteRouteFamily(libfwbuilder::FWObject *object, bool &ipv4, bool &ipv6);
+
+namespace {
+
+void collectIPRuleObjects(libfwbuilder::FWObject *obj,
+                          std::list<libfwbuilder::FWObject*> &out)
+{
+    using namespace libfwbuilder;
+    if (obj == nullptr) return;
+    if (obj->getId() == FWObjectDatabase::ANY_ADDRESS_ID) return;
+    if (obj->getId() == FWObjectDatabase::ANY_SERVICE_ID) return;
+    Group *grp = Group::cast(obj);
+    if (grp)
+    {
+        for (FWObject::iterator it = grp->begin(); it != grp->end(); ++it)
+        {
+            if (FWReference::cast(*it) == nullptr) continue;
+            collectIPRuleObjects(FWReference::getObject(*it), out);
+        }
+        return;
+    }
+    out.push_back(obj);
+}
+
+// Converts atomic address objects into ip rule selector strings.
+// The objects come from collectIPRuleObjects (groups are already
+// resolved). An empty list means "match everything": the selector is
+// then simply omitted from the ip rule command. AddressRange objects
+// are converted to the minimal set of prefixes, mirroring
+// Compiler::_expandAddressRanges, but without creating synthetic
+// objects.
+void collectIPRuleSelectors(fwcompiler::Compiler *compiler,
+                            libfwbuilder::Rule *rule,
+                            const std::list<libfwbuilder::FWObject*> &objects,
+                            std::list<std::string> &selectors)
+{
+    using namespace libfwbuilder;
+    for (std::list<FWObject*>::const_iterator it = objects.begin();
+         it != objects.end(); ++it)
+    {
+        FWObject *obj = *it;
+
+        AddressRange *range = AddressRange::cast(obj);
+        if (range)
+        {
+            std::vector<InetAddrMask> prefixes = convertAddressRange(
+                range->getRangeStart(), range->getRangeEnd());
+            if (prefixes.empty())
+            {
+                compiler->abort(rule,
+                    "Address Range object '" + range->getName() +
+                    "' can not be converted to set of addresses");
+                continue;
+            }
+            for (std::vector<InetAddrMask>::iterator p = prefixes.begin();
+                 p != prefixes.end(); ++p)
+            {
+                if (p->getAddressPtr() == nullptr ||
+                    p->getNetmaskPtr() == nullptr) continue;
+                std::ostringstream selector;
+                selector << p->getAddressPtr()->toString();
+                if (!p->getNetmaskPtr()->isHostMask())
+                    selector << "/" << p->getNetmaskPtr()->getLength();
+                selectors.push_back(selector.str());
+            }
+            continue;
+        }
+
+        Interface *iface = Interface::cast(obj);
+        if (iface)
+        {
+            compiler->abort(rule,
+                "Interface '" + iface->getName() +
+                "' is not supported in the address fields of IP rule " +
+                rule->getLabel() + "; use network or host objects");
+            continue;
+        }
+
+        Address *address = Address::cast(obj);
+        if (address == nullptr)
+        {
+            compiler->abort(rule,
+                "IP rule " + rule->getLabel() +
+                " uses object '" + obj->getName() +
+                "' which is not an address");
+            continue;
+        }
+        const InetAddr *addr = address->getAddressPtr();
+        const InetAddr *mask = address->getNetmaskPtr();
+        if (addr == nullptr || mask == nullptr)
+        {
+            compiler->abort(rule,
+                "IP rule " + rule->getLabel() +
+                " uses object '" + obj->getName() +
+                "' which has no address");
+            continue;
+        }
+        std::ostringstream selector;
+        selector << addr->toString();
+        if (address->dimension() > 1 && !mask->isHostMask())
+            selector << "/" << mask->getLength();
+        selectors.push_back(selector.str());
+    }
+}
+
+} // namespace
+
+bool RoutingCompiler_nft::processIPRules::processNext()
+{
+    using namespace libfwbuilder;
+
+    Rule *rule = prev_processor->getNextRule();
+    if (rule == nullptr) return false;
+
+    IPRule *iprule = IPRule::cast(rule);
+    if (iprule == nullptr)
+    {
+        tmp_queue.push_back(rule);
+        return true;
+    }
+
+    RoutingCompiler_nft *nft = static_cast<RoutingCompiler_nft*>(compiler);
+
+    RuleElement *elements[5] = { iprule->getSrc(), iprule->getDst(),
+                                 iprule->getSrv(), iprule->getItfInb(),
+                                 iprule->getItfOutb() };
+
+    // Negation is fail-closed: silently ignoring a negated selector
+    // would silently narrow what the ip rule matches.
+    for (int index = 0; index < 5; ++index)
+    {
+        RuleElement *element = elements[index];
+        if (element != nullptr && element->getNeg())
+        {
+            compiler->abort(rule,
+                "Negation is not supported in IP rules");
+            return true;
+        }
+    }
+
+    // Time intervals would be silently ignored by ip rule, reject them.
+    FWObject *when = iprule->getFirstByType("When");
+    if (when != nullptr && when->size() > 0)
+    {
+        compiler->abort(rule,
+            "Time intervals are not supported in IP rules");
+        return true;
+    }
+
+    int priority = iprule->getPriority();
+    if (priority < 0 || priority > 32767)
+    {
+        compiler->abort(rule,
+            "IP rule priority must be a number between 0 and 32767");
+        return true;
+    }
+
+    // Address family of the rule comes from the atomic address
+    // objects; pure rules stay in their pass, family-less rules
+    // (fwmark and/or interfaces only) compile in both passes.
+    std::list<FWObject*> src_objects;
+    std::list<FWObject*> dst_objects;
+    for (FWObject::iterator it = iprule->getSrc()->begin();
+         it != iprule->getSrc()->end(); ++it)
+    {
+        if (FWReference::cast(*it) == nullptr) continue;
+        collectIPRuleObjects(FWReference::getObject(*it), src_objects);
+    }
+    for (FWObject::iterator it = iprule->getDst()->begin();
+         it != iprule->getDst()->end(); ++it)
+    {
+        if (FWReference::cast(*it) == nullptr) continue;
+        collectIPRuleObjects(FWReference::getObject(*it), dst_objects);
+    }
+
+    bool has_ipv4 = false;
+    bool has_ipv6 = false;
+    for (int index = 0; index < 2; ++index)
+    {
+        const std::list<FWObject*> &objects =
+            (index == 0) ? src_objects : dst_objects;
+        for (std::list<FWObject*>::const_iterator it = objects.begin();
+             it != objects.end(); ++it)
+        {
+            FWObject *obj = *it;
+            AddressRange *range = AddressRange::cast(obj);
+            if (range)
+            {
+                if (range->getRangeStart().isV6()) has_ipv6 = true;
+                else has_ipv4 = true;
+                continue;
+            }
+            noteRouteFamily(obj, has_ipv4, has_ipv6);
+        }
+    }
+    if (has_ipv4 && has_ipv6)
+    {
+        compiler->abort(rule, "IP rule mixes IPv4 and IPv6 addresses");
+        return true;
+    }
+    if (nft->compilingIPv6())
+    {
+        if (has_ipv4 && !has_ipv6) return true;
+    } else
+    {
+        if (has_ipv6 && !has_ipv4) return true;
+    }
+
+    // Address selectors.
+    std::list<std::string> from_selectors;
+    std::list<std::string> to_selectors;
+    collectIPRuleSelectors(compiler, rule, src_objects, from_selectors);
+    collectIPRuleSelectors(compiler, rule, dst_objects, to_selectors);
+
+    // The service element holds the fwmark: exactly 0 or 1 TagService.
+    std::string fwmark;
+    {
+        std::list<FWObject*> srv_objects;
+        for (FWObject::iterator it = iprule->getSrv()->begin();
+             it != iprule->getSrv()->end(); ++it)
+        {
+            if (FWReference::cast(*it) == nullptr) continue;
+            collectIPRuleObjects(FWReference::getObject(*it), srv_objects);
+        }
+        for (std::list<FWObject*>::iterator it = srv_objects.begin();
+             it != srv_objects.end(); ++it)
+        {
+            TagService *tag = TagService::cast(*it);
+            if (tag == nullptr)
+            {
+                compiler->abort(rule,
+                    "Only Tag/Mark services are supported in IP rule " +
+                    rule->getLabel());
+                return true;
+            }
+            if (!fwmark.empty())
+            {
+                compiler->abort(rule,
+                    "IP rule " + rule->getLabel() +
+                    " can use at most one tag service");
+                return true;
+            }
+            fwmark = tag->getCode();
+            if (fwmark.empty())
+            {
+                compiler->abort(rule,
+                    "Tag service '" + tag->getName() +
+                    "' used in IP rule " + rule->getLabel() +
+                    " has no mark code");
+                return true;
+            }
+        }
+    }
+
+    // Interface selectors: 0 or 1 firewall interface each.
+    std::string iif_name;
+    std::string oif_name;
+    const char *itf_names[2] = { "iif", "oif" };
+    RuleElement *itf_elements[2] = { iprule->getItfInb(),
+                                     iprule->getItfOutb() };
+    std::string *itf_result[2] = { &iif_name, &oif_name };
+    for (int index = 0; index < 2; ++index)
+    {
+        std::list<FWObject*> itf_objects;
+        for (FWObject::iterator it = itf_elements[index]->begin();
+             it != itf_elements[index]->end(); ++it)
+        {
+            if (FWReference::cast(*it) == nullptr) continue;
+            collectIPRuleObjects(FWReference::getObject(*it), itf_objects);
+        }
+        if (itf_objects.size() > 1)
+        {
+            compiler->abort(rule,
+                std::string("IP rule ") + rule->getLabel() +
+                " can use at most one interface in " + itf_names[index]);
+            return true;
+        }
+        if (itf_objects.empty()) continue;
+        Interface *iface = Interface::cast(itf_objects.front());
+        if (iface == nullptr)
+        {
+            compiler->abort(rule,
+                std::string("Object '") + itf_objects.front()->getName() +
+                "' used in " + itf_names[index] + " of IP rule " +
+                rule->getLabel() + " is not an interface");
+            return true;
+        }
+        // Mirror rItfChildOfFw: the interface must belong to this
+        // firewall (directly or through a cluster this firewall is a
+        // member of).
+        FWObject *parent_host = Host::getParentHost(iface);
+        if (parent_host != nullptr && parent_host->getId() == nft->fw->getId())
+        {
+            *itf_result[index] = iface->getName();
+            continue;
+        }
+        Cluster *cluster = Cluster::cast(parent_host);
+        bool member = false;
+        if (cluster)
+        {
+            std::list<Firewall*> members;
+            cluster->getMembersList(members);
+            for (std::list<Firewall*>::iterator m = members.begin();
+                 m != members.end(); ++m)
+                if ((*m)->getId() == nft->fw->getId()) member = true;
+        }
+        if (!member)
+        {
+            compiler->abort(rule,
+                "Interface '" + iface->getName() +
+                "' used in IP rule " + rule->getLabel() +
+                " is not a child of the firewall the rule belongs to");
+            return true;
+        }
+        *itf_result[index] = iface->getName();
+    }
+
+    // Resolve the lookup target: a Routing rule set of this firewall.
+    // The target may keep the main table (empty table options).
+    FWOptions *iprule_options = iprule->getOptionsObject();
+    std::string lookup_id = iprule_options != nullptr
+        ? iprule_options->getStr("ip_rule_lookup_id") : "";
+    std::string lookup_name = iprule_options != nullptr
+        ? iprule_options->getStr("ip_rule_lookup_name") : "";
+    RuleSet *target = nullptr;
+    if (!lookup_id.empty())
+    {
+        target = RuleSet::cast(
+            rule->getRoot()->findInIndex(FWObjectDatabase::getIntId(lookup_id)));
+    }
+    if (target == nullptr && !lookup_name.empty())
+    {
+        target = RuleSet::cast(nft->fw->findObjectByName(
+            Routing::TYPENAME, lookup_name));
+    }
+    if (target == nullptr)
+    {
+        compiler->abort(rule,
+            "IP rule " + rule->getLabel() +
+            " needs a routing rule set (lookup target)");
+        return true;
+    }
+    if (target->getParent() == nullptr ||
+        target->getParent()->getId() != nft->fw->getId())
+    {
+        compiler->abort(rule,
+            "Routing rule set '" + target->getName() +
+            "' used as lookup target of IP rule " + rule->getLabel() +
+            " does not belong to the firewall the rule belongs to");
+        return true;
+    }
+    FWOptions *target_options = target->getOptionsObject();
+    std::string table_name = target_options != nullptr
+        ? target_options->getStr("routing_table_name") : "";
+    std::string table_id = target_options != nullptr
+        ? target_options->getStr("routing_table_id") : "";
+    const bool manage_rt_tables =
+        nft->fw->getOptionsObject() != nullptr &&
+        nft->fw->getOptionsObject()->getBool("manage_rt_tables");
+    std::string lookup_token;
+    if (table_name.empty()) lookup_token = "main";
+    else if (manage_rt_tables) lookup_token = table_name;
+    else lookup_token = table_id;
+    if (lookup_token.empty())
+    {
+        compiler->abort(rule,
+            "Routing rule set '" + target->getName() +
+            "' used as lookup target of IP rule " + rule->getLabel() +
+            " needs a numeric table id");
+        return true;
+    }
+
+    // Atomar expansion: one ip rule per (from, to) combination.
+    std::list<std::string> combos;
+    if (from_selectors.empty() && to_selectors.empty())
+    {
+        combos.push_back("");
+    } else
+    {
+        std::list<std::string>::const_iterator from_it;
+        std::list<std::string>::const_iterator to_it;
+        if (from_selectors.empty())
+        {
+            for (to_it = to_selectors.begin(); to_it != to_selectors.end(); ++to_it)
+                combos.push_back("to " + *to_it);
+        } else
+        {
+            for (from_it = from_selectors.begin();
+                 from_it != from_selectors.end(); ++from_it)
+            {
+                if (to_selectors.empty())
+                {
+                    combos.push_back("from " + *from_it);
+                } else
+                {
+                    for (to_it = to_selectors.begin();
+                         to_it != to_selectors.end(); ++to_it)
+                        combos.push_back("from " + *from_it +
+                                         " to " + *to_it);
+                }
+            }
+        }
+    }
+
+    std::list<std::string> commands;
+    std::list<std::string> specs;
+    for (std::list<std::string>::iterator combo = combos.begin();
+         combo != combos.end(); ++combo)
+    {
+        std::string spec = *combo;
+        if (!fwmark.empty()) spec += (spec.empty() ? "" : " ") + std::string("fwmark ") + fwmark;
+        if (!iif_name.empty()) spec += (spec.empty() ? "" : " ") + std::string("iif ") + iif_name;
+        if (!oif_name.empty()) spec += (spec.empty() ? "" : " ") + std::string("oif ") + oif_name;
+        spec += (spec.empty() ? "" : " ") + std::string("lookup ") + lookup_token;
+
+        std::ostringstream command;
+        command << (nft->compilingIPv6() ? "$IP -6 rule add pref "
+                                          : "$IP rule add pref ")
+                << priority << " " << spec;
+        commands.push_back(command.str());
+        specs.push_back(spec);
+    }
+
+    if (compiler->inSingleRuleCompileMode())
+    {
+        for (std::list<std::string>::iterator cmd = commands.begin();
+             cmd != commands.end(); ++cmd)
+            compiler->output << *cmd << "\n";
+        return true;
+    }
+
+    // The rule never reaches the shared route printers, so the route
+    // output stays byte-identical. The text lands in printed_ip_rules
+    // and the driver emits one sorted ip rule section.
+    std::ostringstream text;
+    const std::string label = rule->getLabel();
+    text << "# \n";
+    text << "# Rule " << label << "\n";
+    text << "# \n";
+    text << "echo \"IP rule " << label << "\"\n";
+    text << "# \n";
+
+    std::string comment = iprule->getComment();
+    std::string::size_type c1 = 0, c2;
+    while ((c2 = comment.find('\n', c1)) != std::string::npos)
+    {
+        text << "# " << comment.substr(c1, c2 - c1) << "\n";
+        c1 = c2 + 1;
+    }
+    if (!comment.empty())
+        text << "# " << comment.substr(c1) << "\n";
+
+    const std::string errors = compiler->getErrorsForRule(rule, "# ");
+    if (!errors.empty()) text << errors << "\n";
+
+    const std::string family_char = nft->compilingIPv6() ? "6" : "4";
+    std::list<std::string>::iterator cmd = commands.begin();
+    std::list<std::string>::iterator spec = specs.begin();
+    for (; cmd != commands.end(); ++cmd, ++spec)
+    {
+        // The quoted spec is the retire key: identical specs match
+        // exactly, changed specs retire the outdated kernel rule.
+        const std::string quoted_spec = shellQuote(*spec);
+        text << "fwb_rule_prepare " << family_char << " " << priority << " "
+             << quoted_spec << " && \\\n" << *cmd << " && \\\n"
+             << "fwb_rule_committed " << family_char << " " << priority
+             << " " << quoted_spec << " \\\n"
+             << "|| route_command_error \"" << label << "\"\n";
+    }
+
+    PrintedIPRule printed;
+    printed.family = nft->compilingIPv6() ? 6 : 4;
+    printed.priority = priority;
+    printed.ruleset = compiler->getRuleSetName();
+    printed.label = label;
+    printed.text = text.str();
+    nft->printed_ip_rules.push_back(printed);
+
+    return true;
 }

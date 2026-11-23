@@ -1268,6 +1268,153 @@ def case_reject_addressless_interface(tree):
     replace_ref(allow, 'Dst', 'fwb-ci-eth9')
 
 
+def _add_ip_rule_routing_ruleset(tree, ruleset_id, name, table_name=None,
+                                 table_id=None):
+    """A Routing rule set hosting only IPRule objects (policy-based
+    routing, W4). Without table options it stays an empty main-table
+    rule set; the IPRule lookup target selects the table."""
+    root = tree.getroot()
+    fw = only(root, ".//%s[@name='nft-test']" % tag('Firewall'))
+    baseline_rulesets = [r for r in fw.findall('./' + tag('Routing'))
+                         if r.get('name') == 'Routing']
+    if len(baseline_rulesets) != 1:
+        raise ValueError('expected exactly the baseline Routing rule set')
+    routing = baseline_rulesets[0]
+    new_rs = ET.Element(tag('Routing'), {
+        'id': ruleset_id,
+        'name': name,
+        'comment': 'CI ip rule routing rule set',
+        'ro': 'False',
+        'ipv4_rule_set': 'False',
+        'ipv6_rule_set': 'False',
+        'top_rule_set': 'False',
+    })
+    options = ET.SubElement(new_rs, tag('RuleSetOptions'))
+    if table_name:
+        ET.SubElement(options, tag('Option'),
+                      {'name': 'routing_table_name'}).text = table_name
+        ET.SubElement(options, tag('Option'),
+                      {'name': 'routing_table_id'}).text = table_id
+    fw.insert(list(fw).index(routing) + 1, new_rs)
+    return new_rs
+
+
+def _add_ip_rule(ruleset, rule_id, position, priority, src='sysid0',
+                 dst='sysid0', srv='sysid1', itf_inb='sysid0',
+                 itf_outb='sysid0', lookup_ruleset_id=None, comment=''):
+    """One IPRule in the exact DTD child order (Src, Dst, Srv, ItfInb,
+    ItfOutb, IPRuleOptions). "any" references keep the selector out of
+    the compiled ip rule spec."""
+    rule = ET.Element(tag('IPRule'), {
+        'id': rule_id,
+        'disabled': 'False',
+        'group': '',
+        'position': str(position),
+        'priority': str(priority),
+        'comment': comment,
+    })
+    for child_name, ref_tagname, ref in (
+            ('Src', 'ObjectRef', src), ('Dst', 'ObjectRef', dst),
+            ('Srv', 'ServiceRef', srv),
+            ('ItfInb', 'ObjectRef', itf_inb),
+            ('ItfOutb', 'ObjectRef', itf_outb)):
+        child = ET.SubElement(rule, tag(child_name), {'neg': 'False'})
+        ET.SubElement(child, tag(ref_tagname), {'ref': ref})
+    options = ET.SubElement(rule, tag('IPRuleOptions'))
+    option = ET.SubElement(options, tag('Option'),
+                           {'name': 'ip_rule_lookup_id'})
+    option.text = lookup_ruleset_id
+    ruleset.insert(list(ruleset).index(
+        only(ruleset, './' + tag('RuleSetOptions'))), rule)
+
+
+def case_ip_rule(tree):
+    """One IPRule using every selector: source network, fwmark tag,
+    iif/oif interfaces and a named-table lookup target.
+
+    Expected compiled section:
+
+        FWB_RULE_REPLACE=0
+        fwb_rule_prepare 4 100 'from 192.0.2.0/24 fwmark 64 iif eth0 \
+            oif eth1 lookup ci_iprule' && \
+        $IP rule add pref 100 from 192.0.2.0/24 fwmark 64 iif eth0 \
+            oif eth1 lookup ci_iprule && \
+        ...
+    """
+    _add_named_routing_ruleset(tree, 'ci_iprule', '103', 'iprule')
+    _set_manage_rt_tables(tree, 'True')
+    root = tree.getroot()
+    _add_tag_service(root, 'fwb-ci-iprule-tag-64', '64',
+                     'CI ip rule fwmark 64')
+    ruleset = only(root, ".//%s[@id='fwb-ci-route-iprule']" % tag('Routing'))
+    # id3F4ECE3F is the real baseline TEST-NET 192.0.2.0/24, eth0 and
+    # eth1 are the real nft-test interfaces.
+    _add_ip_rule(ruleset, 'fwb-ci-iprule-1', 1, 100,
+                 src='id3F4ECE3F',
+                 srv='fwb-ci-iprule-tag-64',
+                 itf_inb='id2687X30989',
+                 itf_outb='id2692X30989',
+                 lookup_ruleset_id='fwb-ci-route-iprule',
+                 comment='CI: marked test-net traffic goes to ci_iprule')
+
+
+def case_ip_rule_ipv6(tree):
+    """An IPv6-only IPRule looking up the untouched main table.
+
+    The pure IPv6 rule must compile into the "$IP -6 rule add" form and
+    must never emit a plain v4 rule line.
+    """
+    ruleset = _add_ip_rule_routing_ruleset(tree, 'fwb-ci-route-ip6',
+                                           'route_ip6')
+    # id2088X75851 is the real baseline 2001:db8::/32 documentation
+    # net; id2734X30989 is the baseline main "Routing" rule set.
+    _add_ip_rule(ruleset, 'fwb-ci-iprule-2', 0, 200,
+                 src='id2088X75851',
+                 lookup_ruleset_id='id2734X30989',
+                 comment='CI: documentation-net traffic stays in main')
+
+
+def case_ip_rule_replace(tree):
+    """The ip_rule_strategy=replace option flips the helper switch.
+
+    The ruleset table is not managed this time, so the lookup token is
+    the numeric table id 104; the section still defaults to the strict
+    helpers, only FWB_RULE_REPLACE selects the flush behavior.
+    """
+    _add_named_routing_ruleset(tree, 'ci_iprulex', '104', 'ipx')
+    fw = only(tree.getroot(), ".//%s[@name='nft-test']" % tag('Firewall'))
+    opts = only(fw, './' + tag('FirewallOptions'))
+    option = ET.SubElement(opts, tag('Option'),
+                           {'name': 'ip_rule_strategy'})
+    option.text = 'replace'
+    root = tree.getroot()
+    _add_tag_service(root, 'fwb-ci-iprule-tag-65', '65',
+                     'CI ip rule fwmark 65')
+    ruleset = only(root, ".//%s[@id='fwb-ci-route-ipx']" % tag('Routing'))
+    _add_ip_rule(ruleset, 'fwb-ci-iprule-3', 1, 300,
+                 srv='fwb-ci-iprule-tag-65',
+                 lookup_ruleset_id='fwb-ci-route-ipx',
+                 comment='CI: replace-strategy fwmark rule')
+
+
+def case_reject_ip_rule_duplicate_priority(tree):
+    """Two IPRules in two rule sets sharing priority 100 must abort.
+
+    Priorities are unique per family and firewall, not per rule set:
+    the state file and the shell helpers key by priority only.
+    """
+    _add_named_routing_ruleset(tree, 'ci_dup1', '105', 'dupa')
+    _add_named_routing_ruleset(tree, 'ci_dup2', '106', 'dupb')
+    root = tree.getroot()
+    rs1 = only(root, ".//%s[@id='fwb-ci-route-dupa']" % tag('Routing'))
+    rs2 = only(root, ".//%s[@id='fwb-ci-route-dupb']" % tag('Routing'))
+    _add_ip_rule(rs1, 'fwb-ci-iprule-dup-1', 1, 100,
+                 lookup_ruleset_id='fwb-ci-route-dupa')
+    _add_ip_rule(rs2, 'fwb-ci-iprule-dup-2', 1, 100,
+                 src='id3F4ECE3F',
+                 lookup_ruleset_id='fwb-ci-route-dupb')
+
+
 CASES = {
     'reject-hashlimit-bad-mode': case_reject_hashlimit_bad_mode,
     'reject-hashlimit-icmp-port': case_reject_hashlimit_icmp_port,
@@ -1337,6 +1484,10 @@ CASES = {
     'runtime-dns-name': case_runtime_dns_name,
     'module-load-ignored': case_module_load_ignored,
     'reject-addressless-interface': case_reject_addressless_interface,
+    'ip-rule': case_ip_rule,
+    'ip-rule-ipv6': case_ip_rule_ipv6,
+    'ip-rule-replace': case_ip_rule_replace,
+    'reject-ip-rule-duplicate-priority': case_reject_ip_rule_duplicate_priority,
     'reject-runtime-address-tables': case_reject_runtime_address_tables,
 }
 

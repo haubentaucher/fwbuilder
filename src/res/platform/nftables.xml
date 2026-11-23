@@ -35,6 +35,11 @@
           <!-- Append missing named routing tables of Routing rule sets to
                /etc/iproute2/rt_tables at activation time. -->
           <manage_rt_tables>false</manage_rt_tables>
+          <!-- Conflict strategy for ip rules (policy-based routing):
+               "strict" fails closed when a foreign rule exists at the
+               same priority, "replace" removes every rule found at the
+               priority before adding the compiled one. -->
+          <ip_rule_strategy>strict</ip_rule_strategy>
           <nftables_path>/usr/sbin/nft</nftables_path>
           <nftables_conf_path>/etc/nftables.conf</nftables_conf_path>
         </default>
