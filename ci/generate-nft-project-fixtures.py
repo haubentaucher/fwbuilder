@@ -1361,9 +1361,15 @@ def case_ip_rule(tree):
 def case_ip_rule_ipv6(tree):
     """An IPv6-only IPRule looking up the untouched main table.
 
-    The pure IPv6 rule must compile into the "$IP -6 rule add" form and
-    must never emit a plain v4 rule line.
+    case_ipv6() first flips the preserved IPv4-only policy to IPv6.
+    The -6 compiler pass requires RuleSet::matchingAddressFamily() plus
+    at least one compiled native rule; without an IPv6 policy the -6
+    script contains no FWB_NFT_RULESET block and the structure check
+    rejects it, exactly like the other IPv6 fixtures. The pure IPv6
+    rule must compile into the "$IP -6 rule add" form and must never
+    emit a plain v4 rule line.
     """
+    case_ipv6(tree)
     ruleset = _add_ip_rule_routing_ruleset(tree, 'fwb-ci-route-ip6',
                                            'route_ip6')
     # id2088X75851 is the real baseline 2001:db8::/32 documentation

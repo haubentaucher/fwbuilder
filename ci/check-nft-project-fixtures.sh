@@ -884,7 +884,7 @@ check_ip_rule() {
         "fwb_rule_committed 4 100 '$spec' \\"
         "|| route_command_error \"1 (main)\""
         'fwb_rt_tables_ensure ci_iprule 103 '
-        '\$IP route add default via 192.168.1.10 dev eth1'
+        "\$IP route add default via 192.168.1.10 dev eth1"
     )
     local needle
     for needle in "${needles[@]}"; do
@@ -905,7 +905,11 @@ check_ip_rule() {
 }
 
 check_ip_rule_ipv6() {
-    check_positive ip-rule-ipv6 6 || return 1
+    # ip6 saddr / icmpv6 type: case_ipv6() in the generator flips the
+    # preserved policy to IPv6; without compiled native rules the -6
+    # script contains no FWB_NFT_RULESET block at all and the structure
+    # check rejects it.
+    check_positive ip-rule-ipv6 6 'ip6 saddr' 'icmpv6 type' || return 1
     local fw="$output/nft-ci-ip-rule-ipv6.fw"
     local spec="from 2001:db8::/32 lookup main"
     local -a needles=(
