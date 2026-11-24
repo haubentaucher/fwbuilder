@@ -1299,6 +1299,34 @@ def _add_ip_rule_routing_ruleset(tree, ruleset_id, name, table_name=None,
     return new_rs
 
 
+def _add_ip_rules_ruleset(tree, ruleset_id, name):
+    """The per-firewall IPRules rule set that hosts IPRule objects
+    (policy-based routing, W4.2). IP rules select which iproute2
+    routing table a packet consults; they do not live in any table
+    themselves. The rule set compiles into the "ip rule" script
+    section only, never into the routing/route part."""
+    root = tree.getroot()
+    fw = only(root, ".//%s[@name='nft-test']" % tag('Firewall'))
+    routing_sets = fw.findall('./' + tag('Routing'))
+    if not routing_sets:
+        raise ValueError('expected the baseline Routing rule set')
+    # DTD Firewall content keeps the order NAT*, Policy*, Routing*,
+    # IPRules*, Interface*: insert right after the last routing rule
+    # set.
+    new_rs = ET.Element(tag('IPRules'), {
+        'id': ruleset_id,
+        'name': name,
+        'comment': 'CI per-firewall ip rules rule set',
+        'ro': 'False',
+        'ipv4_rule_set': 'False',
+        'ipv6_rule_set': 'False',
+        'top_rule_set': 'False',
+    })
+    ET.SubElement(new_rs, tag('RuleSetOptions'))
+    fw.insert(list(fw).index(routing_sets[-1]) + 1, new_rs)
+    return new_rs
+
+
 def _add_ip_rule(ruleset, rule_id, position, priority, src='sysid0',
                  dst='sysid0', srv='sysid1', itf_inb='sysid0',
                  itf_outb='sysid0', lookup_ruleset_id=None, comment=''):
@@ -1403,6 +1431,24 @@ def case_ip_rule_replace(tree):
                  comment='CI: replace-strategy fwmark rule')
 
 
+def case_ip_rule_set(tree):
+    """IPRule objects in their own per-firewall IPRules rule set (W4.2).
+
+    The rule set sits next to the routing rule sets (content order
+    NAT, Policy, Routing, IPRules, Interface) and only adds to the
+    "ip rule" script section: no "Routing rule set" header and no
+    route commands may appear for it. The lookup target is the
+    untouched main rule set, so the lookup token is "main".
+    """
+    ruleset = _add_ip_rules_ruleset(tree, 'fwb-ci-iprules', 'IP Rules')
+    # id3F4ECE3F is the real baseline TEST-NET 192.0.2.0/24,
+    # id2734X30989 is the baseline main "Routing" rule set.
+    _add_ip_rule(ruleset, 'fwb-ci-iprules-1', 0, 110,
+                 src='id3F4ECE3F',
+                 lookup_ruleset_id='id2734X30989',
+                 comment='CI: test-net traffic stays in the main table')
+
+
 def case_reject_ip_rule_duplicate_priority(tree):
     """Two IPRules in two rule sets sharing priority 100 must abort.
 
@@ -1493,6 +1539,7 @@ CASES = {
     'ip-rule': case_ip_rule,
     'ip-rule-ipv6': case_ip_rule_ipv6,
     'ip-rule-replace': case_ip_rule_replace,
+    'ip-rule-set': case_ip_rule_set,
     'reject-ip-rule-duplicate-priority': case_reject_ip_rule_duplicate_priority,
     'reject-runtime-address-tables': case_reject_runtime_address_tables,
 }

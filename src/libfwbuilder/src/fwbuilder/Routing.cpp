@@ -56,4 +56,20 @@ Rule* Routing::createRule()
     return db->createRoutingRule();
 }
 
+const char *IPRules::TYPENAME={"IPRules"};
+
+IPRules::IPRules() : RuleSet()
+{
+    setName("IP Rules");
+}
+
+IPRules::~IPRules()  {}
+
+Rule* IPRules::createRule()
+{
+    FWObjectDatabase* db=getRoot();
+    assert(db!=NULL);
+    return db->createIPRule();
+}
+
 

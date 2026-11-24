@@ -136,6 +136,7 @@ bool Cluster::validateChild(FWObject *o)
              otype == Policy::TYPENAME       ||
              otype == NAT::TYPENAME          ||
              otype == Routing::TYPENAME      ||
+             otype == IPRules::TYPENAME      ||
              otype == Management::TYPENAME   ||
              otype == StateSyncClusterGroup::TYPENAME ||
              otype == FirewallOptions::TYPENAME));

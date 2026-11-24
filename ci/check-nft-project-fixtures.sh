@@ -957,6 +957,40 @@ check_ip_rule_replace() {
 }
 
 
+# IPRule objects in their own per-firewall IPRules rule set (W4.2).
+# The rule set only adds to the "ip rule" section: it must never print
+# a "Routing rule set" header or maintain /etc/iproute2/rt_tables.
+check_ip_rule_set() {
+    check_positive ip-rule-set 4 || return 1
+    local fw="$output/nft-ci-ip-rule-set.fw"
+    local spec="from 192.0.2.0/24 lookup main"
+    local -a needles=(
+        "# ip rule (policy-based routing)"
+        "FWB_RULE_REPLACE=0"
+        "fwb_rule_prepare 4 110 '$spec' && \\"
+        "\$IP rule add pref 110 $spec && \\"
+        "fwb_rule_committed 4 110 '$spec' \\"
+        "\$IP route add default via 192.168.1.10 dev eth1"
+    )
+    local needle
+    for needle in "${needles[@]}"; do
+        if ! grep -Fq "$needle" "$fw"; then
+            echo "FAIL: ip-rule-set fixture is missing: $needle" >&2
+            return 1
+        fi
+    done
+    if grep -Fq '# Routing rule set IP Rules' "$fw"; then
+        echo 'FAIL: the IPRules rule set must not print a routing header' >&2
+        return 1
+    fi
+    if grep -Eq '^fwb_rt_tables_ensure +[^ ]+' "$fw"; then
+        echo 'FAIL: the IPRules rule set must not maintain rt_tables' >&2
+        return 1
+    fi
+    echo 'PASS: the per-firewall IPRules rule set compiled into the ip rule section'
+}
+
+
 failures=0
 cases=0
 run_case() {
@@ -1038,6 +1072,7 @@ run_case routing-in-deleted-objects check_routing_in_deleted_objects
 run_case ip-rule check_ip_rule
 run_case ip-rule-ipv6 check_ip_rule_ipv6
 run_case ip-rule-replace check_ip_rule_replace
+run_case ip-rule-set check_ip_rule_set
 run_case reject-ip-rule-duplicate-priority check_negative reject-ip-rule-duplicate-priority 'use the same ip rule priority 100'
 run_case ipv4-option-rr check_positive ipv4-option-rr 4 'ip option rr exists'
 run_case ipv4-option-lsrr check_positive ipv4-option-lsrr 4 'ip option lsrr exists'

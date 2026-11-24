@@ -56,6 +56,28 @@ class Routing : public RuleSet
     virtual Rule*   createRule();
 };
 
+/*
+ * The per-firewall rule set for policy-based routing ("ip rule" on
+ * Linux). IP rules select which iproute2 routing table a packet
+ * consults; they do not live in any routing table themselves, so they
+ * get their own rule set next to the routing rule sets (W4). The
+ * compiler collects IPRule objects from these rule sets into the
+ * single "ip rule" script section.
+ */
+class IPRules : public RuleSet
+{
+    public:
+
+    IPRules();
+    virtual ~IPRules();
+
+    DECLARE_FWOBJECT_SUBTYPE(IPRules);
+
+    DECLARE_DISPATCH_METHODS(IPRules);
+
+    virtual Rule*   createRule();
+};
+
 }
 
 #endif //__ROUTING_HH_FLAG__

@@ -779,6 +779,58 @@ QString CompilerDriver_nft::run(const std::string &cluster_id,
             }
         }
 
+        /*
+         * IPRule objects usually live in their own per-firewall "IP
+         * rules" rule set: an ip rule selects which routing table to
+         * consult, it does not live in any table itself. These rule
+         * sets carry no iproute2 table options and must never add to
+         * the route script; only the collected printed_ip_rules (and
+         * in single-rule mode the pass script) matter.
+         */
+        std::list<FWObject*> ip_rules_sets = fw->getByType(IPRules::TYPENAME);
+        for (std::list<FWObject*>::iterator ip_set_it = ip_rules_sets.begin();
+             ip_set_it != ip_rules_sets.end(); ++ip_set_it)
+        {
+            RuleSet *ip_rules_set = RuleSet::cast(*ip_set_it);
+            if (ip_rules_set == nullptr) continue;
+
+            for (int pass = 0; pass < 2; ++pass)
+            {
+                const bool routing_ipv6 = (pass == 1);
+                std::unique_ptr<RoutingCompiler_nft> routing_compiler(
+                    new RoutingCompiler_nft(objdb, fw, routing_ipv6, oscnf.get()));
+                routing_compiler->setSourceRuleSet(ip_rules_set);
+                routing_compiler->setRuleSetName(ip_rules_set->getName());
+                routing_compiler->setPersistentObjects(persistent_objects);
+                routing_compiler->setRoutingTable("", "");
+                routing_compiler->setSingleRuleCompileMode(single_rule_id);
+                routing_compiler->setDebugLevel( dl );
+                if (rule_debug_on) routing_compiler->setDebugRule(drr);
+                routing_compiler->setVerbose( verbose );
+                if (inTestMode()) routing_compiler->setTestMode();
+                if (inEmbeddedMode()) routing_compiler->setEmbeddedMode();
+
+                if ( (routing_rules_count=routing_compiler->prolog()) > 0 )
+                {
+                    routing_compiler->compile();
+                    routing_compiler->epilog();
+                }
+
+                if (routing_compiler->haveErrorsAndWarnings())
+                    all_errors.push_back(routing_compiler->getErrors("").c_str());
+
+                const std::string pass_script = routing_compiler->getCompiledScript();
+                if (single_rule_compile_on)
+                    routing_script += pass_script;
+
+                const std::vector<PrintedIPRule> &printed =
+                    routing_compiler->getPrintedIPRules();
+                printed_ip_rules.insert(printed_ip_rules.end(),
+                                         printed.begin(), printed.end());
+                if (!printed.empty()) routing_installs = true;
+            }
+        }
+
         // An ip rule priority identifies exactly one rule per address
         // family and firewall: priorities are global, not per rule
         // set. The shell helpers key their state by the priority.

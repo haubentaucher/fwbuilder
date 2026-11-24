@@ -83,6 +83,7 @@ namespace libfwbuilder
     class IntervalGroup;
     class IPRule;
     class IPRuleOptions;
+    class IPRules;
     class Library;
     class Management;
     class NAT;
@@ -154,6 +155,7 @@ namespace libfwbuilder
     DECLARE_CREATE_OBJ_METHOD(IntervalGroup);
     DECLARE_CREATE_OBJ_METHOD(IPRule);
     DECLARE_CREATE_OBJ_METHOD(IPRuleOptions);
+    DECLARE_CREATE_OBJ_METHOD(IPRules);
     DECLARE_CREATE_OBJ_METHOD(Library);
     DECLARE_CREATE_OBJ_METHOD(Management);
     DECLARE_CREATE_OBJ_METHOD(NAT);
@@ -534,6 +536,7 @@ public:
     DECLARE_CREATE_OBJ_CLASS_METHOD(IntervalGroup);
     DECLARE_CREATE_OBJ_CLASS_METHOD(IPRule);
     DECLARE_CREATE_OBJ_CLASS_METHOD(IPRuleOptions);
+    DECLARE_CREATE_OBJ_CLASS_METHOD(IPRules);
     DECLARE_CREATE_OBJ_CLASS_METHOD(Library);
     DECLARE_CREATE_OBJ_CLASS_METHOD(Management);
     DECLARE_CREATE_OBJ_CLASS_METHOD(NAT);

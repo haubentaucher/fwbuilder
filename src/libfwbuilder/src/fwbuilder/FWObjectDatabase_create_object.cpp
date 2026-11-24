@@ -190,6 +190,8 @@ void FWObjectDatabase::init_create_methods_table()
                            &create_IPRule);
         registerObjectType("IPRuleOptions",
                            &create_IPRuleOptions);
+        registerObjectType("IPRules",
+                           &create_IPRules);
         registerObjectType("Library",
                            &create_Library);
         registerObjectType("Management",
@@ -404,6 +406,7 @@ CREATE_OBJ_METHOD(Interval);
 CREATE_OBJ_METHOD(IntervalGroup);
 CREATE_OBJ_METHOD(IPRule);
 CREATE_OBJ_METHOD(IPRuleOptions);
+CREATE_OBJ_METHOD(IPRules);
 CREATE_OBJ_METHOD(Library);
 CREATE_OBJ_METHOD(Management);
 CREATE_OBJ_METHOD(NAT);
