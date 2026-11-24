@@ -81,6 +81,8 @@ namespace libfwbuilder
     class InterfaceOptions;
     class Interval;
     class IntervalGroup;
+    class IPRule;
+    class IPRuleOptions;
     class Library;
     class Management;
     class NAT;

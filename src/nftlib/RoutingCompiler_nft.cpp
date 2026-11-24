@@ -332,6 +332,10 @@ bool isLinkLocalV6(const InetAddr *addr)
     return bytes[0] == 0xfe && (bytes[1] & 0xc0) == 0x80;
 }
 
+}
+
+// External linkage: RoutingCompiler_nft_writers.cpp declares and
+// uses these helpers for IP rule compilation.
 void noteRouteFamily(FWObject *object, bool &ipv4, bool &ipv6)
 {
     if (object == nullptr) return;
@@ -365,6 +369,8 @@ void noteRouteFamily(FWObject *object, bool &ipv4, bool &ipv6)
     if (ip->isV4()) ipv4 = true;
 }
 
+namespace {
+
 bool gatewayInIPv6Network(Interface *iface, const InetAddr *gateway)
 {
     for (FWObjectTypedChildIterator addresses = iface->findByType(IPv6::TYPENAME);
@@ -380,6 +386,8 @@ bool gatewayInIPv6Network(Interface *iface, const InetAddr *gateway)
     return false;
 }
 
+}
+
 string shellQuote(const string &value)
 {
     string quoted = "'";
@@ -391,9 +399,6 @@ string shellQuote(const string &value)
     quoted += "'";
     return quoted;
 }
-
-}
-
 
 bool RoutingCompiler_nft::rejectMixedAddressFamilies::processNext()
 {
