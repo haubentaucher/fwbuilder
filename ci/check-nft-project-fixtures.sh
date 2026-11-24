@@ -963,24 +963,6 @@ check_ip_rule_replace() {
 check_ip_rule_set() {
     check_positive ip-rule-set 4 || return 1
     local fw="$output/nft-ci-ip-rule-set.fw"
-    # TEMPORARY DIAGNOSIS (remove once this case is green): the compiled
-    # ip rule section is missing from the generated script. Show which
-    # rulesets the routing compiler passes actually compiled (each
-    # compile() prints a " Compiling routing rules for ..." banner) and
-    # every diagnostic the compiler printed, so the next CI log reveals
-    # whether the IPRules container was found and its rule processed.
-    echo '--- DIAG ip-rule-set: compiler log ---' >&2
-    cat "$work/ip-rule-set.compile.log" >&2
-    echo '--- DIAG ip-rule-set: routing/ip-rule markers in script ---' >&2
-    grep -n -e 'Routing rule set' \
-            -e 'ip rule (policy' \
-            -e 'FWB_RULE_REPLACE' \
-            -e 'fwb_rule_prepare' \
-            -e 'fwb_rule_committed' \
-            -e 'fwb_routing_begin' \
-            -e 'fwb_routing_finish' \
-            "$fw" >&2 \
-        || echo 'DIAG: no routing or ip rule markers found' >&2
     local spec="from 192.0.2.0/24 lookup main"
     local -a needles=(
         "# ip rule (policy-based routing)"

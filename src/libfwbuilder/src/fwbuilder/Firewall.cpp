@@ -304,6 +304,17 @@ FWObject& Firewall::duplicate(const FWObject *obj,
         FWObject *new_ruleset = addCopyOf(*it, preserve_id);
         id_mapping_for_duplicate[(*it)->getId()] = new_ruleset->getId();
     }
+    // IP rules live in their own per-firewall "IPRules" rule sets
+    // outside any iproute2 routing table. Copy them like the routing
+    // rule sets above: without this the compiler driver's deep copy
+    // of the database (FWObjectDatabase copy constructor) loses every
+    // IP rule set, because it copies firewalls through this method.
+    for (FWObjectTypedChildIterator it = obj->findByType(IPRules::TYPENAME);
+         it != it.end(); ++it)
+    {
+        FWObject *new_ruleset = addCopyOf(*it, preserve_id);
+        id_mapping_for_duplicate[(*it)->getId()] = new_ruleset->getId();
+    }
 
     // replace references to old fw (obj) with references to this fw
     id_mapping_for_duplicate[obj->getId()] = getId();
