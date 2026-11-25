@@ -129,6 +129,7 @@ ObjectEditor::ObjectEditor( QWidget *parent):
     registerObjectDialog(editorStack, Policy::TYPENAME, "w_PolicyDialog");
     registerObjectDialog(editorStack, NAT::TYPENAME, "w_NATDialog");
     registerObjectDialog(editorStack, Routing::TYPENAME, "w_RoutingDialog");
+    registerObjectDialog(editorStack, IPRules::TYPENAME, "w_RoutingDialog");
 
     registerObjectDialog(editorStack, Library::TYPENAME, "w_LibraryDialog");
     registerObjectDialog(editorStack, IPv4::TYPENAME, "w_IPv4Dialog");
@@ -158,6 +159,7 @@ ObjectEditor::ObjectEditor( QWidget *parent):
     registerObjectDialog(editorStack, Interval::TYPENAME, "w_TimeDialog");
 
     registerObjectDialog(editorStack, RoutingRule::TYPENAME, "w_RoutingRuleOptionsDialog");
+    registerObjectDialog(editorStack, IPRule::TYPENAME, "w_IPRuleOptionsDialog");
     registerObjectDialog(editorStack, PolicyRule::TYPENAME, "w_RuleOptionsDialog");
     registerObjectDialog(editorStack, NATRule::TYPENAME, "w_NATRuleOptionsDialog");
 

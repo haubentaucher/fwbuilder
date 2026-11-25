@@ -646,6 +646,7 @@ QString FWBTree::getTranslatableObjectTypeName(const QString &type_name)
     if (type_name == Policy::TYPENAME) return QObject::tr( "Policy Rule Set");
     if (type_name == NAT::TYPENAME) return QObject::tr( "NAT Rule Set");
     if (type_name == Routing::TYPENAME) return QObject::tr( "Routing Rule Set");
+    if (type_name == IPRules::TYPENAME) return QObject::tr( "IP Rule Set");
 
     if (type_name == FailoverClusterGroup::TYPENAME) return QObject::tr("Failover group");
     if (type_name == StateSyncClusterGroup::TYPENAME) return QObject::tr("State synchronization group");
@@ -685,6 +686,7 @@ QString FWBTree::getTranslatableNewObjectMenuText(const QString &type_name)
     if (type_name == Policy::TYPENAME) return QObject::tr( "New Policy Rule Set");
     if (type_name == NAT::TYPENAME) return QObject::tr( "New NAT Rule Set");
     if (type_name == Routing::TYPENAME) return QObject::tr( "New Routing Rule Set");
+    if (type_name == IPRules::TYPENAME) return QObject::tr( "New IP Rule Set");
 
     if (type_name == FailoverClusterGroup::TYPENAME) return QObject::tr("New failover group");
     if (type_name == StateSyncClusterGroup::TYPENAME) return QObject::tr("New state synchronization group");

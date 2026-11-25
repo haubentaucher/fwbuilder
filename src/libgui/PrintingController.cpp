@@ -150,7 +150,7 @@ list<FWObject*> PrintingController::findAllUsedByType(list<FWObject*> &result,
     {
         FWObject *ruleSet;
         const char* const child_types[] =
-            {Policy::TYPENAME, NAT::TYPENAME, Routing::TYPENAME, NULL};
+            {Policy::TYPENAME, NAT::TYPENAME, Routing::TYPENAME, IPRules::TYPENAME, NULL};
         for (const char* const *cptr = child_types; *cptr; ++cptr)
         {
             for (FWObjectTypedChildIterator it = obj->findByType(*cptr);
@@ -329,7 +329,7 @@ void PrintingController::printFirewall(FWObject *fw, ProjectPanel *project)
     pr->printText(QObject::tr("Host OS: ")  + hostOS.c_str());
 
     const char* const child_types[] =
-        {Policy::TYPENAME, NAT::TYPENAME, Routing::TYPENAME, NULL};
+        {Policy::TYPENAME, NAT::TYPENAME, Routing::TYPENAME, IPRules::TYPENAME, NULL};
 
     for (const char* const *cptr = child_types; *cptr; ++cptr)
     {

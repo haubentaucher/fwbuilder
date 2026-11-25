@@ -325,6 +325,9 @@ QTreeWidgetItem* FindWhereUsedWidget::createQTWidgetItem(FWObject *o,
         } else if (Routing::isA(rs))
         {
             ruleset_kind = tr("Routing rule set");
+        } else if (IPRules::isA(rs))
+        {
+            ruleset_kind = tr("IP rule set");
         } else
         {
             ruleset_kind = tr("Rule set of unknown type");

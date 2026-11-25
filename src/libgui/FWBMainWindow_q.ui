@@ -685,6 +685,13 @@
                 </item>
                </layout>
               </widget>
+              <widget class="QWidget" name="page_40">
+               <layout class="QGridLayout" name="gridLayout_47">
+                <item row="0" column="0">
+                 <widget class="IPRuleOptionsDialog" name="w_IPRuleOptionsDialog" native="true"/>
+                </item>
+               </layout>
+              </widget>
              </widget>
             </item>
            </layout>
@@ -1527,6 +1534,12 @@
    <class>RoutingRuleOptionsDialog</class>
    <extends>QWidget</extends>
    <header>RoutingRuleOptionsDialog.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>IPRuleOptionsDialog</class>
+   <extends>QWidget</extends>
+   <header>IPRuleOptionsDialog.h</header>
    <container>1</container>
   </customwidget>
   <customwidget>

@@ -40,7 +40,7 @@ class MetricEditorPanel : public BaseObjectDialog
 {
     Q_OBJECT;
 
-    libfwbuilder::RoutingRule *rule;
+    libfwbuilder::Rule *rule;
     Ui::MetricEditorPanel_q   *m_widget;
 
  public:

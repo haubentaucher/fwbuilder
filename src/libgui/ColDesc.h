@@ -45,6 +45,7 @@ public:
         Time,
         Comment,
         Metric,
+        Priority,
         Unknown
     };
     ColDesc(const std::string &platform, const std::string &origin, ColumnType type);

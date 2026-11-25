@@ -139,6 +139,10 @@ void FWCmdBasic::addStatistics(Rule *rule, DiffType::Type diffType, DiffType::Ty
                  fw->findByType(Routing::TYPENAME);
              it != it.end(); ++it)
             rulesets.push_back(RuleSet::cast(*it));
+        for (FWObjectTypedChildIterator it =
+                 fw->findByType(IPRules::TYPENAME);
+             it != it.end(); ++it)
+            rulesets.push_back(RuleSet::cast(*it));
 
         foreach(RuleSet *ruleSet, rulesets) {
             if (ruleSet && rule->isChildOf(ruleSet)) {
@@ -175,6 +179,10 @@ void FWCmdBasic::removeStatistics(Rule *rule, DiffType::Type diffType, DiffType:
         rulesets.push_back(fw->getNAT());
         for (FWObjectTypedChildIterator it =
                  fw->findByType(Routing::TYPENAME);
+             it != it.end(); ++it)
+            rulesets.push_back(RuleSet::cast(*it));
+        for (FWObjectTypedChildIterator it =
+                 fw->findByType(IPRules::TYPENAME);
              it != it.end(); ++it)
             rulesets.push_back(RuleSet::cast(*it));
 

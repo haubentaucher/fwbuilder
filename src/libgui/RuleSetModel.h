@@ -276,4 +276,22 @@ private:
     void configure();
 };
 
+////////////////////////////////////////////////////////////////////////
+// IPRulesModel
+////////////////////////////////////////////////////////////////////////
+
+class IPRulesModel : public RuleSetModel
+{
+public:
+    IPRulesModel(libfwbuilder::RuleSet* ruleset, QObject *parent = 0) : RuleSetModel(ruleset, parent) {configure();}
+
+    void initRule(libfwbuilder::Rule *new_rule, libfwbuilder::Rule *old_rule = NULL);
+    bool checkRuleType(libfwbuilder::Rule *rule);
+
+private:
+    QVariant getRuleDataForDisplayRole(const QModelIndex &index, RuleNode* node) const;
+    QStringList getRuleOptions(libfwbuilder::Rule* r) const;
+    void configure();
+};
+
 #endif // RULESETMODEL_H

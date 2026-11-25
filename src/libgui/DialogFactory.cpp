@@ -78,6 +78,7 @@
 
 #include "RuleOptionsDialog.h"
 #include "RoutingRuleOptionsDialog.h"
+#include "IPRuleOptionsDialog.h"
 #include "NATRuleOptionsDialog.h"
 
 #include "vrrpOptionsDialog.h"
@@ -136,6 +137,7 @@ BaseObjectDialog *DialogFactory::createDialog(QWidget *parent, const QString &ob
     if (objType==NAT::TYPENAME)           return new RuleSetDialog(parent);
 
     if (objType==Routing::TYPENAME)       return new RuleSetDialog(parent);
+    if (objType==IPRules::TYPENAME)       return new RuleSetDialog(parent);
 
     if (objType==Library::TYPENAME)       return new LibraryDialog(parent);
 
@@ -194,6 +196,7 @@ BaseObjectDialog *DialogFactory::createDialog(QWidget *parent, const QString &ob
     if (objType==Interval::TYPENAME)      return new TimeDialog(parent);
 
     if (objType==RoutingRule::TYPENAME)   return new RoutingRuleOptionsDialog(parent);
+    if (objType==IPRule::TYPENAME)        return new IPRuleOptionsDialog(parent);
     if (objType==Rule::TYPENAME)          return new RuleOptionsDialog(parent);
     if (objType==PolicyRule::TYPENAME)    return new RuleOptionsDialog(parent);
     if (objType==NATRule::TYPENAME)       return new NATRuleOptionsDialog(parent);

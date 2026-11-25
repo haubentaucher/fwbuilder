@@ -502,7 +502,8 @@ static bool isValidDropTarget(QTreeWidgetItem *item, list<FWObject *> &objs)
             Interface::cast(dragobj->getParent()) != 0 ||
             Policy::cast(dragobj) != 0 ||
             NAT::cast(dragobj) != 0 ||
-            Routing::cast(dragobj) != 0) return false;
+            Routing::cast(dragobj) != 0 ||
+            IPRules::cast(dragobj) != 0) return false;
 
         /* See if destination is a user folder */
         if (dest->getUserFolderParent() != 0) {

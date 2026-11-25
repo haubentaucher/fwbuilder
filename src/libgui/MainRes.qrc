@@ -211,6 +211,9 @@
     <file alias="Icons/Routing/icon">Icons/routing_25.png</file>
     <file alias="Icons/Routing/icon-big">Icons/routing_64.png</file>
     <file alias="Icons/Routing/icon-tree">Icons/routing_16.png</file>
+    <file alias="Icons/IPRules/icon">Icons/routing_25.png</file>
+    <file alias="Icons/IPRules/icon-big">Icons/routing_64.png</file>
+    <file alias="Icons/IPRules/icon-tree">Icons/routing_16.png</file>
     <file alias="Icons/ServiceGroup/icon">Icons/service-group_25.png</file>
     <file alias="Icons/ServiceGroup/icon-big">Icons/service-group_64.png</file>
     <file alias="Icons/ServiceGroup/icon-neg">Icons/service-group-neg_25.png</file>

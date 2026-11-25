@@ -40,6 +40,7 @@
 #include <QtAlgorithms>
 
 #include "fwbuilder/FWObjectDatabase.h"
+#include "fwbuilder/FWOptions.h"
 #include "fwbuilder/Firewall.h"
 #include "fwbuilder/Cluster.h"
 #include "fwbuilder/Resources.h"
@@ -1787,4 +1788,85 @@ void RoutingModel::initRule(Rule *new_rule, Rule *old_rule)
 bool RoutingModel::checkRuleType(libfwbuilder::Rule *rule)
 {
     return rule->getTypeName() == RoutingRule::TYPENAME;
+}
+
+////////////////////////////////////////////////////////////////////////
+// IPRulesModel
+////////////////////////////////////////////////////////////////////////
+
+void IPRulesModel::configure()
+{
+    //if (fwbdebug) qDebug() << "IPRulesModel::configure";
+    string platform;
+
+    if (getFirewall()) platform = getFirewall()->getStr("platform");
+
+    header  << ColDesc(platform, RuleElementSrc::TYPENAME, ColDesc::Object)     // 1
+            << ColDesc(platform, RuleElementDst::TYPENAME, ColDesc::Object)     // 2
+            << ColDesc(platform, RuleElementSrv::TYPENAME, ColDesc::Object)     // 3
+            << ColDesc(platform, RuleElementItfInb::TYPENAME, ColDesc::Object)  // 4
+            << ColDesc(platform, RuleElementItfOutb::TYPENAME, ColDesc::Object)// 5
+            << ColDesc(platform, "Priority", ColDesc::Priority)
+            << ColDesc(platform, "Options", ColDesc::Options)
+            << ColDesc(platform, "Comment", ColDesc::Comment);
+}
+
+QVariant IPRulesModel::getRuleDataForDisplayRole(const QModelIndex &index, RuleNode *node) const
+{
+    //if (fwbdebug) qDebug() << "IPRulesModel::getRuleDataForDisplayRole";
+
+    QVariant res;
+
+    if (index.column() == 0)
+    {
+        res.setValue(getPositionAsString(node));
+    } else if (index.column() <= header.size())
+    {
+        int idx = index.column()-1;
+        switch (header[idx].type)
+        {
+            case ColDesc::Priority :
+                if (IPRule::cast(node->rule) == NULL) break;
+                res.setValue<QString>(QString::fromUtf8(
+                    IPRule::cast(node->rule)->getPriorityAsString().c_str()));
+                break;
+
+            case ColDesc::Options :
+                res.setValue<QStringList>(getRuleOptions(node->rule));
+                break;
+
+            case ColDesc::Comment :
+                res.setValue<QString>(QString::fromUtf8(node->rule->getComment().c_str()));
+                break;
+
+            default :
+                res.setValue<void *>(getRuleElementByRole(node->rule, header[idx].origin.toStdString()));
+
+        }
+    }
+    return res;
+}
+
+QStringList IPRulesModel::getRuleOptions(Rule* r) const
+{
+    QStringList res;
+
+    // A missing lookup target is the only ip rule option that makes
+    // the rule uncompilable. Show it as a hint, without validating.
+    FWOptions *opt = r->getOptionsObject();
+    if (opt == NULL || opt->getStr("ip_rule_lookup_id").empty())
+        res << "Lookup";
+
+    return res;
+}
+
+void IPRulesModel::initRule(Rule *new_rule, Rule *old_rule)
+{
+    //if (fwbdebug) qDebug() << "IPRulesModel::initRule";
+    copyRuleWithoutId(old_rule, new_rule);
+}
+
+bool IPRulesModel::checkRuleType(libfwbuilder::Rule *rule)
+{
+    return rule->getTypeName() == IPRule::TYPENAME;
 }

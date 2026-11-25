@@ -257,6 +257,11 @@ void RuleSetViewDelegate::paintRule(QPainter *painter,
         case ColDesc::Metric :
             paintMetric(painter, new_opt, v);
             break;
+        case ColDesc::Priority :
+            // The ip rule priority cell is a plain number, like the
+            // routing metric cell.
+            paintMetric(painter, new_opt, v);
+            break;
         default:
             QItemDelegate::paint(painter, new_opt, index);
     }

@@ -143,7 +143,8 @@ void RuleSetDiffDialog::updateRuleSetList() {
     foreach (FWObject *ruleset, static_cast<list<FWObject *> >(*currentFirewall)) {
         if ((ruleset->getTypeName() == Policy::TYPENAME) ||
                 (ruleset->getTypeName() == NAT::TYPENAME) ||
-                (ruleset->getTypeName() == Routing::TYPENAME))
+                (ruleset->getTypeName() == Routing::TYPENAME) ||
+                (ruleset->getTypeName() == IPRules::TYPENAME))
             if (originalFirewall->getById(ruleset->getId()))
                 ui->ruleset->addItem(QString::fromStdString(ruleset->getName()), QVariant(ruleset->getId()));
     }
@@ -174,6 +175,11 @@ void RuleSetDiffDialog::updateRuleSetView() {
     if (Routing::isA(currentRuleSet)) {
         currentRuleSetModel = new RoutingModel(Routing::cast(currentRuleSet), this);
         originalRuleSetModel = new RoutingModel(Routing::cast(originalRuleSet), this);
+    }
+
+    if (IPRules::isA(currentRuleSet)) {
+        currentRuleSetModel = new IPRulesModel(IPRules::cast(currentRuleSet), this);
+        originalRuleSetModel = new IPRulesModel(IPRules::cast(originalRuleSet), this);
     }
 
     RuleSetDiffModel *originalDiffModel = new RuleSetDiffModel(this, originalRuleSetModel, m_project);

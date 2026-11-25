@@ -333,6 +333,8 @@ RuleSetView* RuleSetView::getRuleSetViewByType(ProjectPanel *project,
         return new NATView(project, NAT::cast(ruleset), parent);
     if (Routing::isA(ruleset))
         return new RoutingView(project, Routing::cast(ruleset), parent);
+    if (IPRules::isA(ruleset))
+        return new IPRulesView(project, IPRules::cast(ruleset), parent);
     return NULL;
 }
 
@@ -718,6 +720,12 @@ void RuleSetView::addColumnRelatedMenu(QMenu *menu, const QModelIndex &index,
             menu->addAction( tr("Edit")   , this , SLOT( editSelected() ) );
             break;
 
+        case ColDesc::Priority:
+            // The priority column of an IP rule uses the same spin box
+            // editor panel as the routing metric.
+            menu->addAction( tr("Edit")   , this , SLOT( editSelected() ) );
+            break;
+
         case ColDesc::Options:
             menu->addAction( QIcon(LoadPixmap(":/Icons/Options/icon")),
                               tr("Rule Options"),
@@ -989,6 +997,12 @@ bool RuleSetView::switchObjectInEditor(const QModelIndex& index, bool validate)
             break;
 
         case ColDesc::Metric:
+            object = rule;
+            operation = ObjectEditor::optMetric;
+            break;
+
+        case ColDesc::Priority:
+            // Edit the ip rule priority with the metric spin box panel.
             object = rule;
             operation = ObjectEditor::optMetric;
             break;
@@ -3328,6 +3342,22 @@ RoutingView::RoutingView(ProjectPanel *project, Routing *p, QWidget *parent):Rul
 {
     QItemSelectionModel *sm = QTreeView::selectionModel();
     RuleSetModel* model = new RoutingModel(p,this);
+    setModel(model);
+    delete sm;
+    RuleSetViewDelegate *dlgt = new RuleSetViewDelegate(this, fwosm);
+    dlgt->setStandardHighlightColor(palette().color(QPalette::Highlight));
+    setItemDelegate(dlgt);
+    init();
+}
+
+////////////////////////////////////////////////////////////////////////////
+// IPRulesView
+////////////////////////////////////////////////////////////////////////////
+
+IPRulesView::IPRulesView(ProjectPanel *project, IPRules *p, QWidget *parent):RuleSetView(project, parent)
+{
+    QItemSelectionModel *sm = QTreeView::selectionModel();
+    RuleSetModel* model = new IPRulesModel(p,this);
     setModel(model);
     delete sm;
     RuleSetViewDelegate *dlgt = new RuleSetViewDelegate(this, fwosm);

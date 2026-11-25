@@ -355,4 +355,12 @@ public:
 
 };
 
+class IPRulesView : public RuleSetView
+{
+public:
+    IPRulesView(ProjectPanel *project, libfwbuilder::IPRules *p, QWidget *parent);
+    virtual ~IPRulesView() {}
+
+};
+
 #endif // RULESETVIEW_H

@@ -75,22 +75,39 @@ void MetricEditorPanel::changed()
 
 void MetricEditorPanel::applyChanges()
 {
-    rule->setMetric( value() );
+    // The panel serves two columns: the routing metric and the ip
+    // rule priority. Both are plain numbers edited in place.
+    RoutingRule *routing_rule = RoutingRule::cast(rule);
+    if (routing_rule) routing_rule->setMetric( value() );
+
+    IPRule *ip_rule = IPRule::cast(rule);
+    if (ip_rule) ip_rule->setPriority( value() );
 }
 
 void MetricEditorPanel::loadFWObject(libfwbuilder::FWObject *obj)
 {
     RoutingRule *r=RoutingRule::cast(obj);
-    if (r==NULL) return;
-    rule=r;
+    IPRule *ipr=IPRule::cast(obj);
+    if (r==NULL && ipr==NULL) return;
+    rule=Rule::cast(obj);
 
-    FWObject *o = r;
+    FWObject *o = obj;
     while (o!=NULL && Firewall::cast(o)==NULL) o=o->getParent();
     assert(o!=NULL);
 
-    m_widget->spin_box->setMinimum( 0);
-    m_widget->spin_box->setMaximum( 255);
-    m_widget->spin_box->setValue( r->getMetric());
+    if (r)
+    {
+        m_widget->spin_box->setMinimum( 0);
+        m_widget->spin_box->setMaximum( 255);
+        m_widget->spin_box->setValue( r->getMetric());
+    }
+
+    if (ipr)
+    {
+        m_widget->spin_box->setMinimum( 0);
+        m_widget->spin_box->setMaximum( 32767);
+        m_widget->spin_box->setValue( ipr->getPriority());
+    }
 }
 
 void MetricEditorPanel::validate(bool* b )

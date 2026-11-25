@@ -730,6 +730,10 @@ void ObjectManipulator::contextMenuRequested(const QPoint &pos)
                 addNewObjectMenuItem(popup_menu, NAT::TYPENAME));
             AddObjectActions.append(
                 addNewObjectMenuItem(popup_menu, Routing::TYPENAME));
+            // ip rules live in their own per-firewall rule sets
+            if (Firewall::isA(currentObj))
+                AddObjectActions.append(
+                    addNewObjectMenuItem(popup_menu, IPRules::TYPENAME));
         }
 
         if (Interface::isA(currentObj) && ! currentObj->isReadOnly())

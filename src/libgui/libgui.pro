@@ -111,6 +111,7 @@ HEADERS += ../../config.h \
     CompilerDriverFactory.h \
     RuleOptionsDialog.h \
     RoutingRuleOptionsDialog.h \
+    IPRuleOptionsDialog.h \
     NATRuleOptionsDialog.h \
     LibExportDialog.h \
     PrefsDialog.h \
@@ -305,6 +306,7 @@ SOURCES += ProjectPanel.cpp \
     CompilerDriverFactory.cpp \
     RuleOptionsDialog.cpp \
     RoutingRuleOptionsDialog.cpp \
+    IPRuleOptionsDialog.cpp \
     NATRuleOptionsDialog.cpp \
     LibExportDialog.cpp \
     PrefsDialog.cpp \
@@ -446,6 +448,7 @@ FORMS = FWBMainWindow_q.ui \
     libexport_q.ui \
     ruleoptionsdialog_q.ui \
     routingruleoptionsdialog_q.ui \
+    ipruleoptionsdialog_q.ui \
     instdialog_q.ui \
     objconflictresolutiondialog_q.ui \
     newfirewalldialog_q.ui \

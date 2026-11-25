@@ -197,6 +197,7 @@ void ObjectManipulator::createNewObject()
     if (type_name ==  Policy::TYPENAME) new_obj = newPolicyRuleSet(macro);
     if (type_name ==  NAT::TYPENAME) new_obj = newNATRuleSet(macro);
     if (type_name ==  Routing::TYPENAME) new_obj = newRoutingRuleSet(macro);
+    if (type_name ==  IPRules::TYPENAME) new_obj = newIPRulesRuleSet(macro);
     if (type_name ==  AttachedNetworks::TYPENAME) new_obj = newAttachedNetworks(macro);
 
     if (new_obj == NULL) new_obj = createObject(type_name, descr, NULL, macro);
@@ -525,6 +526,29 @@ FWObject* ObjectManipulator::newRoutingRuleSet(QUndoCommand* macro)
         }
     }
     FWObject *o = createObject(currentObj, Routing::TYPENAME, name, NULL, macro);
+    this->getCurrentObjectTree()->sortItems(0, Qt::AscendingOrder);
+    return o;
+}
+
+FWObject* ObjectManipulator::newIPRulesRuleSet(QUndoCommand* macro)
+{
+    FWObject *currentObj = getSelectedObject();
+    if ( !currentObj || currentObj->isReadOnly() ) return NULL;
+    QString name = "IP Rules";
+    Firewall * fw = Firewall::cast(currentObj);
+    if (fw!=NULL)
+    {
+        int count = 0;
+        for (FWObjectTypedChildIterator it = fw->findByType(IPRules::TYPENAME);
+             it != it.end(); ++it) count++;
+
+        if (count>0)
+        {
+            name += "_";
+            name += QString().setNum(count);
+        }
+    }
+    FWObject *o = createObject(currentObj, IPRules::TYPENAME, name, NULL, macro);
     this->getCurrentObjectTree()->sortItems(0, Qt::AscendingOrder);
     return o;
 }

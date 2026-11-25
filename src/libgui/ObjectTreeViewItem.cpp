@@ -90,6 +90,7 @@ static int getRank(FWObject *obj)
     if (Policy::cast(obj) != 0) return 2;
     if (NAT::cast(obj) != 0) return 3;
     if (Routing::cast(obj) != 0) return 4;
+    if (IPRules::cast(obj) != 0) return 4;
 
     return 1;
 }
