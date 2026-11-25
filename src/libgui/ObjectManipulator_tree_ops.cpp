@@ -360,6 +360,9 @@ void ObjectManipulator::insertSubtree(ObjectTreeViewItem *itm, FWObject *obj)
          for (FWObjectTypedChildIterator it = obj->findByType(Routing::TYPENAME);
               it != it.end(); ++it) insertSubtree( nitm, *it );
 
+         for (FWObjectTypedChildIterator it = obj->findByType(IPRules::TYPENAME);
+              it != it.end(); ++it) insertSubtree( nitm, *it );
+
          for (FWObjectTypedChildIterator it = obj->findByType(Interface::TYPENAME);
               it != it.end(); ++it) insertSubtree( nitm, *it );
 
