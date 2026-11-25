@@ -58,6 +58,7 @@ namespace libfwbuilder {
     class RuleElementItf;
     class NATRule;
     class RoutingRule;
+    class IPRules;
 }
 
 class ProjectPanel;

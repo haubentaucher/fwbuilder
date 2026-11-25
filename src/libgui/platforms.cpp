@@ -800,6 +800,7 @@ QString getReadableRuleElementName(const string &platform,
     if (re_type_name == "Action") return QObject::tr("Action");
     if (re_type_name == "Options") return QObject::tr("Options");
     if (re_type_name == "Metric") return QObject::tr("Metric");
+    if (re_type_name == "Priority") return QObject::tr("Priority");
     if (re_type_name == "Comment") return QObject::tr("Comment");
 
     return QString();
