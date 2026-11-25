@@ -164,6 +164,12 @@ xmlNodePtr Firewall::toXML(xmlNodePtr parent)
         o = *it;
         if (o) o->toXML(me);
     }
+    for (FWObjectTypedChildIterator it = findByType(IPRules::TYPENAME);
+         it != it.end(); ++it)
+    {
+        o = *it;
+        if (o) o->toXML(me);
+    }
 
     for(FWObjectTypedChildIterator it = findByType(Interface::TYPENAME);
         it != it.end(); ++it)
