@@ -172,6 +172,15 @@
       <hidden>true</hidden>
     </RoutingRule>
 
+    <IPRules>
+      <description>IP Rules</description>
+    </IPRules>
+
+    <IPRule>
+      <description>IP Rule</description>
+      <hidden>true</hidden>
+    </IPRule>
+
     <ObjectRef>
       <description>Reference</description>
       <hidden>true</hidden>
@@ -220,6 +229,11 @@
       <description>NAT Rule Options</description>
       <hidden>true</hidden>
     </NATRuleOptions>
+
+    <IPRuleOptions>
+      <description>IP Rule Options</description>
+      <hidden>true</hidden>
+    </IPRuleOptions>
 
     <ClusterGroupOptions>
       <description>Cluster Group Options</description>
