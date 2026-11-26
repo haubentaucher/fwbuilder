@@ -1201,7 +1201,6 @@ string PolicyCompiler_nft::PrintRule::_printSrcService(RuleElementSrv  *rel)
 
 string PolicyCompiler_nft::PrintRule::_printDstService(RuleElementSrv  *rel)
 {
-    PolicyCompiler_nft *ipt_comp=dynamic_cast<PolicyCompiler_nft*>(compiler);
     std::ostringstream  ostr;
     FWObject *o=rel->front();
     if (o && FWReference::cast(o)!=nullptr) o=FWReference::cast(o)->getPointer();

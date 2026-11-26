@@ -113,7 +113,7 @@ protected:
 #if QT_VERSION < QT_VERSION_CHECK(5, 0, 0)
                    Qt::WFlags f = 0);
 #else
-                   Qt::WindowFlags f = 0);
+                   Qt::WindowFlags f = Qt::WindowFlags());
 #endif
 
     void freezeSelection(bool f) { selectionFrozen = f; }

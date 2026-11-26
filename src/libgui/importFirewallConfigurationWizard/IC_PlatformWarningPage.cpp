@@ -217,6 +217,13 @@ void IC_PlatformWarningPage::initializePage()
                    ));
             platformOk = false;
             break;
+
+        default:
+            m_dialog->platform->setText(tr("Unknown"));
+            m_dialog->platformSpecificWarning->setText(
+                tr("Unrecognized configuration file format, can not import."));
+            platformOk = false;
+            break;
         }
 
         wz->platform = pi.getPlatformAsString();

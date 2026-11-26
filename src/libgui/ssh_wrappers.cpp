@@ -44,13 +44,19 @@
 
 #if defined(__linux__)
 #include <pty.h>
+#ifndef HAVE_FORKPTY
 #define HAVE_FORKPTY
+#endif
 #elif defined(__FreeBSD__)
 #include <libutil.h>
+#ifndef HAVE_FORKPTY
 #define HAVE_FORKPTY
+#endif
 #elif defined(__unix__) || defined(__APPLE__) && defined(__MACH__)
 #include <util.h>
+#ifndef HAVE_FORKPTY
 #define HAVE_FORKPTY
+#endif
 #endif
 
 #include <errno.h>

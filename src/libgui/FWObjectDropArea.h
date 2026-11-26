@@ -65,7 +65,7 @@ public:
 #if QT_VERSION < QT_VERSION_CHECK(5, 0, 0)
     FWObjectDropArea(QWidget*p, const char * n = 0, Qt::WFlags f = 0);
 #else
-    FWObjectDropArea(QWidget*p, const char * n = 0, Qt::WindowFlags f = 0);
+    FWObjectDropArea(QWidget*p, const char * n = 0, Qt::WindowFlags f = Qt::WindowFlags());
 #endif
     ~FWObjectDropArea(); 
     libfwbuilder::FWObject * getObject(){return object;};
