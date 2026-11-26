@@ -39,6 +39,7 @@ unix {
     QMAKE_CFLAGS_RELEASE += -Wno-unused-parameter
     QMAKE_CXXFLAGS_DEBUG += -Wno-unused-parameter
     QMAKE_CXXFLAGS_RELEASE += -Wno-unused-parameter
+    QMAKE_CXXFLAGS += -Wno-overloaded-virtual
 
     !macx {
 

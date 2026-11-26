@@ -43,6 +43,7 @@ unix {
     QMAKE_CFLAGS_RELEASE += -Wno-unused-parameter
     QMAKE_CXXFLAGS_DEBUG += -Wno-unused-parameter @CXXFLAGS@
     QMAKE_CXXFLAGS_RELEASE += -Wno-unused-parameter @CXXFLAGS@
+    QMAKE_CXXFLAGS += -Wno-overloaded-virtual
 
     exec_prefix = @EXEC_PREFIX@
     DESTDIR =
