@@ -416,7 +416,7 @@ FWObject* ObjectManipulator::actuallyPasteTo(FWObject *target,
         QMessageBox::warning(
             this,"Firewall Builder",
             ex.toString().c_str(),
-            "&Continue", QString::null,QString::null,
+            "&Continue", QString(),QString(),
             0, 1 );
     }
 
@@ -593,7 +593,7 @@ void ObjectManipulator::deleteObject(FWObject *obj, QUndoCommand* macro)
         QMessageBox::warning(
             this,"Firewall Builder",
             ex.toString().c_str(),
-            "&Continue", QString::null,QString::null,
+            "&Continue", QString(),QString(),
             0, 1 );
         throw(ex);
     }
@@ -774,7 +774,7 @@ void ObjectManipulator::addSubfolderSlot()
     if (folder.contains(',')) {
         QMessageBox::warning(this, "Firewall Builder",
                              tr("Subfolder cannot contain a comma"), "&OK",
-                             QString::null, QString::null, 0, 1);
+                             QString(), QString(), 0, 1);
         return;
     }
 

@@ -132,7 +132,7 @@ QDrag* ObjectIconView::dragObject()
     //QPixmap          pm   = QPixmap::fromMimeSource( icn_filename );
 
     QPixmap pm;
-    if ( ! QPixmapCache::find( icn, pm) )
+    if ( ! QPixmapCache::find( icn, &pm) )
     {
         pm.load( icn );
         QPixmapCache::insert( icn, pm);

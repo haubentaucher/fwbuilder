@@ -1261,7 +1261,7 @@ QString CompilerDriver::formSingleRuleCompileOutput(const QString &generated_cod
     // compilers we assemble here may consist of a bunch of
     // empty lines separated by LF. Need to account for that.
     QString res = generated_code;
-    QString res2 = res.split("\n", QString::SkipEmptyParts).join("").replace(" ", "");
+    QString res2 = res.split("\n", Qt::SkipEmptyParts).join("").replace(" ", "");
     if (res2.isEmpty()) res = all_errors.join("\n");
     return res;
 }

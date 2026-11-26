@@ -47,7 +47,7 @@ using namespace std;
 QPixmap PixmapFactory::getPixmap(const std::string &icn_filename)
 {
     QPixmap pm;
-    if ( ! QPixmapCache::find( icn_filename.c_str(), pm) ) {
+    if ( ! QPixmapCache::find( icn_filename.c_str(), &pm) ) {
         pm.load( icn_filename.c_str() );
         QPixmapCache::insert( icn_filename.c_str(), pm);
         if (fwbdebug)

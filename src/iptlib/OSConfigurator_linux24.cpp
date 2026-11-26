@@ -499,7 +499,7 @@ QString OSConfigurator_linux24::addressTableWrapper(FWObject *rule,
     int pos = address_table_re.indexIn(command);
     if (pos > -1)
     {
-        QStringList command_lines = QString(command).split("\n", QString::SkipEmptyParts);
+        QStringList command_lines = QString(command).split("\n", Qt::SkipEmptyParts);
         if (command_lines.size() > 1)
         {
             command_lines.push_front("{");
@@ -587,7 +587,7 @@ string OSConfigurator_linux24::printRunTimeWrappers(FWObject *rule,
     if (!no_wrapper)
     {
         QStringList command_lines = 
-            QString(combined_command).split("\n", QString::SkipEmptyParts);
+            QString(combined_command).split("\n", Qt::SkipEmptyParts);
         if (command_lines.size() > 1)
         {
             command_lines.push_front("{");

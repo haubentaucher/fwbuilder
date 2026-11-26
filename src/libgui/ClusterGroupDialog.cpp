@@ -212,13 +212,13 @@ void ClusterGroupDialog::addIcon(FWObject *o, bool master)
                            "/icon-ref").c_str();
 
     QPixmap iface_pm;
-    if (!QPixmapCache::find(iface_icn_file, iface_pm))
+    if (!QPixmapCache::find(iface_icn_file, &iface_pm))
     {
         iface_pm.load(iface_icn_file);
         QPixmapCache::insert(iface_icn_file, iface_pm);
     }
     QPixmap fw_pm;
-    if (!QPixmapCache::find(fw_icn_file, fw_pm))
+    if (!QPixmapCache::find(fw_icn_file, &fw_pm))
     {
         fw_pm.load(fw_icn_file);
         QPixmapCache::insert(fw_icn_file, fw_pm);
@@ -337,7 +337,7 @@ void ClusterGroupDialog::openClusterConfDialog()
         QMessageBox::critical(
             this, "Firewall Builder",
             tr("FWBuilder API error: %1").arg(ex.toString().c_str()),
-            tr("&Continue"), QString::null, QString::null, 0, 1);
+            tr("&Continue"), QString(), QString(), 0, 1);
         return;
     }
 }

@@ -822,7 +822,7 @@ bool RCS::co(const QString &rev,bool force)
                             app->activeWindow(),"Firewall Builder",
                             tr("File is opened and locked by %1.\nYou can only open it read-only.")
                             .arg(locked_by),
-                            "Open &read-only", "&Cancel", QString::null,
+                            "Open &read-only", "&Cancel", QString(),
                             0, 1 ) )
                 {
                 case 0:  ro=true;   return false;

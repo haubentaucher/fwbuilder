@@ -630,7 +630,7 @@ QString CompilerDriver_ipt::run(const std::string &cluster_id,
         script << QString::fromUtf8(generated_script.c_str());
         script << QString::fromUtf8(routing_compiler->getCompiledScript().c_str());
 
-        script << endl;
+        script << Qt::endl;
 
         script_skeleton.setVariable("script_body", indent(4, script_buffer));
 
@@ -649,8 +649,8 @@ QString CompilerDriver_ipt::run(const std::string &cluster_id,
                                     ! fw->getOptionsObject()->getBool("use_iptables_restore"));
 
         script_buffer = "";
-        if (have_ipv4) script << "  reset_iptables_v4" << endl;
-        if (have_ipv6) script << "  reset_iptables_v6" << endl;
+        if (have_ipv4) script << "  reset_iptables_v4" << Qt::endl;
+        if (have_ipv6) script << "  reset_iptables_v6" << Qt::endl;
         script_skeleton.setVariable("reset_all", script_buffer);
 
         script_buffer = "";

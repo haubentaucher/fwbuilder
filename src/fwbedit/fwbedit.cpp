@@ -738,7 +738,7 @@ int main(int argc, char * const *argv)
             }
 
             QStringList components = QString::fromUtf8(object.c_str())
-                .split("/", QString::SkipEmptyParts);
+                .split("/", Qt::SkipEmptyParts);
             string fw_name = components.last().toUtf8().constData();
             
             Library *library = NULL;

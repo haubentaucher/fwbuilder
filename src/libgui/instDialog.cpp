@@ -67,6 +67,7 @@
 #include <QDateTime>
 #include <QtDebug>
 #include <QTime>
+#include <QElapsedTimer>
 #include <QWidget>
 
 #include "fwbuilder/Resources.h"
@@ -753,7 +754,7 @@ bool instDialog::executeCommand(const QString &path, QStringList &args)
 #endif
     QTextCodec::setCodecForLocale(QTextCodec::codecForName("Utf8"));
     enableStopButton();
-    QTime start_time;
+    QElapsedTimer start_time;
     start_time.start();
     proc.start(path, args);
     if ( !proc.waitForStarted() )

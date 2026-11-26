@@ -395,7 +395,7 @@ void ND_ProgressPage::saveLog()
             }
             QTextStream strm(&f);
             QString txt = m_dialog->discoveryLog->toPlainText();
-            strm << txt << endl;
+            strm << txt << Qt::endl;
             if (fwbdebug)
             {
 #if QT_VERSION < QT_VERSION_CHECK(5, 0, 0)

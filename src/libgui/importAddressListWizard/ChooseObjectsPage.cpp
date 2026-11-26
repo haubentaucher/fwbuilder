@@ -74,7 +74,7 @@ void ChooseObjectsPage::initializePage()
     {
         QMessageBox::critical( NULL , "Firewall Builder",
                                ex.toString().c_str(),
-                               QString::null,QString::null);
+                               QString(),QString());
     }
 }
 

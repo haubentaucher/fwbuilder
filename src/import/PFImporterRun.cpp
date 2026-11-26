@@ -150,7 +150,7 @@ void PFImporter::run()
             QString list_str = list_of_items.cap(1);
             list_str.replace(",", "");
             QStringList items = list_str.split(QRegExp("\\s"),
-                                               QString::SkipEmptyParts);
+                                               Qt::SkipEmptyParts);
             qDebug() << items;
 
             bool has_address = false;

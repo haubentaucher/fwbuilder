@@ -306,7 +306,7 @@ void IC_ProgressPage::saveLog()
             }
             QTextStream strm(&f);
             QString txt = m_dialog->importLog->toPlainText();
-            strm << txt << endl;
+            strm << txt << Qt::endl;
             if (fwbdebug)
             {
 #if QT_VERSION < QT_VERSION_CHECK(5, 0, 0)

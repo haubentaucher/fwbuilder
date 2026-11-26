@@ -143,14 +143,14 @@ string CompilerDriver_pf::printTimeout(FWOptions* options,
 
 void CompilerDriver_pf::printProlog(QTextStream &file, const string &prolog_code)
 {
-    file << endl;
-    file << "#" << endl;
-    file << "# Prolog script" << endl;
-    file << "#" << endl;
-    file << prolog_code << endl;
-    file << "#" << endl;
-    file << "# End of prolog script" << endl;
-    file << "#" << endl;
+    file << Qt::endl;
+    file << "#" << Qt::endl;
+    file << "# Prolog script" << Qt::endl;
+    file << "#" << Qt::endl;
+    file << prolog_code << Qt::endl;
+    file << "#" << Qt::endl;
+    file << "# End of prolog script" << Qt::endl;
+    file << "#" << Qt::endl;
 }
 
 void CompilerDriver_pf::printStaticOptions(QTextStream &file, Firewall* fw)
@@ -164,24 +164,24 @@ void CompilerDriver_pf::printStaticOptions(QTextStream &file, Firewall* fw)
     if (prolog_place == "pf_file_top")
         printProlog(file, pre_hook);
 
-    file << endl;
+    file << Qt::endl;
 
     string set_debug = options->getStr("pf_set_debug");
     if (!set_debug.empty())
     {
-        file << "set debug " << set_debug << endl;
+        file << "set debug " << set_debug << Qt::endl;
     }
 
     string state_policy = options->getStr("pf_state_policy");
     if (!state_policy.empty())
     {
-        file << "set state-policy " << state_policy << endl;
+        file << "set state-policy " << state_policy << Qt::endl;
     }
 
     string block_policy = options->getStr("pf_block_policy");
     if (!block_policy.empty())
     {
-        file << "set block-policy " << block_policy << endl;
+        file << "set block-policy " << block_policy << Qt::endl;
     }
 
     QStringList limits;
@@ -216,12 +216,12 @@ void CompilerDriver_pf::printStaticOptions(QTextStream &file, Firewall* fw)
         if (limits.size() > 1 ) file << "{ ";
         file << limits.join(", ");
         if (limits.size() > 1 ) file << " }";
-        file << endl;
+        file << Qt::endl;
     }
 
     if ( ! options->getStr("pf_optimization").empty() )
         file << "set optimization "
-             << options->getStr("pf_optimization") << endl;
+             << options->getStr("pf_optimization") << Qt::endl;
 
     file << printTimeout(options,
                          "pf_do_timeout_interval","pf_timeout_interval",
@@ -294,11 +294,11 @@ void CompilerDriver_pf::printStaticOptions(QTextStream &file, Firewall* fw)
             assert(iface);
 
             if ( iface->isUnprotected())  
-                file << "set skip on " << iface->getName() << endl;
+                file << "set skip on " << iface->getName() << Qt::endl;
         }
     }
 
-    file << endl;
+    file << Qt::endl;
 
     if (prolog_place == "pf_file_after_set")
         printProlog(file, pre_hook);
@@ -330,9 +330,9 @@ void CompilerDriver_pf::printStaticOptions(QTextStream &file, Firewall* fw)
 
     if (!scrub_options.empty())
     {
-        file << "#" << endl;
-        file << "# Scrub rules" << endl;
-        file << "#" << endl;
+        file << "#" << Qt::endl;
+        file << "# Scrub rules" << Qt::endl;
+        file << "#" << Qt::endl;
 
         if (XMLTools::version_compare(fw->getStr("version"), "4.6")>=0)
         {
@@ -340,14 +340,14 @@ void CompilerDriver_pf::printStaticOptions(QTextStream &file, Firewall* fw)
                  << scrub_rule_direction
                  << "all scrub ("
                  << scrub_options.join(" ").toStdString() << ")"
-                 << endl;
+                 << Qt::endl;
         } else
         {
             file << "scrub "
                  << scrub_rule_direction
                  << "all "
                  << scrub_options.join(" ").toStdString()
-                 << endl;
+                 << Qt::endl;
         }
     }
 
@@ -367,15 +367,15 @@ void CompilerDriver_pf::printStaticOptions(QTextStream &file, Firewall* fw)
         if (XMLTools::version_compare(fw->getStr("version"), "4.6")>=0)
         {
             file << "match out all scrub ("
-                 << scrub_options.join(" ").toStdString() << ")" << endl;
+                 << scrub_options.join(" ").toStdString() << ")" << Qt::endl;
         } else
         {
             file << "scrub out all "
-                 << scrub_options.join(" ").toStdString() << endl;
+                 << scrub_options.join(" ").toStdString() << Qt::endl;
         }
     }
 
-    file << endl;
+    file << Qt::endl;
 
     if (prolog_place == "pf_file_after_scrub")
         printProlog(file, pre_hook);

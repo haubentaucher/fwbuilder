@@ -69,7 +69,7 @@ bool FileNamePage::validatePage()
     {
         QMessageBox::critical( NULL , "Firewall Builder",
                                tr("File %1 does not exist").arg(file_name),
-                               QString::null,QString::null);
+                               QString(),QString());
         return false;
     }
 
@@ -77,7 +77,7 @@ bool FileNamePage::validatePage()
     {
         QMessageBox::critical( NULL , "Firewall Builder",
                                tr("Can not read file %1").arg(file_name),
-                               QString::null,QString::null);
+                               QString(),QString());
         return false;
     }
 

@@ -37,6 +37,7 @@
 #include <QRegExp>
 #include <QMessageBox>
 #include <QTime>
+#include <QElapsedTimer>
 #include <QtAlgorithms>
 
 #include "fwbuilder/FWObjectDatabase.h"
@@ -178,7 +179,7 @@ void RuleSetModel::initModel()
     RuleNode* node;
     RuleNode* group;
 
-    QTime t; t.start();
+    QElapsedTimer t; t.start();
     for (FWObject::iterator i=ruleset->begin(); i!=ruleset->end(); i++, row++)
     {
 
@@ -1148,7 +1149,7 @@ bool RuleSetModel::insertObject(QModelIndex &index, FWObject *obj)
                 QObject::tr(
                     "A single interface belonging to "
                     "this firewall is expected in this field."),
-                QString::null,QString::null);
+                QString(),QString());
         }
         else if (RuleElementRGtw::cast(re))
         {
@@ -1159,7 +1160,7 @@ bool RuleSetModel::insertObject(QModelIndex &index, FWObject *obj)
                     "here. You may also insert a host "
                     "or a network adapter leading to "
                     "a single ip adress."),
-                QString::null,QString::null);
+                QString(),QString());
         }
         return false;
     }
@@ -1427,8 +1428,6 @@ void PolicyModel::configure()
 QVariant PolicyModel::getRuleDataForDisplayRole(const QModelIndex &index, RuleNode* node) const
 {
     QVariant res;
-
-    QTime t;
 
     if (index.column() == 0)
     {

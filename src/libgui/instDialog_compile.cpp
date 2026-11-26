@@ -173,7 +173,7 @@ QStringList instDialog::prepareArgForCompiler(Firewall *fw)
             this,"Firewall Builder",
             tr("Firewall platform is not specified in this object.\n\
 Can't compile firewall policy."),
-            tr("&Continue"), QString::null,QString::null,
+            tr("&Continue"), QString(),QString(),
             0, 1 );
         return args; // still empty list
     }
@@ -214,7 +214,7 @@ Can't compile firewall policy."),
     args.push_back(compiler.c_str());
 
     QString qs = fwopt->getStr("cmdline").c_str();
-    args += qs.split(" ", QString::SkipEmptyParts);
+    args += qs.split(" ", Qt::SkipEmptyParts);
 
     args.push_back("-v");
     args.push_back("-f");

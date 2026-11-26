@@ -72,6 +72,7 @@
 #include <QMessageBox>
 #include <QHeaderView>
 #include <QTime>
+#include <QElapsedTimer>
 
 using namespace libfwbuilder;
 using namespace std;
@@ -177,7 +178,7 @@ void RuleSetView::init()
 
 
     setUpdatesEnabled(false);
-    QTime t; t.start();
+    QElapsedTimer t; t.start();
     configureGroups();
     if (fwbdebug)
         qDebug("RuleSetView configureGroups: %d ms", t.restart());
@@ -823,7 +824,7 @@ void RuleSetView::addColumnRelatedMenu(QMenu *menu, const QModelIndex &index,
                 {
                     QMessageBox::critical( NULL , "Firewall Builder",
                                            ex.toString().c_str(),
-                                           QString::null,QString::null);
+                                           QString(),QString());
                 }
                 negID->setEnabled(supports_neg &&  !re->isAny());
                 fndID->setEnabled(!re->isAny());
@@ -2413,7 +2414,7 @@ bool RuleSetView::validateForInsertion(RuleElement *re, FWObject *obj, bool quie
                     QObject::tr(
                         "A single interface belonging to this firewall is "
                         "expected in this field."),
-                    QString::null,QString::null);
+                    QString(),QString());
             }
             else if (RuleElementRGtw::cast(re))
             {
@@ -2423,7 +2424,7 @@ bool RuleSetView::validateForInsertion(RuleElement *re, FWObject *obj, bool quie
                         "A single ip adress is expected here. You may also "
                         "insert a host or a network adapter leading to a single "
                         "ip adress."),
-                    QString::null,QString::null);
+                    QString(),QString());
             }
         }
         return false;
@@ -2638,7 +2639,7 @@ void RuleSetView::restoreCollapsedGroups()
 {
     if (project)
     {
-        QTime t;
+        QElapsedTimer t;
         t.start();
         RuleSetModel* md = ((RuleSetModel*)model());
         QStringList collapsed_groups;
