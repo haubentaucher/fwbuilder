@@ -251,7 +251,7 @@ public:
     /**
      * It is same as calling duplicate(x, FALSE);
      */
-    virtual FWObject& operator=(const FWObject &);
+    FWObject& operator=(const FWObject &);
 
     /**
      * This method copies content of object 'x' in the object 'this'.
