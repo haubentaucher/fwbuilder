@@ -32,6 +32,7 @@
 #include "Configlet.h"
 #include "fwbuilder/FWOptions.h"
 #include "fwbuilder/Resources.h"
+#include "fwbuilder/Rule.h"
 
 #include <QRegExp>
 #include <QStringList>
@@ -248,6 +249,26 @@ string OSConfigurator_linux24_nft::registerRunTimeDNSName(const string &hostname
 }
 
 /*
+ * W4.4: rule-level runtime shell variables. The user fills a plain
+ * shell variable in the prolog (most notably provider_ip from the
+ * fwb_get_provider_ip configlet) and references it from rule options;
+ * the compilers print the placeholder returned here ($rv_<name>)
+ * into the rule text. printRunTimeWrappers() turns every placeholder
+ * into a fail-closed check-and-bind block: an unset user variable
+ * aborts the activation before the commit, so the old policy stays
+ * active. Unlike registerRunTimeDNSName no sanitization is needed:
+ * the compilers validate the name with nft_utils::isValidShellVarName
+ * before calling this, and equal names ARE the same variable.
+ */
+string OSConfigurator_linux24_nft::registerRunTimeRuleVar(const string &name)
+{
+    const string placeholder = "rv_" + name;
+    if (run_time_rule_vars.find(placeholder) == run_time_rule_vars.end())
+        run_time_rule_vars[placeholder] = name;
+    return placeholder;
+}
+
+/*
  * Multi-value run-time rules and the atomic nftables transaction.
  *
  * The iptables-era wrapper (OSConfigurator_linux24::printRunTimeWrappers)
@@ -344,11 +365,62 @@ string OSConfigurator_linux24_nft::printRunTimeWrappers(FWObject *rule,
         loop_vars.push_back(var_name);
     }
 
-    if (loop_vars.isEmpty() && wildcard_family.isEmpty())
+    // W4.4: rule-level runtime shell variables ($rv_<name> placeholders
+    // registered by the rule compilers from rule options). These are
+    // scalars, not loops: the user prolog fills the underlying shell
+    // variable (e.g. provider_ip via fwb_get_provider_ip) before the
+    // activation runs. The wrapper below checks that variable is set
+    // (fail-closed: abort before the commit, the old policy stays
+    // active), binds it to the placeholder and lets the guard prove the
+    // bound value non-empty before the rule is staged.
+    QStringList scalar_placeholders; // "rv_<name>", first-use order
+    QRegExp rulevar_re("\\$rv_([A-Za-z0-9_]+)");
+    pos = -1;
+    while ((pos = rulevar_re.indexIn(combined, pos + 1)) > -1)
+    {
+        const QString var_name = QString("rv_") + rulevar_re.cap(1);
+        // A placeholder without registration can not be produced by the
+        // compilers; leave it to the final validation to catch leftovers.
+        if (run_time_rule_vars.find(var_name.toStdString()) ==
+            run_time_rule_vars.end())
+            continue;
+        if (!scalar_placeholders.contains(var_name))
+            scalar_placeholders.push_back(var_name);
+    }
+
+    if (loop_vars.isEmpty() && wildcard_family.isEmpty() &&
+        scalar_placeholders.isEmpty())
         return string(command) + "\n";
 
     QStringList block;
     block.push_back("#FWB_NFT_WRAPPER_BEGIN");
+
+    if (!scalar_placeholders.isEmpty())
+    {
+        // Fail-closed checks and placeholder bindings, before any loop
+        // opens. The rule label names the offending rule in the error
+        // message; strip shell-active characters defensively (a user
+        // rule name could contain quotes).
+        Rule *rule_obj = Rule::cast(rule);
+        QString label;
+        if (rule_obj)
+        {
+            label = QString::fromUtf8(rule_obj->getLabel().c_str());
+            label.remove(QRegExp("[\\\\\"$`]"));
+        }
+        for (const QString &var : scalar_placeholders)
+        {
+            const QString user_var = QString::fromUtf8(
+                run_time_rule_vars[var.toStdString()].c_str());
+            block.push_back(
+                QString("test -n \"$%1\" || { echo \"Error: rule %2 uses"
+                        " runtime variable %1, but it is not set (fill it"
+                        " in the prolog, e.g. with fwb_get_provider_ip);"
+                        " activation aborted.\" >&2; exit 1; }")
+                    .arg(user_var).arg(label));
+            block.push_back(QString("%1=\"$%2\"").arg(var).arg(user_var));
+        }
+    }
 
     if (!wildcard_family.isEmpty())
     {
@@ -374,6 +446,11 @@ string OSConfigurator_linux24_nft::printRunTimeWrappers(FWObject *rule,
     QStringList guards(loop_vars);
     if (!wildcard_family.isEmpty())
         guards.push_front("addr");
+    // W4.4: scalar placeholders are bound (non-empty by construction
+    // after the checks above) but still guarded, so a rule can never
+    // be staged with an empty operand even if the binding logic ever
+    // changes.
+    guards += scalar_placeholders;
     for (const QString &var : guards)
         guard_line += QString("test -n \"$%1\" && ").arg(var);
     guard_line += "cat >> \"$FWB_NFT_TXN\" <<FWB_NFT_DYNRULE";

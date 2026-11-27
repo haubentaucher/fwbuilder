@@ -40,6 +40,10 @@ namespace fwcompiler {
         // shell variable name -> DNS name it was registered for
         std::map<std::string, std::string> run_time_dns_names;
 
+        // W4.4: placeholder name ("rv_<name>") -> user shell variable
+        // filled by the prolog at activation time
+        std::map<std::string, std::string> run_time_rule_vars;
+
         std::string getPathForATool(const std::string &os_variant,
                                     OSData_nft::tools tool_name);
 
@@ -61,6 +65,16 @@ namespace fwcompiler {
         // run-time DNSName per loop iteration. Registering the same DNS
         // name again returns the original variable.
         std::string registerRunTimeDNSName(const std::string &hostname);
+
+        // W4.4: registers a rule-level runtime shell variable (filled by
+        // the user prolog, e.g. provider_ip from fwb_get_provider_ip)
+        // and returns the sanitized placeholder name ("rv_<name>",
+        // without the "$") the compiled rule text references. The
+        // wrapper block binds that placeholder to the user variable at
+        // activation time.
+        std::string registerRunTimeRuleVar(const std::string &name);
+        bool hasRunTimeRuleVars() const
+        { return !run_time_rule_vars.empty(); }
     };
 };
 

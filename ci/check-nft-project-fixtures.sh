@@ -1046,6 +1046,89 @@ check_ip_rule_runtime_var() {
     echo 'PASS: runtime-variable IPRule ships the helper, guard and state-safe expansion'
 }
 
+# W4.4: runtime shell variables in policy, NAT and mangle rules. The
+# compiled rule text references the guarded $rv_<name> placeholder and
+# lives in a FWB_NFT_DYNRULE wrapper block outside the staged heredoc,
+# so the needles grep the whole generated script, not the extracted
+# start transaction. The wrapper must fail the activation (exit 1
+# before the commit, old policy stays active) when the user variable is
+# unset, and the raw variable must never reach the staged rule text.
+check_runtime_var_wrapper() {
+    local name=$1 fw=$2
+    local -a needles=(
+        'fwb_get_provider_ip() {'
+        'fwb_get_provider_ip eth0 192.168.1.10 || exit 1'
+        'test -n "$provider_ip" || {'
+        'rv_provider_ip="$provider_ip"'
+        'test -n "$rv_provider_ip" && cat >> "$FWB_NFT_TXN" <<FWB_NFT_DYNRULE'
+    )
+    local needle
+    for needle in "${needles[@]}"; do
+        if ! grep -Fq "$needle" "$fw"; then
+            echo "FAIL: $name fixture is missing: $needle" >&2
+            return 1
+        fi
+    done
+    # The helper must be defined before the prolog function runs.
+    if ! awk '/^fwb_get_provider_ip\(\) \{/ { helper = NR }
+              /^prolog_commands\(\) \{/ { prolog = NR; exit }
+              END { exit !(helper && prolog && helper < prolog) }' "$fw"; then
+        echo "FAIL: fwb_get_provider_ip is not defined before the prolog in $name" >&2
+        return 1
+    fi
+    return 0
+}
+
+check_nat_runtime_var() {
+    check_positive nat-snat-runtime-var 4 || return 1
+    local fw="$output/nft-ci-nat-snat-runtime-var.fw"
+    if ! check_runtime_var_wrapper nat-snat-runtime-var "$fw"; then
+        return 1
+    fi
+    # One guarded SNAT row in the nat table: the fwmark match from the
+    # TagService plus the placeholder translation.
+    if ! grep -Eq 'add rule ip nat POSTROUTING .*meta mark == 4.* snat to \$rv_provider_ip' "$fw"; then
+        echo 'FAIL: no guarded SNAT row translating to $rv_provider_ip' >&2
+        return 1
+    fi
+    if grep -Fq 'snat to $provider_ip' "$fw"; then
+        echo 'FAIL: raw runtime variable reached the SNAT translation' >&2
+        return 1
+    fi
+    echo 'PASS: runtime-variable SNAT stages through the guarded wrapper'
+}
+
+check_policy_runtime_var() {
+    check_positive policy-src-runtime-var 4 || return 1
+    local fw="$output/nft-ci-policy-src-runtime-var.fw"
+    if ! check_runtime_var_wrapper policy-src-runtime-var "$fw"; then
+        return 1
+    fi
+    if ! grep -Eq 'add rule ip filter .*ip saddr \$rv_provider_ip' "$fw"; then
+        echo 'FAIL: no guarded filter row matching $rv_provider_ip' >&2
+        return 1
+    fi
+    if grep -Fq 'ip saddr $provider_ip' "$fw"; then
+        echo 'FAIL: raw runtime variable reached the filter match' >&2
+        return 1
+    fi
+    echo 'PASS: runtime-variable filter rule stages through the guarded wrapper'
+}
+
+check_mangle_runtime_var() {
+    # The only mangle row is the wrapper copy; pass no ruleset needles.
+    check_positive mangle-src-runtime-var 4 || return 1
+    local fw="$output/nft-ci-mangle-src-runtime-var.fw"
+    if ! check_runtime_var_wrapper mangle-src-runtime-var "$fw"; then
+        return 1
+    fi
+    if ! grep -Eq 'add rule ip mangle .*ip saddr \$rv_provider_ip.*meta mark set 66' "$fw"; then
+        echo 'FAIL: no guarded mangle row marking traffic from $rv_provider_ip' >&2
+        return 1
+    fi
+    echo 'PASS: runtime-variable mangle rule stages through the guarded wrapper'
+}
+
 
 failures=0
 cases=0
@@ -1133,6 +1216,14 @@ run_case ip-rule-runtime-var check_ip_rule_runtime_var
 run_case reject-ip-rule-var-conflict check_negative reject-ip-rule-var-conflict 'combines static source addresses with runtime variable'
 run_case reject-ip-rule-var-badname check_negative reject-ip-rule-var-badname 'is not a valid shell variable name'
 run_case reject-ip-rule-duplicate-priority check_negative reject-ip-rule-duplicate-priority 'use the same ip rule priority 100'
+# W4.4: runtime shell variables in policy, NAT and mangle rules stage
+# through the same guarded wrapper mechanism as the W4.3 ip rules.
+run_case nat-snat-runtime-var check_nat_runtime_var
+run_case policy-src-runtime-var check_policy_runtime_var
+run_case mangle-src-runtime-var check_mangle_runtime_var
+run_case reject-nat-runtime-var-conflict check_negative reject-nat-runtime-var-conflict 'combines static translated source addresses with runtime variable'
+run_case reject-nat-runtime-var-badname check_negative reject-nat-runtime-var-badname 'is not a valid shell variable name'
+run_case reject-policy-runtime-var-conflict check_negative reject-policy-runtime-var-conflict 'combines static source addresses with runtime variable'
 run_case ipv4-option-rr check_positive ipv4-option-rr 4 'ip option rr exists'
 run_case ipv4-option-lsrr check_positive ipv4-option-lsrr 4 'ip option lsrr exists'
 run_case ipv4-option-ssrr check_positive ipv4-option-ssrr 4 'ip option ssrr exists'

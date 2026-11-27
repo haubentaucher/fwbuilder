@@ -1,7 +1,10 @@
 ## -*- mode: shell-script; -*-
-## Helper for IP rules that select on a runtime shell variable
-## (IP rule options ip_rule_src_runtime_var / ip_rule_dst_runtime_var).
-## Determines the public provider address behind a modem or router on
+## Helper for rules that select on a runtime shell variable (IP rule
+## options ip_rule_src_runtime_var / ip_rule_dst_runtime_var, W4.3, and
+## the policy/NAT/mangle rule options policy_src_runtime_var,
+## policy_dst_runtime_var, nat_tsrc_runtime_var, nat_tdst_runtime_var,
+## W4.4). Determines the public provider address behind a modem or
+## router on
 ## the WAN interface: resolves the lookup service, pins a route to it
 ## through the WAN interface so the query bypasses an active VPN
 ## tunnel, reads the address and stores it in the global shell

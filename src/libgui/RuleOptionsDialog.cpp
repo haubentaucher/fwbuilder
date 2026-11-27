@@ -216,6 +216,23 @@ void RuleOptionsDialog::loadFWObject(FWObject *o)
         data.registerOption(m_dialog->ipt_continue, ropt, "ipt_continue" );
         data.registerOption(m_dialog->ipt_tee, ropt, "ipt_tee");
 
+        // W4.4: runtime shell variables as source/destination address
+        // matches; the nftables compilers turn them into guarded rv_
+        // placeholders. The iptables backend has no equivalent, so the
+        // widgets stay hidden there and the options are never written.
+        m_dialog->label_runtime_vars->setVisible(platform=="nftables");
+        m_dialog->label_src_runtime_var->setVisible(platform=="nftables");
+        m_dialog->src_runtime_var_edit->setVisible(platform=="nftables");
+        m_dialog->label_dst_runtime_var->setVisible(platform=="nftables");
+        m_dialog->dst_runtime_var_edit->setVisible(platform=="nftables");
+        if (platform=="nftables")
+        {
+            data.registerOption(m_dialog->src_runtime_var_edit, ropt,
+                                "policy_src_runtime_var");
+            data.registerOption(m_dialog->dst_runtime_var_edit, ropt,
+                                "policy_dst_runtime_var");
+        }
+
         FWObject *o = policy_rule->getTagObject();
         m_dialog->iptTagDropArea->setObject(o);
         m_dialog->iptTagDropArea->update();

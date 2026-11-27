@@ -403,6 +403,18 @@ namespace fwcompiler
         DECLARE_NAT_RULE_PROCESSOR(verifyRuleWithMAC);
 
         /**
+         * W4.4: validates rules that reference a runtime shell variable
+         * (rule options nat_tsrc_runtime_var / nat_tdst_runtime_var).
+         * The variable must be a valid shell name, must be the only
+         * address operand in its rule element (TSrc/TDst must be
+         * "Any"), may only be used on SNAT resp. DNAT rules, and can
+         * not be combined with masquerading or load-balancing address
+         * maps. Runtime variables carry IPv4 values; the IPv6 pass
+         * drops such rules silently (the IPv4 pass emits them).
+         */
+        DECLARE_NAT_RULE_PROCESSOR(processRuntimeVarRules);
+
+        /**
          *  eliminates duplicate objects in SRC. Uses default comparison
          *  in eliminateDuplicatesInRE which compares IDs
          */
@@ -548,6 +560,13 @@ namespace fwcompiler
             // error. Fail the compile with the offending object instead.
             void abortEmptyAddressOperand(libfwbuilder::NATRule *rule,
                                           libfwbuilder::Address *o);
+            // W4.4: returns the "$rv_<name>" placeholder for a runtime
+            // shell variable option ("" when the option is unset) and
+            // registers it with the OS configurator so
+            // printRunTimeWrappers() emits the check-and-bind block.
+            std::string _runtimeVarAddr(libfwbuilder::NATRule *rule,
+                                         libfwbuilder::FWOptions *ruleopt,
+                                         const std::string &option_name);
             std::string trimSpaces(const std::string &value) const;
             std::string formatAddressSetEntry(libfwbuilder::Address *addr);
             std::vector<std::string> collectAddressSetEntries(

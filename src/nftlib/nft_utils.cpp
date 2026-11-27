@@ -449,5 +449,25 @@ libfwbuilder::Interface *addresslessInterfaceInRuleElement(
     return nullptr;
 }
 
+bool isValidShellVarName(const std::string &name)
+{
+    if (name.empty()) return false;
+    for (std::string::size_type i = 0; i < name.size(); ++i)
+    {
+        const char c = name[i];
+        if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_')
+            continue;
+        if (i > 0 && c >= '0' && c <= '9') continue;
+        return false;
+    }
+    return true;
+}
+
+std::string stripShellVarPrefix(std::string name)
+{
+    if (!name.empty() && name[0] == '$') name.erase(0, 1);
+    return name;
+}
+
 }
 }

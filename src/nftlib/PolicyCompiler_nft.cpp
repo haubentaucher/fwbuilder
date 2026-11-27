@@ -4480,6 +4480,98 @@ bool PolicyCompiler_nft::countChainUsage::processNext()
     return true;
 }
 
+/*
+ * W4.4: runtime shell variables in policy and mangle rules. The options
+ * policy_src_runtime_var / policy_dst_runtime_var name a shell variable
+ * the user prolog fills before activation (e.g. provider_ip from
+ * fwb_get_provider_ip); the compilers print "$rv_<name>" placeholders
+ * and printRunTimeWrappers() binds them at activation time. The
+ * variable is the only address operand of its rule element, so any
+ * static object or negation next to it must fail the compile instead
+ * of silently changing the match. The mangle compiler shares this
+ * pipeline, so mangle rules validate identically.
+ */
+bool PolicyCompiler_nft::processRuntimeVarRules::processNext()
+{
+    PolicyRule *rule=getNext(); if (rule==nullptr) return false;
+    PolicyCompiler_nft *pol_comp=dynamic_cast<PolicyCompiler_nft*>(compiler);
+
+    FWOptions *ropt = rule->getOptionsObject();
+    const string src_var = nft_utils::stripShellVarPrefix(
+        ropt->getStr("policy_src_runtime_var"));
+    const string dst_var = nft_utils::stripShellVarPrefix(
+        ropt->getStr("policy_dst_runtime_var"));
+
+    if (src_var.empty() && dst_var.empty())
+    {
+        tmp_queue.push_back(rule);
+        return true;
+    }
+
+    // Runtime variables are IPv4 values; the v6 pass compiles the v6
+    // twin of the ruleset and silently skips these rules (the v4 pass
+    // emitted them), mirroring DropRulesByAddressFamilyAndServiceType.
+    if (pol_comp->ipv6)
+        return true;
+
+    for (const string &var_name : { src_var, dst_var })
+    {
+        if (!var_name.empty() && !nft_utils::isValidShellVarName(var_name))
+        {
+            compiler->abort(rule,
+                "Runtime variable name '" + var_name +
+                "' is not a valid shell variable name");
+            return true;
+        }
+    }
+
+    RuleElementSrc *srcrel = rule->getSrc();
+    RuleElementDst *dstrel = rule->getDst();
+
+    if (!src_var.empty())
+    {
+        if (srcrel->getNeg())
+        {
+            compiler->abort(rule,
+                "Runtime source address variable '" + src_var +
+                "' can not be negated");
+            return true;
+        }
+        if (!srcrel->isAny())
+        {
+            compiler->abort(rule,
+                "Policy rule combines static source addresses with"
+                " runtime variable '" + src_var +
+                "'; leave Source empty when using"
+                " policy_src_runtime_var");
+            return true;
+        }
+    }
+
+    if (!dst_var.empty())
+    {
+        if (dstrel->getNeg())
+        {
+            compiler->abort(rule,
+                "Runtime destination address variable '" + dst_var +
+                "' can not be negated");
+            return true;
+        }
+        if (!dstrel->isAny())
+        {
+            compiler->abort(rule,
+                "Policy rule combines static destination addresses with"
+                " runtime variable '" + dst_var +
+                "'; leave Destination empty when using"
+                " policy_dst_runtime_var");
+            return true;
+        }
+    }
+
+    tmp_queue.push_back(rule);
+    return true;
+}
+
 bool PolicyCompiler_nft::checkInterfaceAgainstAddressFamily::processNext()
 {
     PolicyCompiler_nft *ipt_comp = dynamic_cast<PolicyCompiler_nft*>(compiler);
@@ -4898,6 +4990,8 @@ void PolicyCompiler_nft::compile()
     else
         add( new DropIPv6Rules("drop ipv6 rules"));
     //add( new dropRuleWithEmptyRE("drop rules with empty rule elements"));
+
+    add( new processRuntimeVarRules("validate runtime variable rules"));
 
     add( new checkForUnnumbered("check for unnumbered interfaces" ) );
     add( new checkForDynamicInterfacesOfOtherObjects(

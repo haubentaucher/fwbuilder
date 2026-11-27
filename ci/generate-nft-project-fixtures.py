@@ -1534,6 +1534,152 @@ def case_reject_ip_rule_duplicate_priority(tree):
                  lookup_ruleset_id='fwb-ci-route-dupb')
 
 
+def _set_runtime_var_prolog(fw):
+    """The W4.3 prolog pattern shared by the W4.4 runtime-variable
+    fixtures: the prolog fills $provider_ip with the shipped
+    fwb_get_provider_ip helper and aborts when it can not."""
+    opts = only(fw, './' + tag('FirewallOptions'))
+    prolog = (
+        '# ci-prolog: determine the provider address, fail otherwise\n'
+        'fwb_get_provider_ip eth0 192.168.1.10 || exit 1\n'
+    )
+    for name, value in (
+            ('prolog_place', 'after_interfaces'),
+            ('prolog_script', prolog),
+    ):
+        found = opts.findall("./%s[@name='%s']" % (tag('Option'), name))
+        if len(found) > 1:
+            raise ValueError('duplicate firewall option ' + name)
+        option = found[0] if found else ET.SubElement(
+            opts, tag('Option'), {'name': name})
+        option.text = value
+
+
+def case_nat_snat_runtime_var(tree):
+    """SNAT to the runtime shell variable provider_ip (W4.4).
+
+    The translated source address is only known at activation time;
+    the prolog fills $provider_ip with fwb_get_provider_ip and the
+    compiled rule must reference the guarded $rv_provider_ip
+    placeholder through a FWB_NFT_DYNRULE wrapper block. The TagService
+    in OSrv mirrors the provider-policy use case: only packets marked 4
+    are translated. The raw variable must never reach the staged rule
+    and an unset variable must abort the activation before the commit.
+    """
+    root, fw, _, nr = prepare(tree)
+    _set_runtime_var_prolog(fw)
+    _add_tag_service(root, 'fwb-ci-tag-4', '4', 'CI provider mark 4')
+    nat = only(fw, './' + tag('NAT'))
+    replace_ref(nr, 'OSrc', 'id3DC75CE7-1')  # real FWB 192.168.1.0/24
+    replace_ref(nr, 'ODst', 'sysid0')
+    replace_ref(nr, 'OSrv', 'fwb-ci-tag-4')
+    replace_ref(nr, 'TSrc', 'sysid0')  # runtime variable replaces TSrc
+    replace_ref(nr, 'TDst', 'sysid0')
+    replace_ref(nr, 'TSrv', 'sysid1')
+    for element in ('OSrc', 'ODst', 'OSrv', 'TSrc', 'TDst', 'TSrv'):
+        only(nr, './' + tag(element)).set('neg', 'False')
+    opts = only(nr, './' + tag('NATRuleOptions'))
+    ET.SubElement(opts, tag('Option'),
+                  {'name': 'nat_tsrc_runtime_var'}).text = 'provider_ip'
+    for other in nat.findall('./' + tag('NATRule')):
+        other.set('disabled', 'False' if other is nr else 'True')
+
+
+def case_policy_src_runtime_var(tree):
+    """A filter rule matching the runtime provider address (W4.4).
+
+    Source is a shell variable the prolog fills before activation;
+    the compiled rule must reference the guarded $rv_provider_ip
+    placeholder through a FWB_NFT_DYNRULE wrapper block, never the raw
+    variable inside the staged heredoc.
+    """
+    root, fw, pr, _ = prepare(tree)
+    _set_runtime_var_prolog(fw)
+    policy = only(fw, './' + tag('Policy'))
+    fallback = only(policy, "./%s[@id='id2830X30989']" % tag('PolicyRule'))
+    _promote_before_fallback(policy, pr, fallback)
+    _widen_rule_element_to_any(pr, 'Src')
+    _widen_rule_element_to_any(pr, 'Dst')
+    pr.set('comment', 'CI: accept from the runtime provider address')
+    _set_rule_options(pr, {'policy_src_runtime_var': 'provider_ip'})
+
+
+def case_mangle_src_runtime_var(tree):
+    """Mark packets from the runtime provider address (W4.4).
+
+    The mangle pipeline shares the policy processors, so a tagging
+    rule whose source is the runtime shell variable must stage the
+    same guarded wrapper and set the mark inside the mangle table.
+    """
+    root, fw, pr, _ = prepare(tree)
+    _set_runtime_var_prolog(fw)
+    policy = only(fw, './' + tag('Policy'))
+    fallback = only(policy, "./%s[@id='id2830X30989']" % tag('PolicyRule'))
+    _promote_before_fallback(policy, pr, fallback)
+    _add_tag_service(root, 'fwb-ci-tag-66', '66', 'CI provider mark 66')
+    pr.set('action', 'Continue')
+    pr.set('direction', 'Both')
+    pr.set('comment', 'CI: mark packets from the runtime provider address')
+    _widen_rule_element_to_any(pr, 'Src')
+    _widen_rule_element_to_any(pr, 'Dst')
+    _set_rule_options(pr, {
+        'tagging': 'True',
+        'tagobject_id': 'fwb-ci-tag-66',
+        'policy_src_runtime_var': 'provider_ip',
+    })
+
+
+def case_reject_nat_runtime_var_conflict(tree):
+    """A static translated source plus the runtime variable aborts.
+
+    One SNAT rule can not translate to both a static address and a
+    runtime-variable address; the compiler must fail with the
+    specific diagnostic instead of silently dropping one part.
+    """
+    _, fw, _, nr = prepare(tree)
+    nat = only(fw, './' + tag('NAT'))
+    # The baseline TSrc holds a real address object (guarded by
+    # case_nat_masquerade); only adding the option creates the conflict.
+    opts = only(nr, './' + tag('NATRuleOptions'))
+    ET.SubElement(opts, tag('Option'),
+                  {'name': 'nat_tsrc_runtime_var'}).text = 'provider_ip'
+    for other in nat.findall('./' + tag('NATRule')):
+        other.set('disabled', 'False' if other is nr else 'True')
+
+
+def case_reject_nat_runtime_var_badname(tree):
+    """A runtime variable with shell metacharacters must be rejected.
+
+    The variable name is interpolated into the generated script, so
+    anything but a strict shell identifier must abort the compile.
+    """
+    _, fw, _, nr = prepare(tree)
+    nat = only(fw, './' + tag('NAT'))
+    opts = only(nr, './' + tag('NATRuleOptions'))
+    ET.SubElement(opts, tag('Option'),
+                  {'name': 'nat_tsrc_runtime_var'}).text = 'pro vider; rm -rf'
+    for other in nat.findall('./' + tag('NATRule')):
+        other.set('disabled', 'False' if other is nr else 'True')
+
+
+def case_reject_policy_runtime_var_conflict(tree):
+    """A static source object plus a source runtime variable aborts.
+
+    One filter rule can not match the union of a static prefix and a
+    runtime-variable address; the compiler must fail with the
+    specific diagnostic instead of silently widening the match. The
+    rule is promoted in front of the fallback deny so the shadowing
+    pre-pass can not reject it for unrelated reasons first.
+    """
+    _, fw, pr, _ = prepare(tree)
+    policy = only(fw, './' + tag('Policy'))
+    fallback = only(policy, "./%s[@id='id2830X30989']" % tag('PolicyRule'))
+    _promote_before_fallback(policy, pr, fallback)
+    replace_ref(pr, 'Src', 'id3DC75CE7-1')  # real FWB 192.168.1.0/24
+    only(pr, './' + tag('Src')).set('neg', 'False')
+    _set_rule_options(pr, {'policy_src_runtime_var': 'provider_ip'})
+
+
 CASES = {
     'reject-hashlimit-bad-mode': case_reject_hashlimit_bad_mode,
     'reject-hashlimit-icmp-port': case_reject_hashlimit_icmp_port,
@@ -1611,6 +1757,12 @@ CASES = {
     'reject-ip-rule-var-conflict': case_reject_ip_rule_var_conflict,
     'reject-ip-rule-var-badname': case_reject_ip_rule_var_badname,
     'reject-ip-rule-duplicate-priority': case_reject_ip_rule_duplicate_priority,
+    'nat-snat-runtime-var': case_nat_snat_runtime_var,
+    'policy-src-runtime-var': case_policy_src_runtime_var,
+    'mangle-src-runtime-var': case_mangle_src_runtime_var,
+    'reject-nat-runtime-var-conflict': case_reject_nat_runtime_var_conflict,
+    'reject-nat-runtime-var-badname': case_reject_nat_runtime_var_badname,
+    'reject-policy-runtime-var-conflict': case_reject_policy_runtime_var_conflict,
     'reject-runtime-address-tables': case_reject_runtime_address_tables,
 }
 

@@ -1042,6 +1042,18 @@ protected:
 	 */
         DECLARE_POLICY_RULE_PROCESSOR(countChainUsage);
 
+        /**
+         * W4.4: validates rules that reference a runtime shell variable
+         * (rule options policy_src_runtime_var / policy_dst_runtime_var).
+         * The variable must be a valid shell name, its rule element must
+         * be "Any" and must not be negated: the variable is the only
+         * address operand. Runtime variables carry IPv4 values; the
+         * IPv6 pass drops such rules silently (the IPv4 pass emits
+         * them). The mangle compiler shares this pipeline, so mangle
+         * rules validate the same way.
+         */
+        DECLARE_POLICY_RULE_PROCESSOR(processRuntimeVarRules);
+
         
 
 	virtual std::string myPlatformName();
@@ -1196,6 +1208,13 @@ public:
             // the compile with the offending object instead.
             void abortEmptyAddressOperand(libfwbuilder::PolicyRule *rule,
                                           libfwbuilder::Address *o);
+            // W4.4: returns the "$rv_<name>" placeholder for a runtime
+            // shell variable option ("" when the option is unset) and
+            // registers it with the OS configurator so
+            // printRunTimeWrappers() emits the check-and-bind block.
+            std::string _runtimeVarAddr(libfwbuilder::PolicyRule *rule,
+                                        libfwbuilder::FWOptions *ruleopt,
+                                        const std::string &option_name);
             virtual std::string _printIpSetMatch(
                 libfwbuilder::Address *o, libfwbuilder::RuleElement *rel);
             virtual std::string _printSingleObjectNegation(

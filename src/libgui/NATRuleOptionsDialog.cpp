@@ -112,6 +112,22 @@ void NATRuleOptionsDialog::loadFWObject(FWObject *o)
                             "ipt_use_masq");
     }
 
+    // W4.4: runtime shell variables for the translated addresses; the
+    // nftables compilers turn them into guarded rv_ placeholders. The
+    // iptables backend has no equivalent, so the widgets stay hidden.
+    m_dialog->label_runtime_vars->setVisible(platform=="nftables");
+    m_dialog->label_tsrc_runtime_var->setVisible(platform=="nftables");
+    m_dialog->tsrc_runtime_var_edit->setVisible(platform=="nftables");
+    m_dialog->label_tdst_runtime_var->setVisible(platform=="nftables");
+    m_dialog->tdst_runtime_var_edit->setVisible(platform=="nftables");
+    if (platform=="nftables")
+    {
+        data.registerOption(m_dialog->tsrc_runtime_var_edit, ropt,
+                            "nat_tsrc_runtime_var");
+        data.registerOption(m_dialog->tdst_runtime_var_edit, ropt,
+                            "nat_tdst_runtime_var");
+    }
+
     if (platform=="iptables")
     {
         data.registerOption(m_dialog->ipt_nat_random, ropt,

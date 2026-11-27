@@ -594,6 +594,46 @@ void NATCompiler_nft::PrintRule::abortEmptyAddressOperand(NATRule *rule,
     compiler->abort(rule, err.str());
 }
 
+/*
+ * W4.4: the rule options nat_tsrc_runtime_var / nat_tdst_runtime_var
+ * reference a shell variable the user prolog fills at activation time
+ * (e.g. provider_ip from fwb_get_provider_ip). Returns the
+ * "$rv_<name>" placeholder for the compiled rule text ("" when the
+ * option is unset) and registers the placeholder with the OS
+ * configurator so printRunTimeWrappers() emits the fail-closed
+ * check-and-bind block. processRuntimeVarRules validated the option;
+ * the checks here are defensive (this printer also serves single-rule
+ * compile mode without the full processor chain).
+ */
+string NATCompiler_nft::PrintRule::_runtimeVarAddr(NATRule *rule,
+                                                   FWOptions *ruleopt,
+                                                   const std::string &option_name)
+{
+    const std::string var_name = nft_utils::stripShellVarPrefix(
+        ruleopt->getStr(option_name));
+    if (var_name.empty()) return "";
+
+    if (!nft_utils::isValidShellVarName(var_name))
+    {
+        compiler->abort(rule,
+            "Runtime variable name '" + var_name +
+            "' is not a valid shell variable name");
+        return "";
+    }
+
+    OSConfigurator_linux24_nft *nft_osconfigurator =
+        dynamic_cast<OSConfigurator_linux24_nft*>(compiler->osconfigurator);
+    if (nft_osconfigurator==nullptr)
+    {
+        compiler->abort(rule,
+            "Runtime variables in NAT rules require the nftables"
+            " OS configurator");
+        return "";
+    }
+
+    return "$" + nft_osconfigurator->registerRunTimeRuleVar(var_name);
+}
+
 string NATCompiler_nft::PrintRule::_printAddr(Address  *o,
                                               bool ,
                                               bool print_range)
@@ -962,7 +1002,16 @@ bool NATCompiler_nft::PrintRule::processNext()
             // but there should be no space if the address is followed by port
             // spec.
             QString addr_part;
-            if (!tsrc->isAny())
+            // W4.4: a runtime shell variable replaces the translated
+            // source address; processRuntimeVarRules proved TSrc is
+            // "Any" in that case.
+            const string tsrc_runtime = _runtimeVarAddr(
+                rule, ropt, "nat_tsrc_runtime_var");
+            if (!tsrc_runtime.empty())
+            {
+                addr_part = tsrc_runtime.c_str();
+            }
+            else if (!tsrc->isAny())
             {
                 addr_part = _printAddr(tsrc, false, true).c_str();
                 if (addr_part.trimmed().isEmpty())
@@ -999,6 +1048,11 @@ bool NATCompiler_nft::PrintRule::processNext()
             // if TDst is "any" and this is DNAT rule, then this rule only
             // translates source port. Skip address part.
             QString addr_part;
+            // W4.4: a runtime shell variable replaces the translated
+            // destination address; processRuntimeVarRules proved TDst
+            // is "Any" and no address map exists in that case.
+            const string tdst_runtime = _runtimeVarAddr(
+                rule, ropt, "nat_tdst_runtime_var");
             const string lb_map = rule->getStr("nft_lb_addr_map");
             if (!lb_map.empty())
             {
@@ -1008,6 +1062,10 @@ bool NATCompiler_nft::PrintRule::processNext()
                     compiler->abort(rule,
                         "Native nftables load-balancing address maps cannot translate ports");
                 addr_part = lb_map.c_str();
+            }
+            else if (!tdst_runtime.empty())
+            {
+                addr_part = tdst_runtime.c_str();
             }
             else if (!tdst->isAny())
             {

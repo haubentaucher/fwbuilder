@@ -2512,6 +2512,133 @@ bool NATCompiler_nft::verifyRuleWithMAC::processNext()
     return true;
 }
 
+/*
+ * W4.4: runtime shell variables in translated addresses. The options
+ * nat_tsrc_runtime_var / nat_tdst_runtime_var name a shell variable the
+ * user prolog fills before activation (e.g. provider_ip from
+ * fwb_get_provider_ip). The compilers print "$rv_<name>" placeholders
+ * and printRunTimeWrappers() binds them at activation time.
+ *
+ * This runs directly after classifyNATRule: a rule whose translated
+ * rule elements are all empty classifies as NONAT ("no translation"),
+ * so the variable is re-validated and re-classified as SNAT resp. DNAT
+ * BEFORE splitNONATRule, decideOnChain and decideOnTarget pick the
+ * chain and target. Everything that would silently change or discard
+ * the operand must fail here: the variable only ever holds an IPv4
+ * address, so it can never be combined with static translated
+ * addresses, masquerading or the load-balancing address maps.
+ */
+bool NATCompiler_nft::processRuntimeVarRules::processNext()
+{
+    NATRule *rule=getNext(); if (rule==nullptr) return false;
+    NATCompiler_nft *nat_comp=dynamic_cast<NATCompiler_nft*>(compiler);
+
+    FWOptions *ropt = rule->getOptionsObject();
+    const string tsrc_var = nft_utils::stripShellVarPrefix(
+        ropt->getStr("nat_tsrc_runtime_var"));
+    const string tdst_var = nft_utils::stripShellVarPrefix(
+        ropt->getStr("nat_tdst_runtime_var"));
+
+    if (tsrc_var.empty() && tdst_var.empty())
+    {
+        tmp_queue.push_back(rule);
+        return true;
+    }
+
+    // Runtime variables are IPv4 values; the v6 pass compiles the v6
+    // twin of the ruleset and silently skips these rules (the v4 pass
+    // emitted them), mirroring DropRulesByAddressFamilyAndServiceType.
+    if (nat_comp->ipv6)
+        return true;
+
+    for (const string &var_name : { tsrc_var, tdst_var })
+    {
+        if (!var_name.empty() && !nft_utils::isValidShellVarName(var_name))
+        {
+            compiler->abort(rule,
+                "Runtime variable name '" + var_name +
+                "' is not a valid shell variable name");
+            return true;
+        }
+    }
+
+    if (!tsrc_var.empty() && !tdst_var.empty())
+    {
+        compiler->abort(rule,
+            "NAT rule can not translate source and destination to"
+            " runtime variables '" + tsrc_var + "' and '" + tdst_var +
+            "' at the same time");
+        return true;
+    }
+
+    if (!tsrc_var.empty())
+    {
+        if (rule->getRuleType()!=NATRule::SNAT &&
+            rule->getRuleType()!=NATRule::NONAT)
+        {
+            compiler->abort(rule,
+                "Runtime source address variable '" + tsrc_var +
+                "' (option nat_tsrc_runtime_var) is only supported"
+                " in SNAT rules");
+            return true;
+        }
+        if (!rule->getTSrc()->isAny())
+        {
+            compiler->abort(rule,
+                "NAT rule combines static translated source addresses"
+                " with runtime variable '" + tsrc_var +
+                "'; leave Translated Source empty when using"
+                " nat_tsrc_runtime_var");
+            return true;
+        }
+        if (ropt->getBool("ipt_use_masq"))
+        {
+            compiler->abort(rule,
+                "NAT rule combines masquerading with runtime variable '"
+                + tsrc_var + "'; masquerading ignores"
+                " nat_tsrc_runtime_var");
+            return true;
+        }
+        // classifyNATRule reads the (empty) translated rule elements,
+        // not the option: re-classify the NONAT rule as SNAT so that
+        // decideOnChain/decideOnTarget select POSTROUTING/SNAT.
+        rule->setRuleType(NATRule::SNAT);
+    }
+
+    if (!tdst_var.empty())
+    {
+        if (rule->getRuleType()!=NATRule::DNAT &&
+            rule->getRuleType()!=NATRule::NONAT)
+        {
+            compiler->abort(rule,
+                "Runtime destination address variable '" + tdst_var +
+                "' (option nat_tdst_runtime_var) is only supported"
+                " in DNAT rules");
+            return true;
+        }
+        if (!rule->getTDst()->isAny())
+        {
+            compiler->abort(rule,
+                "NAT rule combines static translated destination"
+                " addresses with runtime variable '" + tdst_var +
+                "'; leave Translated Destination empty when using"
+                " nat_tdst_runtime_var");
+            return true;
+        }
+        if (rule->getTDst()->size() > 1)
+        {
+            compiler->abort(rule,
+                "NAT rule combines load balancing with runtime"
+                " variable '" + tdst_var + "'");
+            return true;
+        }
+        rule->setRuleType(NATRule::DNAT);
+    }
+
+    tmp_queue.push_back(rule);
+    return true;
+}
+
 bool NATCompiler_nft::processMultiAddressObjectsInRE::processNext()
 {
     NATRule *rule=getNext(); if (rule==nullptr) return false;
@@ -2725,6 +2852,9 @@ void NATCompiler_nft::compile()
     add( new classifyNATRule( "classify NAT rule" ));
     add( new splitSDNATRule( "split SDNAT rules" ));
     add( new classifyNATRule( "reclassify rules" ));
+    // W4.4: validate and re-classify runtime-variable rules before
+    // splitNONATRule/decideOnChain/decideOnTarget pick chain and target.
+    add( new processRuntimeVarRules("validate runtime variable rules"));
     add( new ConvertLoadBalancingRules( "convert load balancing rules"));
     add( new VerifyRules( "verify rules" ));
 

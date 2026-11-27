@@ -79,6 +79,13 @@ std::string timeMatchExpression(const std::string &start_time,
 libfwbuilder::Interface *addresslessInterfaceInRuleElement(
     libfwbuilder::RuleElement *rel);
 
+// W4.4: runtime shell variables in nft rules are interpolated into the
+// generated script, so the name must be a strict POSIX shell identifier
+// (one leading letter or underscore, then letters, digits or
+// underscores). An optional leading '$' is accepted and stripped.
+bool isValidShellVarName(const std::string &name);
+std::string stripShellVarPrefix(std::string name);
+
 }
 }
 

@@ -1407,6 +1407,46 @@ void PolicyCompiler_nft::PrintRule::abortEmptyAddressOperand(PolicyRule *rule,
     compiler->abort(rule, err.str());
 }
 
+/*
+ * W4.4: the rule options policy_src_runtime_var /
+ * policy_dst_runtime_var reference a shell variable the user prolog
+ * fills at activation time (e.g. provider_ip from fwb_get_provider_ip).
+ * Returns the "$rv_<name>" placeholder for the compiled rule text
+ * ("" when the option is unset) and registers the placeholder with the
+ * OS configurator so printRunTimeWrappers() emits the fail-closed
+ * check-and-bind block. processRuntimeVarRules validated the option;
+ * the checks here are defensive (this printer also serves single-rule
+ * compile mode without the full processor chain).
+ */
+string PolicyCompiler_nft::PrintRule::_runtimeVarAddr(PolicyRule *rule,
+                                                      FWOptions *ruleopt,
+                                                      const std::string &option_name)
+{
+    const std::string var_name = nft_utils::stripShellVarPrefix(
+        ruleopt->getStr(option_name));
+    if (var_name.empty()) return "";
+
+    if (!nft_utils::isValidShellVarName(var_name))
+    {
+        compiler->abort(rule,
+            "Runtime variable name '" + var_name +
+            "' is not a valid shell variable name");
+        return "";
+    }
+
+    OSConfigurator_linux24_nft *nft_osconfigurator =
+        dynamic_cast<OSConfigurator_linux24_nft*>(compiler->osconfigurator);
+    if (nft_osconfigurator==nullptr)
+    {
+        compiler->abort(rule,
+            "Runtime variables in policy rules require the nftables"
+            " OS configurator");
+        return "";
+    }
+
+    return "$" + nft_osconfigurator->registerRunTimeRuleVar(var_name);
+}
+
 string PolicyCompiler_nft::PrintRule::_printAddr(Address  *o)
 {
     PolicyCompiler_nft *ipt_comp=dynamic_cast<PolicyCompiler_nft*>(compiler);
@@ -1591,6 +1631,8 @@ string PolicyCompiler_nft::PrintRule::PolicyRuleToString(PolicyRule *rule)
 {
     FWOptions *ruleopt = rule->getOptionsObject();
     FWObject    *ref;
+    PolicyCompiler_nft *ipt_comp =
+        dynamic_cast<PolicyCompiler_nft*>(compiler);
 
     if (rule->getBool("nft_verdict_map"))
     {
@@ -1698,11 +1740,29 @@ string PolicyCompiler_nft::PrintRule::PolicyRuleToString(PolicyRule *rule)
             command_line << _printSrcAddr(srcrel, src, rule);
 
     }
+    // W4.4: runtime shell variable as the source address match.
+    // processRuntimeVarRules proved Src is "Any" (src==nullptr) and not
+    // negated when the option is set; the wrapper block fails the
+    // activation when the variable is unset at runtime.
+    const string src_runtime = _runtimeVarAddr(
+        rule, ruleopt, "policy_src_runtime_var");
+    if (src==nullptr && !src_runtime.empty() && !omit_src_addr_for_concat)
+        command_line << _printSingleOptionWithNegation(
+            ipt_comp->ipv6 ? "ip6 saddr" : "ip saddr", srcrel, src_runtime);
+
     if (!omit_src_port_for_concat)
         command_line << _printSrcService(srvrel);
 
     if (dst!=nullptr && !omit_dst_addr_for_concat) 
 	command_line << _printDstAddr(dstrel, dst, rule);
+
+    // W4.4: runtime shell variable as the destination address match,
+    // same contract as the source placeholder above.
+    const string dst_runtime = _runtimeVarAddr(
+        rule, ruleopt, "policy_dst_runtime_var");
+    if (dst==nullptr && !dst_runtime.empty() && !omit_dst_addr_for_concat)
+        command_line << _printSingleOptionWithNegation(
+            ipt_comp->ipv6 ? "ip6 daddr" : "ip daddr", dstrel, dst_runtime);
 
     if (!omit_dst_port_for_concat)
         command_line << _printDstService(srvrel);

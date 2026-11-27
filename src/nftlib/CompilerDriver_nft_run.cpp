@@ -955,6 +955,16 @@ QString CompilerDriver_nft::run(const std::string &cluster_id,
                     break;
                 }
             }
+            // W4.4: policy, NAT and mangle rules can select on the
+            // same prolog-filled shell variables (rv_ placeholders);
+            // the printers register them during nat/policy/mangle
+            // compilation above, so the configurator knows by now.
+            if (OSConfigurator_linux24_nft *nft_oscnf =
+                    dynamic_cast<OSConfigurator_linux24_nft*>(oscnf.get()))
+            {
+                if (nft_oscnf->hasRunTimeRuleVars())
+                    needs_runtime_var_helper = true;
+            }
             if (needs_runtime_var_helper)
             {
                 Configlet helper("nftables", "fwb_get_provider_ip");
