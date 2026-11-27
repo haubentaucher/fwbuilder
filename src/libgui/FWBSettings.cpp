@@ -44,6 +44,8 @@
 #include <QDir>
 #include <QMainWindow>
 #include <QDesktopWidget>
+#include <QPageLayout>
+#include <QPageSize>
 #include <QUuid>
 #include <QRegExp>
 #include <QtDebug>
@@ -216,7 +218,6 @@ void FWBSettings::init(bool force_first_time_run)
                 uuid_settings->remove(appGUID_4_0);
             } else
             {
-                qsrand(time(NULL));
                 uuid_settings->setValue(appGUID, QUuid::createUuid().toString());
                 first_run = true;
             }
@@ -275,12 +276,13 @@ void FWBSettings::init(bool force_first_time_run)
      * Anyway, I am going to "flush" these two repeatable uuids to
      * reduce systematic error in counting how many instances of
      * fwbuilder are running out there.
+     * (qsrand() wurde entfernt; moderne Qt-Versionen seeden createUuid()
+     * selbst.)
      */
     QString my_uuid = getAppGUID();
     if (my_uuid == "b7203c47-06bf-4878-9ff5-6afffb2db546" ||
         my_uuid == "46759a87-7956-431f-a171-ccb754ef239e")
     {
-        qsrand(time(NULL));
         uuid_settings->setValue(appGUID, QUuid::createUuid().toString());
     }
 
@@ -927,10 +929,10 @@ void FWBSettings::getPrinterOptions(QPrinter *printer,
 #ifndef Q_OS_MAC
     printer->setOutputFileName(getStr("PrintSetup/outputFileName"));
 #endif
-    printer->setOrientation(
-        QPrinter::Orientation(getInt("PrintSetup/orientation")));
+    printer->setPageOrientation(
+        QPageLayout::Orientation(getInt("PrintSetup/orientation")));
     printer->setPageSize(
-        QPrinter::PageSize(getInt("PrintSetup/pageSize")));
+        QPageSize(QPageSize::PageSizeId(getInt("PrintSetup/pageSize"))));
     printer->setPageOrder(
         QPrinter::PageOrder(getInt("PrintSetup/pageOrder")));
 //    int res = getInt("PrintSetup/resolution");
@@ -956,8 +958,8 @@ void FWBSettings::setPrinterOptions(QPrinter *printer,
            printer->printerSelectionOption());
 #endif
     setStr("PrintSetup/outputFileName",printer->outputFileName());
-    setInt("PrintSetup/orientation",printer->orientation());
-    setInt("PrintSetup/pageSize",printer->pageSize());
+    setInt("PrintSetup/orientation", int(printer->pageLayout().orientation()));
+    setInt("PrintSetup/pageSize", int(printer->pageLayout().pageSize().id()));
     setInt("PrintSetup/pageOrder",printer->pageOrder());
 //    setInt("PrintSetup/resolution",printer->resolution());
     setInt("PrintSetup/colorMode",printer->colorMode());

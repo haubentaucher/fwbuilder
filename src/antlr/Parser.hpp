@@ -297,10 +297,13 @@ protected:
 		}
 		~Tracer()
 		{
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #ifdef ANTLR_CXX_SUPPORTS_UNCAUGHT_EXCEPTION
 			// Only give trace if there's no uncaught exception..
 			if(!ANTLR_USE_NAMESPACE(std)uncaught_exception())
 #endif
+#pragma GCC diagnostic pop
 				parser->traceOut(text);
 		}
 	private:

@@ -73,6 +73,7 @@
 #include <QHeaderView>
 #include <QTime>
 #include <QElapsedTimer>
+#include <algorithm>
 
 using namespace libfwbuilder;
 using namespace std;
@@ -181,13 +182,13 @@ void RuleSetView::init()
     QElapsedTimer t; t.start();
     configureGroups();
     if (fwbdebug)
-        qDebug("RuleSetView configureGroups: %d ms", t.restart());
+        qDebug("RuleSetView configureGroups: %lld ms", t.restart());
     restoreCollapsedGroups();
     if (fwbdebug)
-        qDebug("RuleSetView restoreCollapsedGroups: %d ms", t.restart());
+        qDebug("RuleSetView restoreCollapsedGroups: %lld ms", t.restart());
     resizeColumns();
     if (fwbdebug)
-        qDebug("RuleSetView resizeColumns: %d ms", t.restart());
+        qDebug("RuleSetView resizeColumns: %lld ms", t.restart());
     setUpdatesEnabled(true);
 }
 
@@ -530,7 +531,7 @@ void RuleSetView::mouseMoveEvent( QMouseEvent* ev )
     {
         QDrag* drag = dragObject();
         if (drag)
-            drag->start(Qt::CopyAction | Qt::MoveAction); //just start dragging
+            drag->exec(Qt::CopyAction | Qt::MoveAction); //just start dragging
         startingDrag = false;
         return;
     }
@@ -1164,7 +1165,7 @@ void RuleSetView::removeRule()
         {
             foreach(QModelIndex group, groups)
             {
-                qSort(itemsInGroups[group]);
+                std::sort(itemsInGroups[group].begin(), itemsInGroups[group].end());
 
                 Rule* first = md->nodeFromIndex(md->index(itemsInGroups[group].at(0), 0, group))->rule;
                 Rule* last = md->nodeFromIndex(md->index(itemsInGroups[group].at(itemsInGroups[group].size() - 1), 0, group))->rule;
@@ -1712,14 +1713,14 @@ void RuleSetView::removeFromGroup()
     // Remove groups from the end to the begin
 
     QList<QModelIndex> groups = itemsInGroups.keys();
-    qSort(groups);
+    std::sort(groups.begin(), groups.end());
 
     QListIterator<QModelIndex> i(groups);
     i.toBack();
     while (i.hasPrevious())
     {
         QModelIndex group = i.previous();
-        qSort(itemsInGroups[group]);
+        std::sort(itemsInGroups[group].begin(), itemsInGroups[group].end());
         QModelIndex first = md->index(itemsInGroups[group].first(), 0, group);
         QModelIndex last = md->index(itemsInGroups[group].last(), 0, group);
 
@@ -2647,7 +2648,7 @@ void RuleSetView::restoreCollapsedGroups()
         filename = project->getRCS()->getFileName();
 
         if (fwbdebug)
-            qDebug("restoreCollapsedGroups begin: %d ms", t.restart());
+            qDebug("restoreCollapsedGroups begin: %lld ms", t.restart());
 
         Firewall *f = md->getFirewall();
         if (f)
@@ -2658,14 +2659,14 @@ void RuleSetView::restoreCollapsedGroups()
                 collapsed_groups);
 
         if (fwbdebug)
-            qDebug("restoreCollapsedGroups getCollapsedRuleGroups: %d ms", t.restart());
+            qDebug("restoreCollapsedGroups getCollapsedRuleGroups: %lld ms", t.restart());
 
         QList<QModelIndex> groups;
         md->getGroups(groups);
 
         if (fwbdebug)
         {
-            qDebug("restoreCollapsedGroups getGroups: %d ms", t.restart());
+            qDebug("restoreCollapsedGroups getGroups: %lld ms", t.restart());
             qDebug() << "Groups:" << groups.size();
         }
 
@@ -2676,7 +2677,7 @@ void RuleSetView::restoreCollapsedGroups()
         }
 
         if (fwbdebug)
-            qDebug("restoreCollapsedGroups foreach setExpanded: %d ms", t.restart());
+            qDebug("restoreCollapsedGroups foreach setExpanded: %lld ms", t.restart());
     }
 }
 

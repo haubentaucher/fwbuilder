@@ -74,6 +74,7 @@
 
 #include <iostream>
 #include <stdlib.h>
+#include <algorithm>
 
 using namespace std;
 using namespace libfwbuilder;
@@ -209,7 +210,7 @@ void FindWhereUsedWidget::_find(FWObject *obj)
     // TODO: This is not ideal because lines are sorted alphabetically.
     // Rules should be sorted by their numbers numerically.
     QStringList keys = widget_items.keys();
-    qSort(keys);
+    std::sort(keys.begin(), keys.end());
     foreach(QString k, keys)
     {
         QTreeWidgetItem *item = widget_items[k];
@@ -367,7 +368,7 @@ QTreeWidgetItem* FindWhereUsedWidget::createQTWidgetItem(FWObject *o,
     item->setIcon(1, QIcon(parent_icon));
     item->setIcon(0, QIcon(object_icon));
 
-    item->setData(1, Qt::UserRole, qVariantFromValue((void*)container));
+    item->setData(1, Qt::UserRole, QVariant::fromValue((void*)container));
 
     return item;
 }

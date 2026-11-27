@@ -44,10 +44,10 @@ public:
 
     ObjectEditorDockWidget(const QString &title,
                            QWidget *parent = 0,
-                           Qt::WindowFlags flags = 0);
+                           Qt::WindowFlags flags = Qt::WindowFlags());
 
     ObjectEditorDockWidget(QWidget *parent = 0,
-                           Qt::WindowFlags flags = 0);
+                           Qt::WindowFlags flags = Qt::WindowFlags());
 
     void setupEditor(ObjectEditor *ed);
     

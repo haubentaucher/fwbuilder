@@ -879,7 +879,7 @@ void setPlatform(QComboBox *platform, const QString &pl)
         platform_keys.push_back(key);
     }
 
-    qSort(platform_keys);
+    std::sort(platform_keys.begin(), platform_keys.end());
 
     QStringList::iterator iter;
     int ind = 0;

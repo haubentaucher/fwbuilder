@@ -63,6 +63,7 @@
 #include <QtDebug>
 
 #include <set>
+#include <algorithm>
 
 
 extern int fwbdebug;
@@ -926,8 +927,8 @@ void* ObjectSignature::dispatch(TCPService *obj, void*)
     flags = obj->getAllTCPFlagMasks();
     for (it=flags.begin(); it!=flags.end(); ++it) flags_mask << *it;
 
-    qSort(flags_comp);
-    qSort(flags_mask);
+    std::sort(flags_comp.begin(), flags_comp.end());
+    std::sort(flags_mask.begin(), flags_mask.end());
 
     return this;
 }

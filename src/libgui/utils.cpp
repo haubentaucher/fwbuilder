@@ -633,6 +633,6 @@ static bool stringsCompare(const QString &a, const QString &b)
 QStringList sortStrings(const QStringList &list)
 {
     QStringList ret = list;
-    qSort(ret.begin(), ret.end(), stringsCompare);
+    std::sort(ret.begin(), ret.end(), stringsCompare);
     return ret;
 }

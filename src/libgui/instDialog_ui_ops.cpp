@@ -263,7 +263,7 @@ void instDialog::setFlags(QTreeWidgetItem* item)
                     // Standby
                     item->setText(0, QString("%1 (standby)").arg(txt));
                     item->setCheckState(INSTALL_CHECKBOX_COLUMN, Qt::Unchecked);
-                    item->setFlags(0);
+                    item->setFlags(Qt::NoItemFlags);
                 }
             }
         }

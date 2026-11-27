@@ -79,7 +79,7 @@ StartTipDialog::StartTipDialog(QWidget *parent): QDialog(parent)
     while (true)
     {
         QString tip_file;
-        tip_file.sprintf("tip%02d.html", tip_no);
+        tip_file = QString::asprintf("tip%02d.html", tip_no);
         QString contents;
         if (fwbdebug)
 #if QT_VERSION < QT_VERSION_CHECK(5, 0, 0)

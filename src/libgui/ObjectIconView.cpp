@@ -234,7 +234,7 @@ void ObjectIconView::mouseMoveEvent ( QMouseEvent * event )
     {
         startingDrag = false;
         QDrag *dr = dragObject();
-        if (dr) dr->start();
+        if (dr) dr->exec();
     }
     QListWidget::mouseMoveEvent(event);
 }

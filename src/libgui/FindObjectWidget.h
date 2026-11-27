@@ -66,7 +66,7 @@ private:
     
  public:
     Ui::findObjectWidget_q *m_widget;
-    FindObjectWidget(QWidget*p, ProjectPanel *pp, const char * n = 0, Qt::WindowFlags f = 0);
+    FindObjectWidget(QWidget*p, ProjectPanel *pp, const char * n = 0, Qt::WindowFlags f = Qt::WindowFlags());
     ~FindObjectWidget() { delete m_widget; };
     void findObject (libfwbuilder::FWObject *o);
     void attachToProjectWindow(ProjectPanel *pp) { project_panel = pp; }

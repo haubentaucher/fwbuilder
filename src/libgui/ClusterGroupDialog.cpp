@@ -251,7 +251,7 @@ void ClusterGroupDialog::addIcon(FWObject *o, bool master)
         item->setText(col, tr("Invalid"));
         item->setToolTip(
             col, tr("Firewall %1 can not be used as a member of this cluster\n because its host OS or platform does not match those of the cluster.").arg(fw->getName().c_str()));
-        item->setBackgroundColor(col, QColor(255, 0, 0, 100));
+        item->setBackground(col, QBrush(QColor(255, 0, 0, 100)));
     }
 
     item->setProperty("type", iface->getTypeName().c_str());

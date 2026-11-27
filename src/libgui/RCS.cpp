@@ -65,6 +65,7 @@
 #endif
 
 #include <iostream>
+#include <algorithm>
 
 #ifndef PATH_MAX
 #ifdef MAXPATHLEN
@@ -199,7 +200,7 @@ RCSEnvFix::RCSEnvFix()
 
 #endif
 
-    TZOffset.sprintf("%02d:%02d",tzoffset/60,tzoffset%60);
+    TZOffset = QString::asprintf("%02d:%02d",tzoffset/60,tzoffset%60);
     TZOffset = tzsign + TZOffset;
 
     if (fwbdebug)
@@ -447,7 +448,7 @@ RCS::RCS(const QString &file)
         }
         // sort list revisions; its defined like this:
         // QList<Revision> revisions
-        qSort(revisions);
+        std::sort(revisions.begin(), revisions.end());
 
         inrcs         = true;
         tracking_file = true;

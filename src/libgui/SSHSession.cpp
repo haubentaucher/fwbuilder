@@ -315,15 +315,11 @@ void SSHSession::terminate()
             return;
         }
 
-#ifdef _WIN32
-        if (proc->pid() != NULL)
-#else
-        if (proc->pid() != -1)
-#endif
+        if (proc->processId() != 0)
         {
             if (proc->state() == QProcess::Running)
             {
-                Q_PID pid = proc->pid();
+                qint64 pid = proc->processId();
                 if (fwbdebug)
                     qDebug() << "SSHSession::terminate   "
                              << "terminating child process pid="  << pid;
@@ -582,7 +578,7 @@ void SSHSession::readFromStdout()
         QString lastLine = "";
 
         // split on LF
-        QStringList bufLines = buf.split("\n", QString::KeepEmptyParts);
+        QStringList bufLines = buf.split("\n", Qt::KeepEmptyParts);
 
         // if buf ends with a LF character, the last element in the list is
         // an empty string

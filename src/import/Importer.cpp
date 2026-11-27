@@ -69,7 +69,7 @@ using namespace libfwbuilder;
 using namespace std;
 
 // a functor to join list<string> into a string with separator sep
-class join : public std::unary_function<std::string, void>
+class join
 {
     std::string *result;
     std::string  separator;

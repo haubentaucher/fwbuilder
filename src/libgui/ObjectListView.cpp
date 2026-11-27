@@ -240,7 +240,7 @@ void ObjectListView::mouseMoveEvent(QMouseEvent *event)
     if (startingDrag)
     {
         QDrag *dr = dragObject();
-        if (dr) dr->start();
+        if (dr) dr->exec();
         startingDrag = false;
     }
     QTreeWidget::mouseMoveEvent(event);

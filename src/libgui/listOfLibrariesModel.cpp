@@ -33,6 +33,7 @@
 
 #include <QModelIndex>
 #include <QtDebug>
+#include <algorithm>
 
 using namespace libfwbuilder;
 
@@ -60,7 +61,7 @@ void ListOfLibrariesModel::addStaticItems()
 Qt::ItemFlags ListOfLibrariesModel::flags(const QModelIndex &index) const
 {
     int row = index.row();
-    if (row < 0 || row >= items.size()) return 0;
+    if (row < 0 || row >= items.size()) return Qt::NoItemFlags;
     
     FWObject *lib = items.at(index.row()).lib;
     if (lib == NULL) return Qt::ItemIsEnabled;
@@ -109,9 +110,9 @@ void ListOfLibrariesModel::sort(int column, Qt::SortOrder order)
     }
 
     if (order == Qt::AscendingOrder)
-        qSort(list.begin(), list.end(), ascendingLessThan);
+        std::sort(list.begin(), list.end(), ascendingLessThan);
     else
-        qSort(list.begin(), list.end(), decendingLessThan);
+        std::sort(list.begin(), list.end(), decendingLessThan);
 
     int pos = 0;
     foreach(QString itm, top_static_items)
