@@ -58,6 +58,12 @@ namespace fwcompiler {
         std::string ruleset;    // routing rule set the rule lives in
         std::string label;      // rule label for messages
         std::string text;       // complete generated script text
+        bool uses_runtime_var;  // selects on a shell variable filled
+                                // at activation time (W4.3); the
+                                // driver then ships the
+                                // fwb_get_provider_ip helper before
+                                // the prolog so user prolog scripts
+                                // can call it
     };
 
 

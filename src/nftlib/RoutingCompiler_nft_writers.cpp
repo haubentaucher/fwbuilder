@@ -484,6 +484,49 @@ void collectIPRuleSelectors(fwcompiler::Compiler *compiler,
     }
 }
 
+// W4.3: a runtime variable name comes from the free-form
+// IPRuleOptions and is interpolated into the generated shell script,
+// so it must be a strict POSIX shell identifier: one leading letter
+// or underscore, then letters, digits or underscores. Anything else
+// (whitespace, quotes, shell metacharacters) is rejected.
+bool isShellVarNameChar(char c, bool first)
+{
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_')
+        return true;
+    if (!first && c >= '0' && c <= '9') return true;
+    return false;
+}
+
+bool isValidShellVarName(const std::string &name)
+{
+    if (name.empty()) return false;
+    for (std::string::size_type i = 0; i < name.size(); ++i)
+        if (!isShellVarNameChar(name[i], i == 0)) return false;
+    return true;
+}
+
+// The variable may be typed with or without the leading '$' in the
+// GUI; accept both and work with the bare name.
+std::string stripShellVarPrefix(std::string name)
+{
+    if (!name.empty() && name[0] == '$') name.erase(0, 1);
+    return name;
+}
+
+// The guard runs before any spec variable of the rule is expanded: an
+// empty or IPv6-shaped value must fail the activation instead of
+// producing a broken or silently overmatching ip rule (the shell
+// drops the empty "from" word, so the rule would match everything).
+void printRuntimeVarGuard(std::ostringstream &text,
+                          const std::string &var_name,
+                          const std::string &label)
+{
+    text << "case \"$" << var_name << "\" in \"\"|*:*) "
+         << "route_command_error \"" << label
+         << ": runtime variable " << var_name
+         << " is empty or not an IPv4 address\" ;; esac\n";
+}
+
 } // namespace
 
 bool RoutingCompiler_nft::processIPRules::processNext()
@@ -554,6 +597,51 @@ bool RoutingCompiler_nft::processIPRules::processNext()
         collectIPRuleObjects(FWReference::getObject(*it), dst_objects);
     }
 
+    // W4.3 runtime-variable selectors: the rule options may name a
+    // shell variable that the prolog fills at activation time, e.g.
+    // the dynamic provider address behind a modem on the WAN
+    // interface. The variable replaces all address objects of that
+    // selector; mixing both in one field is rejected below because
+    // one ip rule can not express the union.
+    FWOptions *iprule_options = iprule->getOptionsObject();
+    std::string src_runtime_var = iprule_options != nullptr
+        ? iprule_options->getStr("ip_rule_src_runtime_var") : "";
+    std::string dst_runtime_var = iprule_options != nullptr
+        ? iprule_options->getStr("ip_rule_dst_runtime_var") : "";
+    src_runtime_var = stripShellVarPrefix(src_runtime_var);
+    dst_runtime_var = stripShellVarPrefix(dst_runtime_var);
+    const bool uses_runtime_var =
+        !src_runtime_var.empty() || !dst_runtime_var.empty();
+    for (int index = 0; index < 2; ++index)
+    {
+        const std::string &var_name =
+            (index == 0) ? src_runtime_var : dst_runtime_var;
+        if (var_name.empty()) continue;
+        const std::list<FWObject*> &objects =
+            (index == 0) ? src_objects : dst_objects;
+        const char *option_name = (index == 0)
+            ? "ip_rule_src_runtime_var" : "ip_rule_dst_runtime_var";
+        const char *selector_name =
+            (index == 0) ? "source" : "destination";
+        if (!isValidShellVarName(var_name))
+        {
+            compiler->abort(rule,
+                std::string("IP rule ") + rule->getLabel() +
+                " option " + option_name + " '" + var_name +
+                "' is not a valid shell variable name");
+            return true;
+        }
+        if (!objects.empty())
+        {
+            compiler->abort(rule,
+                std::string("IP rule ") + rule->getLabel() +
+                " combines static " + selector_name +
+                " addresses with runtime variable '" + var_name +
+                "'; use either the variable or address objects");
+            return true;
+        }
+    }
+
     bool has_ipv4 = false;
     bool has_ipv6 = false;
     for (int index = 0; index < 2; ++index)
@@ -574,6 +662,11 @@ bool RoutingCompiler_nft::processIPRules::processNext()
             noteRouteFamily(obj, has_ipv4, has_ipv6);
         }
     }
+    // A runtime variable holds an IPv4 address at activation time (the
+    // guard in the script also refuses a value containing ':'), so
+    // these rules compile in the IPv4 pass only and never in both
+    // passes like family-less fwmark rules.
+    if (uses_runtime_var) has_ipv4 = true;
     if (has_ipv4 && has_ipv6)
     {
         compiler->abort(rule, "IP rule mixes IPv4 and IPv6 addresses");
@@ -592,6 +685,12 @@ bool RoutingCompiler_nft::processIPRules::processNext()
     std::list<std::string> to_selectors;
     collectIPRuleSelectors(compiler, rule, src_objects, from_selectors);
     collectIPRuleSelectors(compiler, rule, dst_objects, to_selectors);
+    // The runtime-variable selector expands at activation time; it
+    // replaces all address objects of that field.
+    if (!src_runtime_var.empty())
+        from_selectors.push_back("$" + src_runtime_var);
+    if (!dst_runtime_var.empty())
+        to_selectors.push_back("$" + dst_runtime_var);
 
     // The service element holds the fwmark: exactly 0 or 1 TagService.
     std::string fwmark;
@@ -698,7 +797,8 @@ bool RoutingCompiler_nft::processIPRules::processNext()
 
     // Resolve the lookup target: a Routing rule set of this firewall.
     // The target may keep the main table (empty table options).
-    FWOptions *iprule_options = iprule->getOptionsObject();
+    // iprule_options was already read above (runtime variables);
+    // IPRule::getOptionsObject() always returns the same object.
     std::string lookup_id = iprule_options != nullptr
         ? iprule_options->getStr("ip_rule_lookup_id") : "";
     std::string lookup_name = iprule_options != nullptr
@@ -783,8 +883,18 @@ bool RoutingCompiler_nft::processIPRules::processNext()
         }
     }
 
+    // Runtime-variable rules resolve their selector at activation time
+    // through one dedicated shell variable per combination, so the
+    // kernel command references that variable instead of the literal
+    // spec. The single-rule compile keeps the literal form because
+    // its output is never executed.
+    const std::string family_char = nft->compilingIPv6() ? "6" : "4";
+    const bool command_uses_spec_var =
+        uses_runtime_var && !compiler->inSingleRuleCompileMode();
+
     std::list<std::string> commands;
     std::list<std::string> specs;
+    int combo_counter = 0;
     for (std::list<std::string>::iterator combo = combos.begin();
          combo != combos.end(); ++combo)
     {
@@ -797,9 +907,15 @@ bool RoutingCompiler_nft::processIPRules::processNext()
         std::ostringstream command;
         command << (nft->compilingIPv6() ? "$IP -6 rule add pref "
                                           : "$IP rule add pref ")
-                << priority << " " << spec;
+                << priority << " ";
+        if (command_uses_spec_var)
+            command << "$fwb_rule_spec_" << family_char << "_"
+                    << priority << "_" << combo_counter;
+        else
+            command << spec;
         commands.push_back(command.str());
         specs.push_back(spec);
+        ++combo_counter;
     }
 
     if (compiler->inSingleRuleCompileMode())
@@ -834,19 +950,55 @@ bool RoutingCompiler_nft::processIPRules::processNext()
     const std::string errors = compiler->getErrorsForRule(rule, "# ");
     if (!errors.empty()) text << errors << "\n";
 
-    const std::string family_char = nft->compilingIPv6() ? "6" : "4";
-    std::list<std::string>::iterator cmd = commands.begin();
-    std::list<std::string>::iterator spec = specs.begin();
-    for (; cmd != commands.end(); ++cmd, ++spec)
+    if (uses_runtime_var)
     {
-        // The quoted spec is the retire key: identical specs match
-        // exactly, changed specs retire the outdated kernel rule.
-        const std::string quoted_spec = shellQuote(*spec);
-        text << "fwb_rule_prepare " << family_char << " " << priority << " "
-             << quoted_spec << " && \\\n" << *cmd << " && \\\n"
-             << "fwb_rule_committed " << family_char << " " << priority
-             << " " << quoted_spec << " \\\n"
-             << "|| route_command_error \"" << label << "\"\n";
+        // Fail closed before any spec variable is expanded: an empty
+        // or non-IPv4 value would otherwise become a broken or
+        // silently overmatching ip rule. route_command_error rolls
+        // back everything committed so far and exits the script.
+        if (!src_runtime_var.empty())
+            printRuntimeVarGuard(text, src_runtime_var, label);
+        if (!dst_runtime_var.empty())
+            printRuntimeVarGuard(text, dst_runtime_var, label);
+
+        int combo_index = 0;
+        std::list<std::string>::iterator cmd = commands.begin();
+        std::list<std::string>::iterator spec = specs.begin();
+        for (; cmd != commands.end(); ++cmd, ++spec, ++combo_index)
+        {
+            // The spec is assigned with the variable UNEXPANDED, then
+            // passed double-quoted: the shell resolves it before
+            // fwb_rule_prepare compares the state, so the state file
+            // records the resolved address and a changed provider
+            // address retires and re-adds the kernel rule on the
+            // next run.
+            std::ostringstream spec_var_name;
+            spec_var_name << "fwb_rule_spec_" << family_char << "_"
+                          << priority << "_" << combo_index;
+            text << spec_var_name.str() << "=\"" << *spec << "\" && \\\n"
+                 << "fwb_rule_prepare " << family_char << " " << priority
+                 << " \"$" << spec_var_name.str() << "\" && \\\n"
+                 << *cmd << " && \\\n"
+                 << "fwb_rule_committed " << family_char << " " << priority
+                 << " \"$" << spec_var_name.str() << "\" \\\n"
+                 << "|| route_command_error \"" << label << "\"\n";
+        }
+    }
+    else
+    {
+        std::list<std::string>::iterator cmd = commands.begin();
+        std::list<std::string>::iterator spec = specs.begin();
+        for (; cmd != commands.end(); ++cmd, ++spec)
+        {
+            // The quoted spec is the retire key: identical specs match
+            // exactly, changed specs retire the outdated kernel rule.
+            const std::string quoted_spec = shellQuote(*spec);
+            text << "fwb_rule_prepare " << family_char << " " << priority << " "
+                 << quoted_spec << " && \\\n" << *cmd << " && \\\n"
+                 << "fwb_rule_committed " << family_char << " " << priority
+                 << " " << quoted_spec << " \\\n"
+                 << "|| route_command_error \"" << label << "\"\n";
+        }
     }
 
     PrintedIPRule printed;
@@ -855,6 +1007,7 @@ bool RoutingCompiler_nft::processIPRules::processNext()
     printed.ruleset = compiler->getRuleSetName();
     printed.label = label;
     printed.text = text.str();
+    printed.uses_runtime_var = uses_runtime_var;
     nft->printed_ip_rules.push_back(printed);
 
     return true;

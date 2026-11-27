@@ -1329,10 +1329,12 @@ def _add_ip_rules_ruleset(tree, ruleset_id, name):
 
 def _add_ip_rule(ruleset, rule_id, position, priority, src='sysid0',
                  dst='sysid0', srv='sysid1', itf_inb='sysid0',
-                 itf_outb='sysid0', lookup_ruleset_id=None, comment=''):
+                 itf_outb='sysid0', lookup_ruleset_id=None, comment='',
+                 extra_options=None):
     """One IPRule in the exact DTD child order (Src, Dst, Srv, ItfInb,
     ItfOutb, IPRuleOptions). "any" references keep the selector out of
-    the compiled ip rule spec."""
+    the compiled ip rule spec. extra_options adds further free-form
+    IPRuleOptions entries (W4.3 runtime variables)."""
     rule = ET.Element(tag('IPRule'), {
         'id': rule_id,
         'disabled': 'False',
@@ -1352,6 +1354,11 @@ def _add_ip_rule(ruleset, rule_id, position, priority, src='sysid0',
     option = ET.SubElement(options, tag('Option'),
                            {'name': 'ip_rule_lookup_id'})
     option.text = lookup_ruleset_id
+    if extra_options:
+        for name, value in extra_options.items():
+            extra = ET.SubElement(options, tag('Option'),
+                                  {'name': name})
+            extra.text = value
     ruleset.insert(list(ruleset).index(
         only(ruleset, './' + tag('RuleSetOptions'))), rule)
 
@@ -1449,6 +1456,66 @@ def case_ip_rule_set(tree):
                  comment='CI: test-net traffic stays in the main table')
 
 
+def case_ip_rule_runtime_var(tree):
+    """One IPRule selecting on the runtime shell variable provider_ip.
+
+    W4.3: the address behind the modem is only known at activation
+    time, so the prolog fills $provider_ip with the shipped
+    fwb_get_provider_ip helper and the compiled ip rule references
+    the variable. The helper must be defined before the prolog runs;
+    the ip rule section must guard the variable and expand it through
+    a per-combination spec variable before fwb_rule_prepare compares
+    the state, so the state file records the resolved address.
+    """
+    root, fw, _, _ = prepare(tree)
+    opts = only(fw, './' + tag('FirewallOptions'))
+    prolog = (
+        '# ci-prolog: determine the provider address, fail otherwise\n'
+        'fwb_get_provider_ip eth0 192.168.1.10 || exit 1\n'
+    )
+    for name, value in (
+            ('prolog_place', 'after_interfaces'),
+            ('prolog_script', prolog),
+    ):
+        found = opts.findall("./%s[@name='%s']" % (tag('Option'), name))
+        if len(found) > 1:
+            raise ValueError('duplicate firewall option ' + name)
+        option = found[0] if found else ET.SubElement(
+            opts, tag('Option'), {'name': name})
+        option.text = value
+    ruleset = _add_ip_rules_ruleset(tree, 'fwb-ci-iprules-rt', 'IP Rules')
+    _add_ip_rule(ruleset, 'fwb-ci-iprules-rt-1', 0, 120,
+                 lookup_ruleset_id='id2734X30989',
+                 comment='CI: traffic from the provider address stays in main',
+                 extra_options={'ip_rule_src_runtime_var': 'provider_ip'})
+
+
+def case_reject_ip_rule_var_conflict(tree):
+    """A static source object plus a source runtime variable aborts.
+
+    One ip rule can not express the union of a static prefix and a
+    runtime-variable selector; the compiler must fail with the
+    specific diagnostic instead of silently dropping one part.
+    """
+    ruleset = _add_ip_rules_ruleset(tree, 'fwb-ci-iprules-rv', 'IP Rules')
+    _add_ip_rule(ruleset, 'fwb-ci-iprules-rv-1', 0, 130,
+                 src='id3F4ECE3F',
+                 lookup_ruleset_id='id2734X30989',
+                 extra_options={'ip_rule_src_runtime_var': 'provider_ip'})
+
+
+def case_reject_ip_rule_var_badname(tree):
+    """A runtime variable with shell metacharacters must be rejected.
+
+    The variable name is interpolated into the generated script, so
+    anything but a strict shell identifier must abort the compile.
+    """
+    ruleset = _add_ip_rules_ruleset(tree, 'fwb-ci-iprules-rb', 'IP Rules')
+    _add_ip_rule(ruleset, 'fwb-ci-iprules-rb-1', 0, 140,
+                 lookup_ruleset_id='id2734X30989',
+                 extra_options={'ip_rule_dst_runtime_var': 'pro vider; rm -rf'})
+
+
 def case_reject_ip_rule_duplicate_priority(tree):
     """Two IPRules in two rule sets sharing priority 100 must abort.
 
@@ -1540,6 +1607,9 @@ CASES = {
     'ip-rule-ipv6': case_ip_rule_ipv6,
     'ip-rule-replace': case_ip_rule_replace,
     'ip-rule-set': case_ip_rule_set,
+    'ip-rule-runtime-var': case_ip_rule_runtime_var,
+    'reject-ip-rule-var-conflict': case_reject_ip_rule_var_conflict,
+    'reject-ip-rule-var-badname': case_reject_ip_rule_var_badname,
     'reject-ip-rule-duplicate-priority': case_reject_ip_rule_duplicate_priority,
     'reject-runtime-address-tables': case_reject_runtime_address_tables,
 }

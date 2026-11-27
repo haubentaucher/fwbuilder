@@ -991,6 +991,62 @@ check_ip_rule_set() {
 }
 
 
+# W4.3: an IPRule may select on a shell variable that the prolog fills
+# at activation time (the dynamic provider address behind a modem).
+# The helper must ship before the prolog runs; the ip rule section must
+# guard the variable and expand it through a spec variable BEFORE
+# fwb_rule_prepare compares the state, so the state file records the
+# resolved address and a changed provider address retires the outdated
+# kernel rule on the next run.
+check_ip_rule_runtime_var() {
+    check_positive ip-rule-runtime-var 4 || return 1
+    local fw="$output/nft-ci-ip-rule-runtime-var.fw"
+    local spec_var='fwb_rule_spec_4_120_0'
+    local -a needles=(
+        'fwb_get_provider_ip() {'
+        'fwb_get_provider_ip eth0 192.168.1.10 || exit 1'
+        "case \"\$provider_ip\" in \"\"|*:*) route_command_error"
+        'runtime variable provider_ip is empty or not an IPv4 address'
+        "$spec_var=\"from \$provider_ip lookup main\" && \\\\"
+        "fwb_rule_prepare 4 120 \"\$$spec_var\" && \\\\"
+        "\$IP rule add pref 120 \$$spec_var && \\\\"
+        "fwb_rule_committed 4 120 \"\$$spec_var\" \\\\"
+    )
+    local needle
+    for needle in "${needles[@]}"; do
+        if ! grep -Fq "$needle" "$fw"; then
+            echo "FAIL: ip-rule-runtime-var fixture is missing: $needle" >&2
+            return 1
+        fi
+    done
+    # The literal (unexpanded) spec must not reach the state helpers.
+    if grep -Fq "fwb_rule_prepare 4 120 'from \$provider_ip" "$fw"; then
+        echo 'FAIL: runtime-variable rule compared the unexpanded spec' >&2
+        return 1
+    fi
+    if grep -Fq '$IP -6 rule add pref 120' "$fw"; then
+        echo 'FAIL: the runtime-variable ip rule leaked into the IPv6 form' >&2
+        return 1
+    fi
+    # The helper must be defined before the prolog function is even
+    # declared; its definition sits with the other early shell
+    # functions, routing_functions only reaches the script later.
+    if ! awk '/^fwb_get_provider_ip\(\) \{/ { helper = NR }
+              /^prolog_commands\(\) \{/ { prolog = NR; exit }
+              END { exit !(helper && prolog && helper < prolog) }' "$fw"; then
+        echo 'FAIL: fwb_get_provider_ip is not defined before the prolog' >&2
+        return 1
+    fi
+    # The expansion happens per combination, so a changed provider
+    # address changes the state entry and retires the old rule.
+    if grep -Fq "$spec_var=" "$fw" && ! grep -Fq "\"\$$spec_var\"" "$fw"; then
+        echo 'FAIL: spec variable is assigned but never expanded' >&2
+        return 1
+    fi
+    echo 'PASS: runtime-variable IPRule ships the helper, guard and state-safe expansion'
+}
+
+
 failures=0
 cases=0
 run_case() {
@@ -1073,6 +1129,9 @@ run_case ip-rule check_ip_rule
 run_case ip-rule-ipv6 check_ip_rule_ipv6
 run_case ip-rule-replace check_ip_rule_replace
 run_case ip-rule-set check_ip_rule_set
+run_case ip-rule-runtime-var check_ip_rule_runtime_var
+run_case reject-ip-rule-var-conflict check_negative reject-ip-rule-var-conflict 'combines static source addresses with runtime variable'
+run_case reject-ip-rule-var-badname check_negative reject-ip-rule-var-badname 'is not a valid shell variable name'
 run_case reject-ip-rule-duplicate-priority check_negative reject-ip-rule-duplicate-priority 'use the same ip rule priority 100'
 run_case ipv4-option-rr check_positive ipv4-option-rr 4 'ip option rr exists'
 run_case ipv4-option-lsrr check_positive ipv4-option-lsrr 4 'ip option lsrr exists'

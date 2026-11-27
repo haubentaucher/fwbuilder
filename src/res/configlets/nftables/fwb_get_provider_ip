@@ -1,0 +1,58 @@
+## -*- mode: shell-script; -*-
+## Helper for IP rules that select on a runtime shell variable
+## (IP rule options ip_rule_src_runtime_var / ip_rule_dst_runtime_var).
+## Determines the public provider address behind a modem or router on
+## the WAN interface: resolves the lookup service, pins a route to it
+## through the WAN interface so the query bypasses an active VPN
+## tunnel, reads the address and stores it in the global shell
+## variable provider_ip. The pin route is removed again.
+##
+## Fails (return 1) without touching provider_ip when the service
+## can not be resolved, the pin route can not be installed or the
+## answer is not a plain dotted-quad address; the caller decides how
+## to fail (e.g. "fwb_get_provider_ip wan 192.168.15.1 || exit 1").
+##
+## Call it from the prolog (recommended prolog_place
+## "after_interfaces", so the interfaces are up); the prolog shares
+## the shell with the routing section, so $provider_ip is available
+## to the compiled ip rules.
+fwb_get_provider_ip() {
+  fwb_gpi_iface="$1"
+  fwb_gpi_gateway="$2"
+  fwb_gpi_service="${3:-ipinfo.io}"
+  if [ -z "$fwb_gpi_iface" ] || [ -z "$fwb_gpi_gateway" ]; then
+    echo "fwb_get_provider_ip: usage: fwb_get_provider_ip <interface> <gateway> [service]" >&2
+    return 1
+  fi
+  fwb_gpi_curl=$(which curl 2>/dev/null)
+  if [ -z "$fwb_gpi_curl" ]; then
+    echo "fwb_get_provider_ip: curl is not installed" >&2
+    return 1
+  fi
+  fwb_gpi_svc_ip=$(getent ahostsv4 "$fwb_gpi_service" 2>/dev/null | awk '{print $1; exit}')
+  if [ -z "$fwb_gpi_svc_ip" ]; then
+    echo "fwb_get_provider_ip: cannot resolve $fwb_gpi_service" >&2
+    return 1
+  fi
+  ## Drop a stale pin route from an interrupted earlier run, then pin
+  ## the service through the WAN interface. Without the pin route the
+  ## query would travel through the tunnel and silently report the
+  ## tunnel exit address instead of the provider address.
+  "$IP" route del to "$fwb_gpi_svc_ip" dev "$fwb_gpi_iface" via "$fwb_gpi_gateway" >/dev/null 2>&1
+  if ! "$IP" route add to "$fwb_gpi_svc_ip" dev "$fwb_gpi_iface" via "$fwb_gpi_gateway" >/dev/null 2>&1; then
+    echo "fwb_get_provider_ip: cannot pin route to $fwb_gpi_svc_ip through $fwb_gpi_iface" >&2
+    return 1
+  fi
+  ## The pinned IP keeps the request on the WAN uplink; the Host
+  ## header keeps the service answering normally.
+  fwb_gpi_answer=$("$fwb_gpi_curl" --silent --max-time 10 \
+      -H "Host: $fwb_gpi_service" "http://$fwb_gpi_svc_ip/ip" 2>/dev/null)
+  "$IP" route del to "$fwb_gpi_svc_ip" dev "$fwb_gpi_iface" via "$fwb_gpi_gateway" >/dev/null 2>&1
+  case "$fwb_gpi_answer" in
+    ""|*[!0-9.]*)
+      echo "fwb_get_provider_ip: no usable answer from $fwb_gpi_service" >&2
+      return 1
+      ;;
+  esac
+  provider_ip="$fwb_gpi_answer"
+}

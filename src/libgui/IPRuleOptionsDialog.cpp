@@ -66,6 +66,10 @@ IPRuleOptionsDialog::IPRuleOptionsDialog(QWidget *parent) :
 
     connect(m_dialog->lookup_combo, SIGNAL(currentIndexChanged(int)),
             this, SLOT(changed()));
+    connect(m_dialog->src_runtime_var_edit, SIGNAL(textEdited(const QString&)),
+            this, SLOT(changed()));
+    connect(m_dialog->dst_runtime_var_edit, SIGNAL(textEdited(const QString&)),
+            this, SLOT(changed()));
 }
 
 void IPRuleOptionsDialog::loadFWObject(FWObject *o)
@@ -119,6 +123,11 @@ void IPRuleOptionsDialog::loadFWObject(FWObject *o)
     }
     m_dialog->lookup_combo->setCurrentIndex(item);
 
+    m_dialog->src_runtime_var_edit->setText(QString::fromUtf8(
+        ropt->getStr("ip_rule_src_runtime_var").c_str()));
+    m_dialog->dst_runtime_var_edit->setText(QString::fromUtf8(
+        ropt->getStr("ip_rule_dst_runtime_var").c_str()));
+
     init = false;
 }
 
@@ -143,6 +152,17 @@ void IPRuleOptionsDialog::applyChanges()
         new_rule_options->setStr(
             "ip_rule_lookup_id",
             m_dialog->lookup_combo->itemData(item).toString().toStdString());
+
+    // The runtime variable names are stored exactly as typed (the
+    // compiler accepts an optional leading '$' and validates the
+    // name); an empty field stores an empty string, which the
+    // compiler treats as "no runtime variable".
+    new_rule_options->setStr(
+        "ip_rule_src_runtime_var",
+        m_dialog->src_runtime_var_edit->text().trimmed().toStdString());
+    new_rule_options->setStr(
+        "ip_rule_dst_runtime_var",
+        m_dialog->dst_runtime_var_edit->text().trimmed().toStdString());
 
     init = false;
 

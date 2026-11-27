@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>562</width>
-    <height>161</height>
+    <height>320</height>
    </rect>
   </property>
   <property name="windowTitle" >
@@ -49,7 +49,55 @@
         </property>
        </widget>
       </item>
-      <item row="2" column="0" colspan="2" >
+      <item row="2" column="0" >
+       <widget class="QLabel" name="src_var_label" >
+        <property name="text" >
+         <string>Source runtime variable:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1" >
+       <widget class="QLineEdit" name="src_runtime_var_edit" >
+        <property name="toolTip" >
+         <string>Optional shell variable name (without $) that the prolog fills at activation time, e.g. provider_ip set by fwb_get_provider_ip. It replaces all source address objects; the rule then compiles for IPv4 only.</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0" colspan="2" >
+       <widget class="QLabel" name="src_var_hint" >
+        <property name="text" >
+         <string>Leave the Source field of the rule empty and use this variable instead when the address is only known at activation time, e.g. the provider address behind a modem. The prolog script (same shell as the routing section) must set it.</string>
+        </property>
+        <property name="wordWrap" >
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0" >
+       <widget class="QLabel" name="dst_var_label" >
+        <property name="text" >
+         <string>Destination runtime variable:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="1" >
+       <widget class="QLineEdit" name="dst_runtime_var_edit" >
+        <property name="toolTip" >
+         <string>Optional shell variable name (without $) used as the "to" selector of the ip rule. Same rules as the source runtime variable.</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="0" colspan="2" >
+       <widget class="QLabel" name="dst_var_hint" >
+        <property name="text" >
+         <string>The activation script refuses to start when a runtime variable is empty or not an IPv4 address.</string>
+        </property>
+        <property name="wordWrap" >
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="0" colspan="2" >
        <spacer>
         <property name="orientation" >
          <enum>Qt::Vertical</enum>

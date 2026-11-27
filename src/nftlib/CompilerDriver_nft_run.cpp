@@ -936,8 +936,32 @@ QString CompilerDriver_nft::run(const std::string &cluster_id,
          */
         script_skeleton.setVariable("tools",
                                     oscnf->printPathForAllTools(os_variant).c_str());
-        script_skeleton.setVariable("shell_functions",
-                                    oscnf->printShellFunctions(have_ipv6).c_str());
+        QString shell_functions_text(
+            oscnf->printShellFunctions(have_ipv6).c_str());
+        // W4.3: an IP rule may select on a shell variable that the
+        // prolog fills at activation time (e.g. the dynamic provider
+        // address behind a modem). The helper that determines the
+        // address must be defined before the prolog; the
+        // routing_functions configlet only reaches the script later,
+        // right before the routing section.
+        {
+            bool needs_runtime_var_helper = false;
+            for (std::vector<PrintedIPRule>::size_type i = 0;
+                 i < printed_ip_rules.size(); ++i)
+            {
+                if (printed_ip_rules[i].uses_runtime_var)
+                {
+                    needs_runtime_var_helper = true;
+                    break;
+                }
+            }
+            if (needs_runtime_var_helper)
+            {
+                Configlet helper("nftables", "fwb_get_provider_ip");
+                shell_functions_text += "\n" + helper.expand();
+            }
+        }
+        script_skeleton.setVariable("shell_functions", shell_functions_text);
         script_skeleton.setVariable("run_time_address_tables",
                                     oscnf->printRunTimeAddressTablesCode().c_str());
         script_skeleton.setVariable("using_ipset", oscnf->usingIpSetModule());
