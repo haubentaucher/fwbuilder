@@ -9,6 +9,12 @@
 #          FWB_NFT_BLOCK (emergency management access rules);
 #   stop:  FWB_NFT_STOP (comments only; the deletes come from
 #          fwb_nft_begin_transaction at run time).
+# Rule sets that select on runtime shell variables (W4.4) stage their
+# rules through FWB_NFT_DYNRULE wrapper blocks between plain
+# FWB_NFT_RULESET segments, so a marker may open several sequential,
+# well-formed heredocs. The extraction concatenates every body of a
+# marker in file order; the DYNRULE bodies are expanded by the shell
+# at activation time and never reach nft.
 # Markers are matched as whole words so FWB_NFT_BLOCK does not match the
 # FWB_NFT_BLOCK_BASE declarations of the same transaction.
 set -eu
@@ -44,7 +50,7 @@ extract_heredocs() {
             }
             {
                 if (heredoc_open(marker)) {
-                    if (start || seen) bad=1
+                    if (start) bad=1
                     start=1
                     seen++
                     next
@@ -57,7 +63,7 @@ extract_heredocs() {
                 }
                 if (start) print
             }
-            END { if (seen!=1 || closed!=1 || start || bad) exit 1 }
+            END { if (seen < 1 || closed != seen || start || bad) exit 1 }
         ' "$fw" >> "$out" || {
             echo "Missing or malformed $marker in $fw" >&2
             exit 1
