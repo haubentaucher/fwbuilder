@@ -545,6 +545,17 @@ bool RoutingCompiler_nft::processIPRules::processNext()
 
     RoutingCompiler_nft *nft = static_cast<RoutingCompiler_nft*>(compiler);
 
+    // The rule set's address family (GUI combo "Address Family") gates
+    // the passes: every rule compiles only into the passes its rule
+    // set allows. Family-less rules (fwmark and/or interfaces only)
+    // reach both passes only in a dual rule set; an IPv4-only rule
+    // set keeps them out of the "$IP -6" section.
+    RuleSet *ruleset = compiler->getSourceRuleSet();
+    if (ruleset != nullptr &&
+        ! ruleset->matchingAddressFamily(
+            nft->compilingIPv6() ? AF_INET6 : AF_INET))
+        return true;
+
     RuleElement *elements[5] = { iprule->getSrc(), iprule->getDst(),
                                  iprule->getSrv(), iprule->getItfInb(),
                                  iprule->getItfOutb() };

@@ -1033,6 +1033,60 @@ check_ip_rule_set() {
 }
 
 
+# W4.6: the rule set address family (GUI combo "Address Family") gates
+# family-less ip rules. A fwmark-only rule carries no address, so it
+# compiles once per family its rule set allows. The IPv4-only rule set
+# (the default, both family flags False) must keep its rule out of the
+# "$IP -6" section, the dual rule set must emit both twins. The gate is
+# only visible in a default dual compile, which generates both address
+# families into one script, so this check compiles the fixture twice.
+check_ip_rule_ruleset_family() {
+    check_positive ip-rule-ruleset-family 4 || return 1
+    local name=ip-rule-ruleset-family
+    local dual="$work/$name-dual"
+    mkdir -p "$dual"
+    if ! "$compiler" -f "$work/xml/$name.fwb" -d "$dual" nft-test \
+        > "$work/$name.dual.compile.log" 2>&1; then
+        cat "$work/$name.dual.compile.log" >&2
+        echo "FAIL: native FWB compiler rejected $name (default dual compile)" >&2
+        return 1
+    fi
+    local script
+    local -a files=()
+    shopt -s nullglob
+    files=("$dual"/*.fw)
+    shopt -u nullglob
+    if (( ${#files[@]} != 1 )) || [[ ! -s "${files[0]}" ]]; then
+        echo "FAIL: expected exactly one generated script for the dual compile" >&2
+        return 1
+    fi
+    script="${files[0]}"
+    if ! sh ci/check-nft-output.sh "$script"; then
+        echo "FAIL: invalid native script structure for the dual compile" >&2
+        return 1
+    fi
+    local spec="fwmark 66 lookup main"
+    local -a needles=(
+        "fwb_rule_prepare 4 400 '$spec' && \\"
+        "\$IP rule add pref 400 $spec && \\"
+        "fwb_rule_prepare 6 401 '$spec' && \\"
+        "\$IP -6 rule add pref 401 $spec && \\"
+    )
+    local needle
+    for needle in "${needles[@]}"; do
+        if ! grep -Fq "$needle" "$script"; then
+            echo "FAIL: dual compile of $name is missing: $needle" >&2
+            return 1
+        fi
+    done
+    if grep -Fq '$IP -6 rule add pref 400' "$script"; then
+        echo 'FAIL: the IPv4-only rule set emitted an IPv6 fwmark twin' >&2
+        return 1
+    fi
+    echo 'PASS: the rule set address family gates family-less fwmark ip rules'
+}
+
+
 # W4.3: an IPRule may select on a shell variable that the prolog fills
 # at activation time (the dynamic provider address behind a modem).
 # The helper must ship before the prolog runs; the ip rule section must
@@ -1259,6 +1313,7 @@ run_case ip-rule check_ip_rule
 run_case ip-rule-ipv6 check_ip_rule_ipv6
 run_case ip-rule-replace check_ip_rule_replace
 run_case ip-rule-set check_ip_rule_set
+run_case ip-rule-ruleset-family check_ip_rule_ruleset_family
 run_case ip-rule-runtime-var check_ip_rule_runtime_var
 run_case reject-ip-rule-var-conflict check_negative reject-ip-rule-var-conflict 'combines static source addresses with runtime variable'
 run_case reject-ip-rule-var-badname check_negative reject-ip-rule-var-badname 'is not a valid shell variable name'

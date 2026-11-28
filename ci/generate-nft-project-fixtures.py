@@ -1290,10 +1290,13 @@ def case_reject_addressless_interface(tree):
 
 
 def _add_ip_rule_routing_ruleset(tree, ruleset_id, name, table_name=None,
-                                 table_id=None):
+                                 table_id=None, ipv4='False',
+                                 ipv6='False'):
     """A Routing rule set hosting only IPRule objects (policy-based
     routing, W4). Without table options it stays an empty main-table
-    rule set; the IPRule lookup target selects the table."""
+    rule set; the IPRule lookup target selects the table. ipv4/ipv6
+    set the rule set address family (GUI combo "Address Family");
+    both False is the IPv4-only default per RuleSet semantics."""
     root = tree.getroot()
     fw = only(root, ".//%s[@name='nft-test']" % tag('Firewall'))
     baseline_rulesets = [r for r in fw.findall('./' + tag('Routing'))
@@ -1306,8 +1309,8 @@ def _add_ip_rule_routing_ruleset(tree, ruleset_id, name, table_name=None,
         'name': name,
         'comment': 'CI ip rule routing rule set',
         'ro': 'False',
-        'ipv4_rule_set': 'False',
-        'ipv6_rule_set': 'False',
+        'ipv4_rule_set': ipv4,
+        'ipv6_rule_set': ipv6,
         'top_rule_set': 'False',
     })
     options = ET.SubElement(new_rs, tag('RuleSetOptions'))
@@ -1320,12 +1323,15 @@ def _add_ip_rule_routing_ruleset(tree, ruleset_id, name, table_name=None,
     return new_rs
 
 
-def _add_ip_rules_ruleset(tree, ruleset_id, name):
+def _add_ip_rules_ruleset(tree, ruleset_id, name, ipv4='False',
+                          ipv6='False'):
     """The per-firewall IPRules rule set that hosts IPRule objects
     (policy-based routing, W4.2). IP rules select which iproute2
     routing table a packet consults; they do not live in any table
     themselves. The rule set compiles into the "ip rule" script
-    section only, never into the routing/route part."""
+    section only, never into the routing/route part. ipv4/ipv6 set
+    the rule set address family (GUI combo "Address Family"); both
+    False is the IPv4-only default per RuleSet semantics."""
     root = tree.getroot()
     fw = only(root, ".//%s[@name='nft-test']" % tag('Firewall'))
     routing_sets = fw.findall('./' + tag('Routing'))
@@ -1339,8 +1345,8 @@ def _add_ip_rules_ruleset(tree, ruleset_id, name):
         'name': name,
         'comment': 'CI per-firewall ip rules rule set',
         'ro': 'False',
-        'ipv4_rule_set': 'False',
-        'ipv6_rule_set': 'False',
+        'ipv4_rule_set': ipv4,
+        'ipv6_rule_set': ipv6,
         'top_rule_set': 'False',
     })
     ET.SubElement(new_rs, tag('RuleSetOptions'))
@@ -1427,7 +1433,8 @@ def case_ip_rule_ipv6(tree):
     """
     case_ipv6(tree)
     ruleset = _add_ip_rule_routing_ruleset(tree, 'fwb-ci-route-ip6',
-                                           'route_ip6')
+                                           'route_ip6',
+                                           ipv4='False', ipv6='True')
     # id2088X75851 is the real baseline 2001:db8::/32 documentation
     # net; id2734X30989 is the baseline main "Routing" rule set.
     _add_ip_rule(ruleset, 'fwb-ci-iprule-2', 0, 200,
@@ -1475,6 +1482,33 @@ def case_ip_rule_set(tree):
                  src='id3F4ECE3F',
                  lookup_ruleset_id='id2734X30989',
                  comment='CI: test-net traffic stays in the main table')
+
+
+def case_ip_rule_ruleset_family(tree):
+    """The rule set address family gates family-less ip rules (W4.6).
+
+    A fwmark-only IPRule carries no address, so the compiler cannot
+    derive its family: it compiles once per family the rule set
+    allows. The IPv4-only rule set (the default, both family flags
+    False) must emit only the plain "$IP rule add" form, the dual
+    rule set must additionally emit the "$IP -6 rule add" twin.
+    """
+    root = tree.getroot()
+    _add_tag_service(root, 'fwb-ci-iprule-tag-66', '66',
+                     'CI ip rule fwmark 66')
+    ruleset_v4 = _add_ip_rules_ruleset(tree, 'fwb-ci-iprules-fam4',
+                                       'IP Rules v4 only')
+    _add_ip_rule(ruleset_v4, 'fwb-ci-iprules-fam4-1', 0, 400,
+                 srv='fwb-ci-iprule-tag-66',
+                 lookup_ruleset_id='id2734X30989',
+                 comment='CI: fwmark stays in the main table, v4 only')
+    ruleset_dual = _add_ip_rules_ruleset(tree, 'fwb-ci-iprules-famdual',
+                                         'IP Rules dual',
+                                         ipv4='True', ipv6='True')
+    _add_ip_rule(ruleset_dual, 'fwb-ci-iprules-famdual-1', 0, 401,
+                 srv='fwb-ci-iprule-tag-66',
+                 lookup_ruleset_id='id2734X30989',
+                 comment='CI: fwmark stays in the main table, dual stack')
 
 
 def case_ip_rule_runtime_var(tree):
@@ -1775,6 +1809,7 @@ CASES = {
     'ip-rule-ipv6': case_ip_rule_ipv6,
     'ip-rule-replace': case_ip_rule_replace,
     'ip-rule-set': case_ip_rule_set,
+    'ip-rule-ruleset-family': case_ip_rule_ruleset_family,
     'ip-rule-runtime-var': case_ip_rule_runtime_var,
     'reject-ip-rule-var-conflict': case_reject_ip_rule_var_conflict,
     'reject-ip-rule-var-badname': case_reject_ip_rule_var_badname,
