@@ -294,8 +294,10 @@ fwb_rules_retire() {
     [ -n "$line" ] || continue
     fwb_rule_state_fields "$line"
     # An outdated rule may already be gone; never fail the
-    # activation for that.
-    fwb_rule_del_state "$FWB_RULE_STATE_FAM" "$FWB_RULE_STATE_PRIO" "$FWB_RULE_STATE_SPEC" || true
+    # activation for that. The kernel answers "No such file or
+    # directory" for deleting a missing rule, so the expected
+    # miss must stay silent.
+    fwb_rule_del_state "$FWB_RULE_STATE_FAM" "$FWB_RULE_STATE_PRIO" "$FWB_RULE_STATE_SPEC" 2>/dev/null || true
     printf '%s|%s|%s\n' "$FWB_RULE_STATE_FAM" "$FWB_RULE_STATE_PRIO" "$FWB_RULE_STATE_SPEC" >> "$FWB_RULE_RETIRED"
   done < "$FWB_RULE_STATE"
 }
@@ -305,8 +307,10 @@ fwb_rule_prepare() {
   prio=$2
   spec=$3
   # Self-inflicted duplicates: adding the identical rule again would
-  # create a silent twin at the same priority.
-  fwb_rule_del_state "$fam" "$prio" "$spec" || true
+  # create a silent twin at the same priority. The rule is usually
+  # gone already (retired above or first activation), so the expected
+  # "not found" answer of the kernel must stay silent.
+  fwb_rule_del_state "$fam" "$prio" "$spec" 2>/dev/null || true
   if [ "${FWB_RULE_REPLACE:-0}" = 1 ]; then
     # Replace strategy: flush every rule at this priority, ours were
     # already retired above, the rest is foreign.

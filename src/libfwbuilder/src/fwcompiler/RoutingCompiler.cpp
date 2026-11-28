@@ -44,6 +44,7 @@
 #include "fwbuilder/Routing.h"
 #include "fwbuilder/Rule.h"
 #include "fwbuilder/Firewall.h"
+#include "fwbuilder/FWOptions.h"
 #include "fwbuilder/Cluster.h"
 #include "fwbuilder/RuleSet.h"
 #include "fwbuilder/InetAddr.h"
@@ -90,7 +91,26 @@ int RoutingCompiler::prolog()
         if (r == NULL) continue; // skip RuleSetOptions object
 
         if (r->getLabel().empty())
-            r->setLabel( createRuleLabel("", "main", r->getPosition()) );
+        {
+            // Label the rules with the routing context they are
+            // compiled for: routes carry the iproute2 table they
+            // install into, rule sets without a table option keep the
+            // historic "main". IP rules reference tables but install
+            // no routes, so an IPRules rule set labels with its own
+            // name instead.
+            string label_txt = "main";
+            FWOptions *ruleset_options = source_ruleset->getOptionsObject();
+            if (ruleset_options != NULL)
+            {
+                string table_name =
+                    ruleset_options->getStr("routing_table_name");
+                if (! table_name.empty()) label_txt = table_name;
+            }
+            if (label_txt == "main" && IPRules::cast(source_ruleset) != NULL)
+                label_txt = source_ruleset->getName();
+            r->setLabel( createRuleLabel("", label_txt,
+                                         r->getPosition()) );
+        }
 
         rule_counter++;
     }

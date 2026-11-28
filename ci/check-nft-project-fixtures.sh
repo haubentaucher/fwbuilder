@@ -798,6 +798,10 @@ _common_routing_table_greps() {
         "fwb_route_committed 4 $token '192.168.2.0/24' '192.168.2.0/24 via 192.168.1.10 dev eth1'"
         "\$IP route add default via 192.168.1.10 dev eth1"
         "fwb_route_prepare 4 main 'default'"
+        # W4.6: route labels carry the iproute2 table name they
+        # install into (the label follows routing_table_name, so it
+        # stays ci_pbr even in the numeric-id case).
+        "echo \"Routing rule 0 (ci_pbr)\""
     )
     local needle
     for needle in "${needles[@]}"; do
@@ -920,7 +924,7 @@ check_ip_rule() {
         "fwb_rule_prepare 4 100 '$spec' && \\"
         "\$IP rule add pref 100 $spec && \\"
         "fwb_rule_committed 4 100 '$spec' \\"
-        "|| route_command_error \"1 (main)\""
+        "|| route_command_error \"1 (ci_iprule)\""
         'fwb_rt_tables_ensure ci_iprule 103 '
         "\$IP route add default via 192.168.1.10 dev eth1"
     )
