@@ -1218,6 +1218,13 @@ QString CompilerDriver_nft::run(const std::string &cluster_id,
             routing_functions.removeComments("##");
             routing_functions.setVariable(
                 "firewall_name", QString::fromStdString(firewall_name));
+            // W4.5: adopt_foreign_routes (default off) lets the
+            // activation take over existing routes this script did not
+            // install instead of refusing them; protected kernel,
+            // DHCP and RA routes are never adopted.
+            routing_functions.setVariable(
+                "route_adopt_foreign",
+                options->getBool("adopt_foreign_routes") ? "1" : "0");
             script << routing_functions.expand();
             script << "\n";
             // Named tables are appended to /etc/iproute2/rt_tables only

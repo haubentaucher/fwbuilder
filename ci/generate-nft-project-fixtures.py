@@ -936,6 +936,27 @@ def case_routing_table_numeric(tree):
     _add_named_routing_ruleset(tree, 'ci_pbr', '102', 'numeric')
 
 
+def case_routing_adopt_foreign(tree):
+    """Take over routes this script did not install (W4.5).
+
+    On an OpenWrt router netifd re-creates its static routes at every
+    boot, so the strict ownership guard would refuse the same route on
+    every activation. The firewall option adopt_foreign_routes switches
+    the routing activation into adoption mode: existing non-owned,
+    non-protected routes are retired (the rollback keeps their old
+    spec) instead of aborting the activation.
+    """
+    _add_named_routing_ruleset(tree, 'ci_pbr', '101', 'adopt')
+    _set_manage_rt_tables(tree, 'True')
+    fw = only(tree.getroot(), ".//%s[@name='nft-test']" % tag('Firewall'))
+    opts = only(fw, './' + tag('FirewallOptions'))
+    if opts.findall("./%s[@name='adopt_foreign_routes']" % tag('Option')):
+        raise ValueError('baseline must not set adopt_foreign_routes')
+    option = ET.SubElement(opts, tag('Option'),
+                            {'name': 'adopt_foreign_routes'})
+    option.text = 'True'
+
+
 def case_reject_routing_table_duplicate(tree):
     _add_named_routing_ruleset(tree, 'ci_pbr', '101', 'dup1')
     _add_named_routing_ruleset(tree, 'ci_other', '101', 'dup2')
@@ -1720,6 +1741,7 @@ CASES = {
     'mangle-classify': case_mangle_classify,
     'routing-table': case_routing_table,
     'routing-table-numeric': case_routing_table_numeric,
+    'routing-adopt-foreign': case_routing_adopt_foreign,
     'reject-routing-table-duplicate': case_reject_routing_table_duplicate,
     'routing-in-deleted-objects': case_routing_in_deleted_objects,
     'reject-policy-options': case_reject_policy_options,

@@ -14,6 +14,12 @@ FWB_ROUTING_INITIALIZED=1
 FWB_ROUTE_STATE_DIR=/var/lib/fwbuilder
 FWB_ROUTE_STATE="$FWB_ROUTE_STATE_DIR/nft-routes.{{$firewall_name}}"
 FWB_RULE_STATE="$FWB_ROUTE_STATE_DIR/nft-iprules.{{$firewall_name}}"
+## The firewall option adopt_foreign_routes (default off) lets this
+## script take over a route that already exists but was not installed
+## by a script of this firewall (e.g. a static route OpenWrt netifd
+## re-creates at boot). Protected kernel, DHCP and RA routes are never
+## adopted, no matter what this option says.
+FWB_ROUTE_ADOPT={{$route_adopt_foreign}}
 FWB_ROUTING_REDIRECTED=0
 HAVE_MKTEMP=$(which mktemp)
 test -n "$HAVE_MKTEMP" && {
@@ -201,7 +207,18 @@ fwb_route_prepare() {
     return 1
   fi
   if ! fwb_route_owned "$fam" "$table" "$dest"; then
+    if [ "$FWB_ROUTE_ADOPT" = 1 ]; then
+      # Adopt: the route exists but no script of this firewall
+      # installed it. Record its current spec so the rollback can
+      # restore it, delete it and let the compiled route take over.
+      flat=$(printf '%s\n' "$current" | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g; s/^ //; s/ $//')
+      printf '%s|%s|%s|%s\n' "$fam" "$table" "$dest" "$flat" >> "$FWB_ROUTE_RETIRED"
+      fwb_route_del_spec "$fam" "$table" "$dest" || return 1
+      echo "Adopting foreign route $dest"
+      return 0
+    fi
     echo "Error: refusing to replace foreign route $dest"
+    echo "The route exists but was not installed by this script. Remove it at its origin or set firewall option adopt_foreign_routes to take it over."
     return 1
   fi
   return 0

@@ -829,6 +829,14 @@ check_routing_table() {
     check_positive routing-table 4 || return 1
     local fw="$output/nft-ci-routing-table.fw"
     _common_routing_table_greps "$fw" ci_pbr || return 1
+    if grep -Fq 'FWB_ROUTE_ADOPT=1' "$fw"; then
+        echo 'FAIL: adoption must stay off without the firewall option' >&2
+        return 1
+    fi
+    if ! grep -Fq 'FWB_ROUTE_ADOPT=0' "$fw"; then
+        echo 'FAIL: routing activation lost its adoption default' >&2
+        return 1
+    fi
     local ensures
     ensures=$(grep -c '^fwb_rt_tables_ensure ci_pbr 101 ' "$fw")
     if [[ "$ensures" != 1 ]]; then
@@ -851,6 +859,36 @@ check_routing_table_numeric() {
         return 1
     fi
     echo 'PASS: named routing table compiles with its numeric table id'
+}
+
+
+# W4.5: adopt_foreign_routes lets the activation take over an existing
+# route no script of this firewall installed (e.g. an OpenWrt netifd
+# static route re-created at boot) instead of refusing it. Protected
+# kernel, DHCP and RA routes stay untouchable even in adoption mode.
+check_routing_adopt_foreign() {
+    check_positive routing-adopt-foreign 4 || return 1
+    local fw="$output/nft-ci-routing-adopt-foreign.fw"
+    _common_routing_table_greps "$fw" ci_pbr || return 1
+    if ! grep -Fq 'FWB_ROUTE_ADOPT=1' "$fw"; then
+        echo 'FAIL: adopt_foreign_routes did not reach the routing activation' >&2
+        return 1
+    fi
+    # The adoption branch and its rollback recording must ship, and the
+    # refusal with its option hint stays available for adoption off.
+    local -a needles=(
+        'Adopting foreign route $dest'
+        'refusing to replace foreign route $dest'
+        'adopt_foreign_routes'
+    )
+    local needle
+    for needle in "${needles[@]}"; do
+        if ! grep -Fq "$needle" "$fw"; then
+            echo "FAIL: routing-adopt-foreign fixture is missing: $needle" >&2
+            return 1
+        fi
+    done
+    echo 'PASS: adopt_foreign_routes switches the activation into adoption mode'
 }
 
 
@@ -1210,6 +1248,7 @@ run_case mark-match check_mark_match mark-match
 run_case mangle-classify check_mangle_classify mangle-classify
 run_case routing-table check_routing_table
 run_case routing-table-numeric check_routing_table_numeric
+run_case routing-adopt-foreign check_routing_adopt_foreign
 run_case reject-routing-table-duplicate check_negative reject-routing-table-duplicate 'use the same routing table id 101'
 run_case routing-in-deleted-objects check_routing_in_deleted_objects
 run_case ip-rule check_ip_rule
