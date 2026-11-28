@@ -1,0 +1,4 @@
+ *** Loading data ... done
+ Compiling ruleset NAT for 'nat' table
+nft-test:NAT:0: error: Runtime variable name 'pro vider; rm -rf' is not a valid shell variable name
+Compile time: 

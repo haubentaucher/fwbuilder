@@ -1,0 +1,8 @@
+ *** Loading data ... done
+ Compiling ruleset NAT for 'nat' table
+ Compiling ruleset Policy for 'mangle' table
+ Detecting rule shadowing
+ Compiling ruleset Policy for 'filter' table
+ Detecting rule shadowing
+nft-test:Policy:1: error: Native nftables rules can not use interface 'eth9': it has no IP address and is not marked dynamic. Assign an address to the interface, mark it dynamic, or remove it from the rule.
+Compile time: 

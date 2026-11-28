@@ -1,0 +1,12 @@
+ *** Loading data ... done
+ Compiling ruleset NAT for 'nat' table
+ Compiling ruleset Policy for 'mangle' table
+ Detecting rule shadowing
+ Compiling ruleset Policy for 'filter' table
+ Detecting rule shadowing
+ Compiling routing rules for nft-test (IPv4)
+ Compiling routing rules for nft-test (IPv6)
+ Compiling routing rules for nft-test (IPv4)
+ Compiling routing rules for nft-test (IPv6)
+Routing rule sets "route_dup2" and "route_dup1" use the same routing table id 101
+Compile time: 

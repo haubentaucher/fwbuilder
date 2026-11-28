@@ -1,0 +1,13 @@
+ *** Loading data ... done
+ Compiling ruleset Policy for 'mangle' table, IPv6
+ Detecting rule shadowing
+ Compiling ruleset Policy for 'filter' table, IPv6
+ Detecting rule shadowing
+ Compiling routing rules for nft-test (IPv4)
+ Compiling routing rules for nft-test (IPv6)
+ Compiling routing rules for nft-test (IPv4)
+ Compiling routing rules for nft-test (IPv6)
+ The 'load kernel modules' option is not used by the native nftables backend and is ignored
+Output file name: nft-test.fw
+ Compiled successfully
+Compile time: 

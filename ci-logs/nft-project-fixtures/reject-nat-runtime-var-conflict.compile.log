@@ -1,0 +1,4 @@
+ *** Loading data ... done
+ Compiling ruleset NAT for 'nat' table
+nft-test:NAT:0: error: NAT rule combines static translated source addresses with runtime variable 'provider_ip'; leave Translated Source empty when using nat_tsrc_runtime_var
+Compile time: 

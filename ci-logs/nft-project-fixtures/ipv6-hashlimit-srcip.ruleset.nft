@@ -1,0 +1,49 @@
+
+
+# ================ IPv6
+
+
+
+
+# ================ Table 'filter', automatic rules
+add rule ip6 filter INPUT ct state { established, related } accept
+add rule ip6 filter OUTPUT ct state { established, related } accept
+add rule ip6 filter FORWARD ct state { established, related } accept
+add set ip6 filter fwb_ci_srcip { type ipv6_addr; size 65535; flags dynamic,timeout; timeout 3000ms; }
+# ================ Table 'filter', rule set Policy
+# 
+# Rule 0 (global)
+# 
+# Rule 0 (global)
+# 
+add rule ip6 filter INPUT meta l4proto tcp ip6 saddr 2001:db8::/32  tcp dport 80  update @fwb_ci_srcip { ip6 saddr limit rate 8/second burst 4 packets } accept
+
+add rule ip6 filter OUTPUT meta l4proto tcp ip6 saddr 2001:db8::/32  tcp dport 80  update @fwb_ci_srcip { ip6 saddr limit rate 8/second burst 4 packets } accept
+
+add rule ip6 filter FORWARD meta l4proto tcp ip6 saddr 2001:db8::/32  tcp dport 80  update @fwb_ci_srcip { ip6 saddr limit rate 8/second burst 4 packets } accept
+
+# 
+# Rule 1 (global)
+# 
+# Rule 1 (global)
+# 
+add chain ip6 filter RULE_1
+add rule ip6 filter OUTPUT  jump RULE_1
+
+add rule ip6 filter INPUT  jump RULE_1
+
+add rule ip6 filter FORWARD  jump RULE_1
+
+add rule ip6 filter RULE_1  log group 1 prefix "RULE 1 -- DENY "
+
+add rule ip6 filter RULE_1  drop
+
+#
+
+
+
+
+add table ip6 filter
+add chain ip6 filter INPUT { type filter hook input priority 0; policy drop; }
+add chain ip6 filter OUTPUT { type filter hook output priority 0; policy drop; }
+add chain ip6 filter FORWARD { type filter hook forward priority 0; policy drop; }

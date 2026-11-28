@@ -1,0 +1,78 @@
+
+
+# ================ IPv4
+
+
+
+
+# ================ Table 'filter', automatic rules
+add rule ip filter INPUT ct state { established, related } accept
+add rule ip filter OUTPUT ct state { established, related } accept
+add rule ip filter FORWARD ct state { established, related } accept
+# ================ Table 'filter', rule set Policy
+# 
+# Rule 0 (global)
+# 
+# Rule 0 (global)
+# 
+# CI: allow packets marked with fwmark 42
+add rule ip filter INPUT meta mark == 42 meta mark == 42  ct state { new }  accept
+
+add rule ip filter FORWARD meta mark == 42 meta mark == 42  ct state { new }  accept
+
+# 
+# Rule 1 (global)
+# 
+# Rule 1 (global)
+# 
+add chain ip filter RULE_1
+add rule ip filter OUTPUT  jump RULE_1
+
+add rule ip filter INPUT  jump RULE_1
+
+add rule ip filter FORWARD  jump RULE_1
+
+add rule ip filter RULE_1  log group 1 prefix "RULE 1 -- DENY "
+
+add rule ip filter RULE_1  drop
+
+#
+
+
+
+# ================ Table 'nat',  rule set NAT
+# 
+# Rule 0 (NAT)
+# 
+# Rule 0 (NAT)
+# 
+add rule ip nat POSTROUTING oifname "eth*"  ip saddr 192.168.1.0/24  snat to 192.0.2.100 
+
+# 
+# Rule 1 (NAT)
+# 
+# Rule 1 (NAT)
+# 
+add rule ip nat PREROUTING ip daddr 192.0.2.101  dnat to 192.168.1.100 
+
+# 
+# Rule 2 (NAT)
+# 
+# Rule 2 (NAT)
+# 
+add rule ip nat POSTROUTING oifname "eth0"  ip saddr != 192.168.1.0/24  snat to 192.0.2.100 
+
+#
+
+
+add table ip filter
+add chain ip filter INPUT { type filter hook input priority 0; policy drop; }
+add chain ip filter OUTPUT { type filter hook output priority 0; policy drop; }
+add chain ip filter FORWARD { type filter hook forward priority 0; policy drop; }
+add table ip nat
+# Standard NAT chains are considered pre-existing by NATCompiler_nft.
+# The hook priorities are the native dstnat (-100) and srcnat (100).
+add chain ip nat PREROUTING { type nat hook prerouting priority -100; policy accept; }
+add chain ip nat INPUT { type nat hook input priority 100; policy accept; }
+add chain ip nat OUTPUT { type nat hook output priority -100; policy accept; }
+add chain ip nat POSTROUTING { type nat hook postrouting priority 100; policy accept; }

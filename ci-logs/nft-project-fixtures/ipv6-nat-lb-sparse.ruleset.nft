@@ -1,0 +1,65 @@
+
+
+# ================ IPv6
+
+
+
+
+# ================ Table 'filter', automatic rules
+add rule ip6 filter INPUT ct state { established, related } accept
+add rule ip6 filter OUTPUT ct state { established, related } accept
+add rule ip6 filter FORWARD ct state { established, related } accept
+# ================ Table 'filter', rule set Policy
+# 
+# Rule 0 (global)
+# 
+# Rule 0 (global)
+# 
+add rule ip6 filter OUTPUT meta l4proto tcp tcp dport 80  accept
+
+add rule ip6 filter INPUT meta l4proto tcp tcp dport 80  accept
+
+add rule ip6 filter FORWARD meta l4proto tcp tcp dport 80  accept
+
+# 
+# Rule 1 (global)
+# 
+# Rule 1 (global)
+# 
+add chain ip6 filter RULE_1
+add rule ip6 filter OUTPUT  jump RULE_1
+
+add rule ip6 filter INPUT  jump RULE_1
+
+add rule ip6 filter FORWARD  jump RULE_1
+
+add rule ip6 filter RULE_1  log group 1 prefix "RULE 1 -- DENY "
+
+add rule ip6 filter RULE_1  drop
+
+#
+
+
+
+# ================ Table 'nat',  rule set NAT
+# 
+# Rule 1 (NAT)
+# 
+# Rule 1 (NAT)
+# 
+add rule ip6 nat PREROUTING meta l4proto tcp  ip6 daddr 2001:db8:1::101  tcp dport 80 dnat to numgen random mod 2 map { 0 : 2001:db8:2::100, 1 : 2001:db8:2::103 } 
+
+#
+
+
+add table ip6 filter
+add chain ip6 filter INPUT { type filter hook input priority 0; policy drop; }
+add chain ip6 filter OUTPUT { type filter hook output priority 0; policy drop; }
+add chain ip6 filter FORWARD { type filter hook forward priority 0; policy drop; }
+add table ip6 nat
+# Standard NAT chains are considered pre-existing by NATCompiler_nft.
+# The hook priorities are the native dstnat (-100) and srcnat (100).
+add chain ip6 nat PREROUTING { type nat hook prerouting priority -100; policy accept; }
+add chain ip6 nat INPUT { type nat hook input priority 100; policy accept; }
+add chain ip6 nat OUTPUT { type nat hook output priority -100; policy accept; }
+add chain ip6 nat POSTROUTING { type nat hook postrouting priority 100; policy accept; }

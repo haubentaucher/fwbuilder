@@ -1,0 +1,10 @@
+#!/bin/sh
+case "$*" in
+    '-4 route list proto kernel dev eth0')
+        printf '192.0.2.0/24 dev eth0 proto kernel scope link\n' ;;
+    '-6 route list proto kernel dev eth0')
+        printf '2001:db8:1::/64 dev eth0 proto kernel metric 256\n' ;;
+    '-6 route list proto kernel dev eth1')
+        printf '2001:db8:2::/64 dev eth1 proto kernel metric 256\n' ;;
+    *) printf 'Unexpected ip route arguments: %s\n' "$*" >&2; exit 71 ;;
+esac

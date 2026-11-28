@@ -1,0 +1,8 @@
+ *** Loading data ... done
+ Compiling ruleset NAT for 'nat' table
+ Compiling ruleset Policy for 'mangle' table
+ Detecting rule shadowing
+ Compiling ruleset Policy for 'filter' table
+ Detecting rule shadowing
+nft-test:Policy:1: error: Invalid native nftables time interval: xt_time kernel timezone mode is not supported by native nftables
+Compile time: 

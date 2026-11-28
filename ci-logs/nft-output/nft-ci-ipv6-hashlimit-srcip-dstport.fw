@@ -1,0 +1,952 @@
+#!/bin/sh 
+#
+#  This is automatically generated file. DO NOT MODIFY !
+#
+#  Firewall Builder  fwb_ipt vc3aa3bf
+#
+#  Generated Sat Nov 28 17:14:36 2026 UTC by runner
+#
+# files: * nft-test.fw /etc/init.d/firewall.fw
+#
+# Compiled for nftables (any version)
+#
+# both "configure interfaces" and "add virtual addresses for nat" are turned on
+
+
+
+
+FWBDEBUG=""
+
+PATH="/sbin:/usr/sbin:/bin:/usr/bin:${PATH}"
+export PATH
+
+
+
+LSMOD="/sbin/lsmod"
+MODPROBE="/sbin/modprobe"
+NFT="/usr/sbin/nft"
+IP="/sbin/ip"
+IFCONFIG="/sbin/ifconfig"
+VCONFIG="/sbin/vconfig"
+BRCTL="/sbin/brctl"
+IFENSLAVE="/sbin/ifenslave"
+IPSET="/usr/sbin/ipset"
+LOGGER="/usr/bin/logger"
+
+log() {
+    echo "$1"
+    which "$LOGGER" >/dev/null 2>&1 && $LOGGER -p info "$1"
+}
+
+getInterfaceVarName() {
+    echo $1 | sed 's/\./_/'
+}
+
+getaddr_internal() {
+    dev=$1
+    name=$2
+    af=$3
+    L=$($IP $af addr show dev $dev |  sed -n '/inet/{s!.*inet6* !!;s!/.*!!p}' | sed 's/peer.*//')
+    test -z "$L" && {
+        eval "$name=''"
+        return
+    }
+    eval "${name}_list=\"$L\""
+}
+
+getnet_internal() {
+    dev=$1
+    name=$2
+    af=$3
+    L=$("$IP" "$af" route list proto kernel dev "$dev" | sed -n '/^default[[:space:]]/!s! .*$!!p')
+    test -z "$L" && {
+        eval "$name=''"
+        return
+    }
+    eval "${name}_list=\"$L\""
+}
+
+
+getaddr() {
+    getaddr_internal $1 $2 "-4"
+}
+
+getaddr6() {
+    getaddr_internal $1 $2 "-6"
+}
+
+getnet() {
+    getnet_internal $1 $2 "-4"
+}
+
+getnet6() {
+    getnet_internal $1 $2 "-6"
+}
+
+# function getinterfaces is used to process wildcard interfaces
+getinterfaces() {
+    NAME=$1
+    $IP link show | grep ": $NAME" | while read L; do
+        OIFS=$IFS
+        IFS=" :"
+        set $L
+        IFS=$OIFS
+        echo $2
+    done
+}
+
+diff_intf() {
+    func=$1
+    list1=$2
+    list2=$3
+    cmd=$4
+    for intf in $list1
+    do
+        echo $list2 | grep -q $intf || {
+        # $vlan is absent in list 2
+            $func $intf $cmd
+        }
+    done
+}
+
+# Resolve a DNS name (arg 1) to a whitespace-separated list of addresses of
+# one family (arg 2: "4" or "6"). Run-time DNSName objects in rules use this
+# while the nftables transaction is being staged: nftables itself resolves
+# names at commit time and refuses names that map to several addresses
+# ("... resolves to multiple addresses"), so activation expands every
+# record into its own staged copy of the rule. A name that resolves to
+# nothing stages no copy (the rule is skipped, like a rule on a dynamic
+# interface that is down). Both busybox and classic nslookup output place
+# the answer section after a "Name:" line, which keeps the resolver's own
+# address out; address-looking tokens are validated by shape so host name
+# leftovers and "#53" suffixes can never leak into the ruleset.
+fwb_nft_resolve() {
+    fwb_dns_host=$1
+    fwb_dns_family=$2
+    nslookup "$fwb_dns_host" 2>/dev/null | awk -v fam="$fwb_dns_family" '
+        /^Name:/ { answer = 1 }
+        answer && /^Address/ {
+            for (i = 2; i <= NF; i++) {
+                tok = $i
+                sub(/[.,]$/, "", tok)
+                if (tok ~ /#/) continue
+                if (fam == 4 && tok ~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/) {
+                    print tok
+                } else if (fam == 6 && tok ~ /^[0-9A-Fa-f:.]+$/ && gsub(/:/, ":", tok) >= 2) {
+                    # every real IPv6 literal, "::1" included, has at least
+                    # two colons; one colon is an old busybox "Address N:" tag
+                    print tok
+                }
+            }
+        }
+    '
+}
+
+# Stage deletion of only FWB-owned tables in the SAME nft transaction as
+# replacement rules. A temporary file avoids an unsafe expand-and-eval heredoc.
+# The generator owns the standard table names (filter, mangle, nat). The
+# older fwb_-prefixed tables are removed as well so an upgraded machine can
+# never keep two active base-chain policies at the same hook priorities.
+fwb_nft_existing_tables() (
+    for fwb_family in ip ip6; do
+        for fwb_table in filter mangle nat fwb_filter fwb_mangle fwb_nat; do
+            if "$NFT" list table "$fwb_family" "$fwb_table" >/dev/null 2>&1; then
+                printf 'delete table %s %s\n' "$fwb_family" "$fwb_table"
+            fi
+        done
+    done
+)
+
+fwb_nft_begin_transaction() {
+    FWB_NFT_TXN=$(mktemp "${TMPDIR:-/tmp}/fwb-nft.XXXXXXXX") || return 1
+    fwb_nft_existing_tables > "$FWB_NFT_TXN" || {
+        rm -f "$FWB_NFT_TXN"
+        FWB_NFT_TXN=
+        return 1
+    }
+    # Interrupts and unexpected exits must never leave staged rules behind.
+    trap 'test -z "${FWB_NFT_TXN:-}" || rm -f "$FWB_NFT_TXN"' EXIT
+    trap 'exit 1' HUP INT TERM
+}
+
+fwb_nft_commit_transaction() {
+    "$NFT" -f "$FWB_NFT_TXN"
+    fwb_nft_result=$?
+    rm -f "$FWB_NFT_TXN"
+    FWB_NFT_TXN=
+    return "$fwb_nft_result"
+}
+find_program() {
+  PGM=$1
+  which $PGM >/dev/null 2>&1 || {
+    echo "\"$PGM\" not found"
+    exit 1
+  }
+}
+check_tools() {
+  find_program which
+  find_program $NFT
+  find_program $IP
+}
+reset_nftables() {
+  fwb_nft_begin_transaction || return 1
+  fwb_nft_commit_transaction
+}
+
+P2P_INTERFACE_WARNING=""
+
+missing_address() {
+    address=$1
+    cmd=$2
+
+    oldIFS=$IFS
+    IFS="@"
+    set $address
+    addr=$1
+    interface=$2
+    IFS=$oldIFS
+
+
+
+    $IP addr show dev $interface | grep -q POINTOPOINT && {
+        test -z "$P2P_INTERFACE_WARNING" && echo "Warning: Can not update address of interface $interface. fwbuilder can not manage addresses of point-to-point interfaces yet"
+        P2P_INTERFACE_WARNING="yes"
+        return
+    }
+
+    test "$cmd" = "add" && {
+      echo "# Adding ip address: $interface $addr"
+      echo $addr | grep -q ':' && {
+          $FWBDEBUG $IP addr $cmd $addr dev $interface
+      } || {
+          $FWBDEBUG $IP addr $cmd $addr broadcast + dev $interface
+      }
+    }
+
+    test "$cmd" = "del" && {
+      echo "# Removing ip address: $interface $addr"
+      $FWBDEBUG $IP addr $cmd $addr dev $interface || exit 1
+    }
+
+    $FWBDEBUG $IP link set $interface up
+}
+
+list_addresses_by_scope() {
+    interface=$1
+    scope=$2
+    ignore_list=$3
+    $IP addr ls dev $interface | \
+      awk -v IGNORED="$ignore_list" -v SCOPE="$scope" \
+        'BEGIN {
+           split(IGNORED,ignored_arr);
+           for (a in ignored_arr) {ignored_dict[ignored_arr[a]]=1;}
+         }
+         (/inet |inet6 / && $0 ~ SCOPE && !($2 in ignored_dict)) {print $2;}' | \
+        while read addr; do
+          echo "${addr}@$interface"
+	done | sort
+}
+
+
+update_addresses_of_interface() {
+    ignore_list=$2
+    set $1 
+    interface=$1 
+    shift
+
+    FWB_ADDRS=$(
+      for addr in $*; do
+        echo "${addr}@$interface"
+      done | sort
+    )
+
+    CURRENT_ADDRS_ALL_SCOPES=""
+    CURRENT_ADDRS_GLOBAL_SCOPE=""
+
+    $IP link show dev $interface >/dev/null 2>&1 && {
+      CURRENT_ADDRS_ALL_SCOPES=$(list_addresses_by_scope $interface 'scope .*' "$ignore_list")
+      CURRENT_ADDRS_GLOBAL_SCOPE=$(list_addresses_by_scope $interface 'scope global' "$ignore_list")
+    } || {
+      echo "# Interface $interface does not exist"
+      # Stop the script if we are not in test mode
+      test -z "$FWBDEBUG" && exit 1
+    }
+
+    diff_intf missing_address "$FWB_ADDRS" "$CURRENT_ADDRS_ALL_SCOPES" add
+    diff_intf missing_address "$CURRENT_ADDRS_GLOBAL_SCOPE" "$FWB_ADDRS" del
+}
+
+clear_addresses_except_known_interfaces() {
+    $IP link show | sed 's/://g' | awk -v IGNORED="$*" \
+        'BEGIN {
+           split(IGNORED,ignored_arr);
+           for (a in ignored_arr) {ignored_dict[ignored_arr[a]]=1;}
+         }
+         (/state/ && !($2 in ignored_dict)) {print $2;}' | \
+         while read intf; do
+            echo "# Removing addresses not configured in fwbuilder from interface $intf"
+            $FWBDEBUG $IP addr flush dev $intf scope global
+            $FWBDEBUG $IP link set $intf down
+         done
+}
+
+check_file() {
+    test -r "$2" && test -f "$2" || {
+        echo "Missing address-table file for $1: $2" >&2
+        return 1
+    }
+}
+
+check_run_time_address_table_files() {
+    :
+    
+}
+
+load_modules() {
+    :
+    
+}
+
+verify_interfaces() {
+    :
+    echo "Verifying interfaces: eth0 lo eth1"
+    for i in eth0 lo eth1 ; do
+        $IP link show "$i" > /dev/null 2>&1 || {
+            log "Interface $i does not exist"
+            exit 1
+        }
+    done
+}
+
+prolog_commands() {
+    echo "Running prolog script"
+    
+}
+
+epilog_commands() {
+    echo "Running epilog script"
+    
+}
+
+run_epilog_and_exit() {
+    epilog_commands
+    exit $1
+}
+
+configure_interfaces() {
+    :
+    # Configure interfaces
+    # See http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=429689
+    # this ensures that secondary ip address is "promoted" to primary
+    # when primary address is deleted, instead of deleting both
+    # primary and secondary addresses. It looks like this is only
+    # available starting from Linux 2.6.16 
+    test -f /proc/sys/net/ipv4/conf/all/promote_secondaries && \
+        echo 1 >  /proc/sys/net/ipv4/conf/all/promote_secondaries
+    update_addresses_of_interface "eth0 2001:db8:1::1/64 192.0.2.1/24" ""
+    update_addresses_of_interface "lo 127.0.0.1/8" ""
+}
+
+script_body() {
+    fwb_nft_begin_transaction || exit 1
+fwb_nft_declare_base_chains start || exit 1
+cat >> "$FWB_NFT_TXN" <<FWB_NFT_RULESET
+
+
+# ================ IPv6
+
+
+
+
+# ================ Table 'filter', automatic rules
+add rule ip6 filter INPUT ct state { established, related } accept
+add rule ip6 filter OUTPUT ct state { established, related } accept
+add rule ip6 filter FORWARD ct state { established, related } accept
+add set ip6 filter fwb_ci_srcip_dstport { type ipv6_addr . inet_service; size 65535; flags dynamic,timeout; timeout 3000ms; }
+# ================ Table 'filter', rule set Policy
+# 
+# Rule 0 (global)
+# 
+# Rule 0 (global)
+# 
+add rule ip6 filter INPUT meta l4proto tcp ip6 saddr 2001:db8::/32  tcp dport 80  update @fwb_ci_srcip_dstport { ip6 saddr . tcp dport limit rate 8/second burst 4 packets } accept
+
+add rule ip6 filter OUTPUT meta l4proto tcp ip6 saddr 2001:db8::/32  tcp dport 80  update @fwb_ci_srcip_dstport { ip6 saddr . tcp dport limit rate 8/second burst 4 packets } accept
+
+add rule ip6 filter FORWARD meta l4proto tcp ip6 saddr 2001:db8::/32  tcp dport 80  update @fwb_ci_srcip_dstport { ip6 saddr . tcp dport limit rate 8/second burst 4 packets } accept
+
+# 
+# Rule 1 (global)
+# 
+# Rule 1 (global)
+# 
+add chain ip6 filter RULE_1
+add rule ip6 filter OUTPUT  jump RULE_1
+
+add rule ip6 filter INPUT  jump RULE_1
+
+add rule ip6 filter FORWARD  jump RULE_1
+
+add rule ip6 filter RULE_1  log group 1 prefix "RULE 1 -- DENY "
+
+add rule ip6 filter RULE_1  drop
+
+#
+
+
+
+
+FWB_NFT_RULESET
+fwb_nft_commit_transaction || exit 1
+if [ "${FWB_ROUTING_INITIALIZED:-0}" != 1 ]; then
+FWB_ROUTING_INITIALIZED=1
+FWB_ROUTE_STATE_DIR=/var/lib/fwbuilder
+FWB_ROUTE_STATE="$FWB_ROUTE_STATE_DIR/nft-routes.nft-test"
+FWB_RULE_STATE="$FWB_ROUTE_STATE_DIR/nft-iprules.nft-test"
+FWB_ROUTE_ADOPT=0
+FWB_ROUTING_REDIRECTED=0
+HAVE_MKTEMP=$(which mktemp)
+test -n "$HAVE_MKTEMP" && {
+  TMPDIRNAME=$(mktemp -d)
+  test -z "$TMPDIRNAME" && exit 1
+}
+test -z "$HAVE_MKTEMP" && {
+  TMPDIRNAME="/tmp/.fwbuilder.tempdir.$$"
+  (umask 077 && mkdir "$TMPDIRNAME") || exit 1
+}
+TMPFILENAME="$TMPDIRNAME/.fwbuilder.out"
+FWB_ROUTE_COMMITTED="$TMPDIRNAME/.committed"
+FWB_ROUTE_RETIRED="$TMPDIRNAME/.retired"
+FWB_RULE_COMMITTED="$TMPDIRNAME/.iprules-committed"
+FWB_RULE_RETIRED="$TMPDIRNAME/.iprules-retired"
+: > "$FWB_ROUTE_COMMITTED"
+: > "$FWB_ROUTE_RETIRED"
+: > "$FWB_RULE_COMMITTED"
+: > "$FWB_RULE_RETIRED"
+fwb_routing_restore_output() {
+  if [ "${FWB_ROUTING_REDIRECTED:-0}" = 1 ]; then
+    exec 1>&3 2>&1
+    cat "$TMPFILENAME"
+    rm -rf "$TMPDIRNAME"
+    FWB_ROUTING_REDIRECTED=0
+  fi
+}
+# State entries are "family|table|destination|spec". Entries written
+# by scripts generated before named tables existed have three fields
+# and always name the main table.
+fwb_route_state_fields() {
+  # Splits $1 into FWB_STATE_FAM, FWB_STATE_TABLE, FWB_STATE_DEST,
+  # FWB_STATE_SPEC. Route specifications never contain "|".
+  set -f
+  IFS='|'
+  set -- $1
+  IFS=' 	
+'
+  set +f
+  FWB_STATE_FAM=$1
+  if [ $# -ge 4 ]; then
+    FWB_STATE_TABLE=$2
+    FWB_STATE_DEST=$3
+    FWB_STATE_SPEC=$4
+  else
+    FWB_STATE_TABLE=main
+    FWB_STATE_DEST=$2
+    FWB_STATE_SPEC=$3
+  fi
+}
+fwb_route_show() {
+  if [ "$1" = 6 ]; then
+    if [ "$2" = main ]; then
+      $IP -6 route show "$3" 2>/dev/null || true
+    else
+      $IP -6 route show table "$2" "$3" 2>/dev/null || true
+    fi
+  else
+    if [ "$2" = main ]; then
+      $IP route show "$3" 2>/dev/null || true
+    else
+      $IP route show table "$2" "$3" 2>/dev/null || true
+    fi
+  fi
+}
+fwb_route_is_protected() {
+  printf '%s\n' "$1" | grep -Eq '(^|[[:space:]])proto (kernel|dhcp|ra)([[:space:]]|$)'
+}
+fwb_route_owned() {
+  [ -f "$FWB_ROUTE_STATE" ] || return 1
+  awk -F '|' -v fam="$1" -v table="$2" -v dest="$3" 'BEGIN { found=0 }
+    NF == 3 { if ($1==fam && table=="main" && $2==dest) found=1 }
+    NF >= 4 { if ($1==fam && $2==table && $3==dest) found=1 }
+    END { exit found ? 0 : 1 }' "$FWB_ROUTE_STATE"
+}
+fwb_route_del_spec() {
+  fam=$1
+  table=$2
+  shift 2
+  set -f
+  if [ "$table" = main ]; then
+    if [ "$fam" = 6 ]; then
+      $IP -6 route del "$@"
+    else
+      $IP route del "$@"
+    fi
+  else
+    if [ "$fam" = 6 ]; then
+      $IP -6 route del "$@" table "$table"
+    else
+      $IP route del "$@" table "$table"
+    fi
+  fi
+  status=$?
+  set +f
+  return $status
+}
+fwb_route_add_line() {
+  fam=$1
+  table=$2
+  shift 2
+  set -f
+  if [ "$table" = main ]; then
+    if [ "$fam" = 6 ]; then
+      $IP -6 route replace "$@"
+    else
+      $IP route replace "$@"
+    fi
+  else
+    if [ "$fam" = 6 ]; then
+      $IP -6 route replace "$@" table "$table"
+    else
+      $IP route replace "$@" table "$table"
+    fi
+  fi
+  status=$?
+  set +f
+  return $status
+}
+fwb_routing_retire() {
+  [ -f "$FWB_ROUTE_STATE" ] || return 0
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    fwb_route_state_fields "$line"
+    current=$(fwb_route_show "$FWB_STATE_FAM" "$FWB_STATE_TABLE" "$FWB_STATE_DEST")
+    [ -n "$current" ] || continue
+    if fwb_route_is_protected "$current"; then
+      echo "Keeping protected route $FWB_STATE_DEST"
+      continue
+    fi
+    flat=$(printf '%s\n' "$current" | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g; s/^ //; s/ $//')
+    printf '%s|%s|%s|%s\n' "$FWB_STATE_FAM" "$FWB_STATE_TABLE" "$FWB_STATE_DEST" "$flat" >> "$FWB_ROUTE_RETIRED"
+    if [ "$FWB_STATE_DEST" = default ]; then
+      fwb_route_del_spec "$FWB_STATE_FAM" "$FWB_STATE_TABLE" $FWB_STATE_SPEC || return 1
+    else
+      fwb_route_del_spec "$FWB_STATE_FAM" "$FWB_STATE_TABLE" "$FWB_STATE_DEST" || return 1
+    fi
+  done < "$FWB_ROUTE_STATE"
+}
+fwb_routing_rollback() {
+  if [ -f "$FWB_ROUTE_COMMITTED" ]; then
+    while IFS= read -r line; do
+      [ -n "$line" ] || continue
+      fwb_route_state_fields "$line"
+      if [ "$FWB_STATE_DEST" = default ]; then
+        fwb_route_del_spec "$FWB_STATE_FAM" "$FWB_STATE_TABLE" $FWB_STATE_SPEC || true
+      else
+        fwb_route_del_spec "$FWB_STATE_FAM" "$FWB_STATE_TABLE" "$FWB_STATE_DEST" || true
+      fi
+    done < "$FWB_ROUTE_COMMITTED"
+  fi
+  if [ -f "$FWB_ROUTE_RETIRED" ]; then
+    while IFS= read -r line; do
+      [ -n "$line" ] || continue
+      fwb_route_state_fields "$line"
+      fwb_route_add_line "$FWB_STATE_FAM" "$FWB_STATE_TABLE" $FWB_STATE_SPEC || true
+    done < "$FWB_ROUTE_RETIRED"
+  fi
+  if [ -f "$FWB_RULE_COMMITTED" ]; then
+    while IFS= read -r line; do
+      [ -n "$line" ] || continue
+      fwb_rule_state_fields "$line"
+      fwb_rule_del_state "$FWB_RULE_STATE_FAM" "$FWB_RULE_STATE_PRIO" "$FWB_RULE_STATE_SPEC" || true
+    done < "$FWB_RULE_COMMITTED"
+  fi
+  if [ -f "$FWB_RULE_RETIRED" ]; then
+    while IFS= read -r line; do
+      [ -n "$line" ] || continue
+      fwb_rule_state_fields "$line"
+      fwb_rule_add_state "$FWB_RULE_STATE_FAM" "$FWB_RULE_STATE_PRIO" "$FWB_RULE_STATE_SPEC" || true
+    done < "$FWB_RULE_RETIRED"
+  fi
+}
+fwb_route_prepare() {
+  fam=$1
+  table=$2
+  dest=$3
+  if [ "$dest" = default ]; then
+    return 0
+  fi
+  current=$(fwb_route_show "$fam" "$table" "$dest")
+  [ -n "$current" ] || return 0
+  if fwb_route_is_protected "$current"; then
+    echo "Error: refusing to replace protected route $dest"
+    return 1
+  fi
+  if ! fwb_route_owned "$fam" "$table" "$dest"; then
+    if [ "$FWB_ROUTE_ADOPT" = 1 ]; then
+      # Adopt: the route exists but no script of this firewall
+      # installed it. Record its current spec so the rollback can
+      # restore it, delete it and let the compiled route take over.
+      flat=$(printf '%s\n' "$current" | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g; s/^ //; s/ $//')
+      printf '%s|%s|%s|%s\n' "$fam" "$table" "$dest" "$flat" >> "$FWB_ROUTE_RETIRED"
+      fwb_route_del_spec "$fam" "$table" "$dest" || return 1
+      echo "Adopting foreign route $dest"
+      return 0
+    fi
+    echo "Error: refusing to replace foreign route $dest"
+    echo "The route exists but was not installed by this script. Remove it at its origin or set firewall option adopt_foreign_routes to take it over."
+    return 1
+  fi
+  return 0
+}
+fwb_route_committed() {
+  printf '%s|%s|%s|%s\n' "$1" "$2" "$3" "$4" >> "$FWB_ROUTE_COMMITTED"
+}
+# Rule state entries are "family|priority|spec". Unlike routes, the
+# kernel accumulates multiple ip rules at the same priority silently,
+# so every helper deletes by the exact priority plus specification.
+fwb_rule_state_fields() {
+  # Splits $1 into FWB_RULE_STATE_FAM, FWB_RULE_STATE_PRIO,
+  # FWB_RULE_STATE_SPEC. Ip rule specifications never contain "|".
+  set -f
+  IFS='|'
+  set -- $1
+  IFS=' 	
+'
+  set +f
+  FWB_RULE_STATE_FAM=$1
+  FWB_RULE_STATE_PRIO=$2
+  FWB_RULE_STATE_SPEC=$3
+}
+fwb_rule_del_state() {
+  fam=$1
+  prio=$2
+  spec=$3
+  set -f
+  if [ "$fam" = 6 ]; then
+    $IP -6 rule del pref "$prio" $spec
+  else
+    $IP rule del pref "$prio" $spec
+  fi
+  status=$?
+  set +f
+  return $status
+}
+fwb_rule_add_state() {
+  fam=$1
+  prio=$2
+  spec=$3
+  set -f
+  if [ "$fam" = 6 ]; then
+    $IP -6 rule add pref "$prio" $spec
+  else
+    $IP rule add pref "$prio" $spec
+  fi
+  status=$?
+  set +f
+  return $status
+}
+fwb_rule_del_pref() {
+  set -f
+  if [ "$1" = 6 ]; then
+    $IP -6 rule del pref "$2"
+  else
+    $IP rule del pref "$2"
+  fi
+  status=$?
+  set +f
+  return $status
+}
+fwb_rule_has_priority() {
+  if [ "$1" = 6 ]; then
+    $IP -6 rule list 2>/dev/null || true
+  else
+    $IP rule list 2>/dev/null || true
+  fi | grep -Eq "^[[:space:]]*$2:"
+}
+fwb_rules_retire() {
+  [ -f "$FWB_RULE_STATE" ] || return 0
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    fwb_rule_state_fields "$line"
+    # An outdated rule may already be gone; never fail the
+    # activation for that. The kernel answers "No such file or
+    # directory" for deleting a missing rule, so the expected
+    # miss must stay silent.
+    fwb_rule_del_state "$FWB_RULE_STATE_FAM" "$FWB_RULE_STATE_PRIO" "$FWB_RULE_STATE_SPEC" 2>/dev/null || true
+    printf '%s|%s|%s\n' "$FWB_RULE_STATE_FAM" "$FWB_RULE_STATE_PRIO" "$FWB_RULE_STATE_SPEC" >> "$FWB_RULE_RETIRED"
+  done < "$FWB_RULE_STATE"
+}
+fwb_rule_prepare() {
+  # $1 family, $2 priority, $3 plain specification
+  fam=$1
+  prio=$2
+  spec=$3
+  # Self-inflicted duplicates: adding the identical rule again would
+  # create a silent twin at the same priority. The rule is usually
+  # gone already (retired above or first activation), so the expected
+  # "not found" answer of the kernel must stay silent.
+  fwb_rule_del_state "$fam" "$prio" "$spec" 2>/dev/null || true
+  if [ "${FWB_RULE_REPLACE:-0}" = 1 ]; then
+    # Replace strategy: flush every rule at this priority, ours were
+    # already retired above, the rest is foreign.
+    n=0
+    while fwb_rule_del_pref "$fam" "$prio" 2>/dev/null && [ "$n" -lt 64 ]; do
+      n=$((n+1))
+    done
+    return 0
+  fi
+  if fwb_rule_has_priority "$fam" "$prio"; then
+    echo "Error: refusing to add ip rule at priority $prio: the priority is already in use"
+    return 1
+  fi
+  return 0
+}
+fwb_rule_committed() {
+  printf '%s|%s|%s\n' "$1" "$2" "$3" >> "$FWB_RULE_COMMITTED"
+}
+fwb_rt_tables_ensure() {
+  fwb_table_name=$1
+  fwb_table_id=$2
+  fwb_rt_tables=/etc/iproute2/rt_tables
+  # Do not use the empty-file shell test here: its flag text matches an
+  # iptables source-match marker rejected by the native script guard.
+  if [ ! -f "$fwb_rt_tables" ] || [ -z "$(cat "$fwb_rt_tables" 2>/dev/null)" ]; then
+    echo "Error: $fwb_rt_tables does not exist or is empty"
+    return 1
+  fi
+  if grep -Eq "^[[:space:]]*$fwb_table_id[[:space:]]+$fwb_table_name([[:space:]]|$)" "$fwb_rt_tables"; then
+    return 0
+  fi
+  if grep -Eq "^[[:space:]]*[0-9]+[[:space:]]+$fwb_table_name([[:space:]]|$)" "$fwb_rt_tables"; then
+    echo "Error: routing table name $fwb_table_name already has a different number in $fwb_rt_tables"
+    return 1
+  fi
+  if grep -Eq "^[[:space:]]*$fwb_table_id[[:space:]]" "$fwb_rt_tables"; then
+    echo "Error: routing table number $fwb_table_id is already used by another name in $fwb_rt_tables"
+    return 1
+  fi
+  if ! printf '%s\t%s\n' "$fwb_table_id" "$fwb_table_name" >> "$fwb_rt_tables"; then
+    echo "Error: cannot append routing table $fwb_table_name to $fwb_rt_tables"
+    return 1
+  fi
+  echo "Added routing table $fwb_table_name ($fwb_table_id) to $fwb_rt_tables"
+}
+route_command_error() {
+  fwb_routing_rollback
+  fwb_routing_restore_output
+  echo "Error: routing rule $1 could not be activated." >&2
+  echo "The nftables policy is already active. Rolled back only routes installed by this script." >&2
+  exit 1
+}
+fwb_routing_finish() {
+  mkdir -p "$FWB_ROUTE_STATE_DIR" || exit 1
+  # Do not use the empty-file shell test here: its flag text matches an
+  # iptables source-match marker rejected by the native script guard.
+  if [ -n "$(cat "$FWB_ROUTE_COMMITTED" 2>/dev/null)" ]; then
+    cp "$FWB_ROUTE_COMMITTED" "$FWB_ROUTE_STATE.new"
+  else
+    : > "$FWB_ROUTE_STATE.new"
+  fi
+  mv -f "$FWB_ROUTE_STATE.new" "$FWB_ROUTE_STATE"
+  if [ -n "$(cat "$FWB_RULE_COMMITTED" 2>/dev/null)" ]; then
+    cp "$FWB_RULE_COMMITTED" "$FWB_RULE_STATE.new"
+  else
+    : > "$FWB_RULE_STATE.new"
+  fi
+  mv -f "$FWB_RULE_STATE.new" "$FWB_RULE_STATE"
+  fwb_routing_restore_output
+  echo "Routing rules activated."
+}
+fwb_routing_begin() {
+  mkdir -p "$FWB_ROUTE_STATE_DIR" || return 1
+  if ! fwb_routing_retire; then
+    fwb_routing_rollback
+    echo "Error: could not retire previously managed routes." >&2
+    return 1
+  fi
+  # Previous-generation ip rules of this firewall are retired with the
+  # same lookup-by-state approach as routes. A missing state file
+  # (first activation or reboot) simply means nothing to retire.
+  fwb_rules_retire
+  exec 3>&1
+  exec 1>"$TMPFILENAME"
+  exec 2>&1
+  FWB_ROUTING_REDIRECTED=1
+  echo "Activating routing rules..."
+}
+fwb_routing_begin || exit 1
+fi
+#
+# Routing rule set Routing
+#
+# 
+# Rule 0 (main)
+# 
+echo "Routing rule 0 (main)"
+# 
+# 
+# 
+fwb_route_prepare 4 main 'default' && \
+$IP route add default via 192.168.1.10 dev eth1 && \
+fwb_route_committed 4 main 'default' 'default via 192.168.1.10 dev eth1' \
+|| route_command_error "0 (main)"
+fwb_routing_finish
+}
+
+ip_forward() {
+    :
+    echo 1 > /proc/sys/net/ipv4/ip_forward
+}
+
+reset_all() {
+    :
+    reset_nftables
+}
+
+fwb_nft_declare_base_chains() {
+    # $1: "start" declares the tables and base chains this activation
+    #     uses; "block" is the emergency lockdown: filter policy drop
+    #     for ip and ip6, plus this firewall's mangle / nat base chains.
+    case "$1" in
+    block)
+        cat >> "$FWB_NFT_TXN" <<FWB_NFT_BLOCK_BASE
+add table ip filter
+add chain ip filter INPUT { type filter hook input priority 0; policy drop; }
+add chain ip filter OUTPUT { type filter hook output priority 0; policy drop; }
+add chain ip filter FORWARD { type filter hook forward priority 0; policy drop; }
+add table ip6 filter
+add chain ip6 filter INPUT { type filter hook input priority 0; policy drop; }
+add chain ip6 filter OUTPUT { type filter hook output priority 0; policy drop; }
+add chain ip6 filter FORWARD { type filter hook forward priority 0; policy drop; }
+FWB_NFT_BLOCK_BASE
+        ;;
+    start|*)
+        cat >> "$FWB_NFT_TXN" <<FWB_NFT_START_BASE
+add table ip6 filter
+add chain ip6 filter INPUT { type filter hook input priority 0; policy drop; }
+add chain ip6 filter OUTPUT { type filter hook output priority 0; policy drop; }
+add chain ip6 filter FORWARD { type filter hook forward priority 0; policy drop; }
+FWB_NFT_START_BASE
+        ;;
+    esac
+}
+
+block_action() {
+    # Replace FWB-owned tables atomically, preserving third-party policies.
+    fwb_nft_begin_transaction || return 1
+    fwb_nft_declare_base_chains block || return 1
+    cat >> "$FWB_NFT_TXN" <<'FWB_NFT_BLOCK'
+# Emergency management access rules for the backup ssh access option.
+FWB_NFT_BLOCK
+    fwb_nft_commit_transaction
+}
+
+stop_action() {
+    # Removing only FWB-owned tables leaves all foreign rules intact.
+    fwb_nft_begin_transaction || return 1
+    cat >> "$FWB_NFT_TXN" <<'FWB_NFT_STOP'
+# All existing Firewall Builder tables are deleted in this one transaction.
+FWB_NFT_STOP
+    fwb_nft_commit_transaction
+}
+
+check_nftables() {
+    # A foreign ruleset does not mean Firewall Builder is running. Both the
+    # current table names and the legacy fwb_-prefixed ones count as FWB
+    # policy so a status check stays correct across an upgrade.
+    for fwb_family in ip ip6; do
+        for fwb_table in filter mangle nat fwb_filter fwb_mangle fwb_nat; do
+            if "$NFT" list table "$fwb_family" "$fwb_table" >/dev/null 2>&1; then
+                return 0
+            fi
+        done
+    done
+    return 152
+}
+status_action() {
+    if check_nftables; then
+        return 0
+    fi
+    echo "Firewall Builder nftables tables are not configured"
+    return 3
+}
+
+# See how we were called.
+# For backwards compatibility missing argument is equivalent to 'start'
+
+cmd=$1
+test -z "$cmd" && {
+    cmd="start"
+}
+
+case "$cmd" in
+    start)
+        log "Activating firewall script generated Sat Nov 28 17:14:36 2026 by runner"
+        check_tools
+         prolog_commands 
+        check_run_time_address_table_files
+        
+        load_modules " ipv6"
+        configure_interfaces
+        verify_interfaces
+        
+        
+        
+        script_body
+        ip_forward
+        epilog_commands
+        RETVAL=$?
+        ;;
+
+    stop)
+        stop_action
+        RETVAL=$?
+        ;;
+
+    status)
+        status_action
+        RETVAL=$?
+        ;;
+
+    block)
+        block_action
+        RETVAL=$?
+        ;;
+
+    reload)
+        # "start" replaces only FWB-owned tables in a single nft transaction.
+        # Running "stop" first would create an avoidable firewall gap.
+        "$0" start
+        RETVAL=$?
+        ;;
+
+    interfaces)
+        configure_interfaces
+        RETVAL=$?
+        ;;
+
+    test_interfaces)
+        FWBDEBUG="echo"
+        configure_interfaces
+        RETVAL=$?
+        ;;
+
+
+
+    *)
+        echo "Usage $0 [start|stop|status|block|reload|interfaces|test_interfaces]" >&2
+        RETVAL=2
+        ;;
+
+esac
+
+exit $RETVAL

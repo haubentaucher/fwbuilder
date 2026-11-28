@@ -1,0 +1,9 @@
+ *** Loading data ... done
+ Compiling ruleset Policy for 'mangle' table, IPv6
+ Detecting rule shadowing
+ Compiling ruleset Policy for 'filter' table, IPv6
+ Detecting rule shadowing
+ Compiling routing rules for nft-test (IPv4)
+ Compiling routing rules for nft-test (IPv6)
+nft-test:Routing:1: error: Object "CI invalid IPv6 net" used as destination in the routing rule 1 (main) has invalid netmask
+Compile time: 

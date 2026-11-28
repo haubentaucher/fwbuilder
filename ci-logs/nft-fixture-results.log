@@ -1,0 +1,353 @@
+FWB XML fixture: reject-hashlimit-bad-mode
+FWB XML fixture: reject-hashlimit-icmp-port
+FWB XML fixture: hashlimit-srcip
+FWB XML fixture: hashlimit-srcip-dstport
+FWB XML fixture: hashlimit-udp-srcip-dstport
+FWB XML fixture: ipv6-hashlimit-srcip
+FWB XML fixture: ipv6-hashlimit-srcip-dstport
+FWB XML fixture: user-service-outbound
+FWB XML fixture: negated-user-service-outbound
+FWB XML fixture: negated-ipv4-option-rr
+FWB XML fixture: negated-ipv4-option-ra
+FWB XML fixture: negated-ipv4-option-any
+FWB XML fixture: negated-ipv4-option-combined
+FWB XML fixture: negated-ipv4-fragment
+FWB XML fixture: reject-negated-ipv4-timestamp
+FWB XML fixture: ipv4-option-rr
+FWB XML fixture: ipv4-option-lsrr
+FWB XML fixture: ipv4-option-ssrr
+FWB XML fixture: ipv4-option-ra
+FWB XML fixture: ipv4-option-any
+FWB XML fixture: ipv4-option-combined
+FWB XML fixture: ipv6-icmp
+FWB XML fixture: ipv6-ndp
+FWB XML fixture: ipv6-route-rollback
+FWB XML fixture: reject-ipv6-route-link-local
+FWB XML fixture: reject-ipv6-route-netmask
+FWB XML fixture: reject-ipv6-route-mixed
+FWB XML fixture: udp-workhours
+FWB XML fixture: policy-fragments
+FWB XML fixture: nat-fragments
+FWB XML fixture: negated-nat-odst
+FWB XML fixture: multi-address-set
+FWB XML fixture: nat-multi-address-set
+FWB XML fixture: nat-masquerade
+FWB XML fixture: mangle-tag
+FWB XML fixture: rule-counter
+FWB XML fixture: mark-match
+FWB XML fixture: mangle-classify
+FWB XML fixture: routing-table
+FWB XML fixture: routing-table-numeric
+FWB XML fixture: routing-adopt-foreign
+FWB XML fixture: reject-routing-table-duplicate
+FWB XML fixture: routing-in-deleted-objects
+FWB XML fixture: reject-policy-options
+FWB XML fixture: reject-nat-options
+FWB XML fixture: reject-timezone
+FWB XML fixture: prolog-after-flush
+FWB XML fixture: packet-tcp-input
+FWB XML fixture: packet-udp-forward
+FWB XML fixture: packet-snat
+FWB XML fixture: packet-dnat
+FWB XML fixture: ipv6-nat-lb-contiguous
+FWB XML fixture: ipv6-nat-lb-sparse
+FWB XML fixture: packet-ipv6-nat-lb-contiguous
+FWB XML fixture: packet-ipv6-nat-lb-sparse
+FWB XML fixture: reject-ipv6-nat-lb-network
+FWB XML fixture: reject-ipv6-nat-lb-duplicate
+FWB XML fixture: reject-ipv6-nat-lb-port-translation
+FWB XML fixture: nat-lb-contiguous
+FWB XML fixture: packet-nat-lb-sparse
+FWB XML fixture: packet-nat-lb-contiguous
+FWB XML fixture: nat-lb-sparse
+FWB XML fixture: reject-nat-lb-network
+FWB XML fixture: reject-nat-lb-duplicate
+FWB XML fixture: reject-nat-lb-port-translation
+FWB XML fixture: dynamic-address-sets
+FWB XML fixture: dynamic-interface
+FWB XML fixture: runtime-dns-name
+FWB XML fixture: module-load-ignored
+FWB XML fixture: reject-addressless-interface
+FWB XML fixture: ip-rule
+FWB XML fixture: ip-rule-ipv6
+FWB XML fixture: ip-rule-replace
+FWB XML fixture: ip-rule-set
+FWB XML fixture: ip-rule-ruleset-family
+FWB XML fixture: ip-rule-runtime-var
+FWB XML fixture: reject-ip-rule-var-conflict
+FWB XML fixture: reject-ip-rule-var-badname
+FWB XML fixture: reject-ip-rule-duplicate-priority
+FWB XML fixture: nat-snat-runtime-var
+FWB XML fixture: policy-src-runtime-var
+FWB XML fixture: mangle-src-runtime-var
+FWB XML fixture: reject-nat-runtime-var-conflict
+FWB XML fixture: reject-nat-runtime-var-badname
+FWB XML fixture: reject-policy-runtime-var-conflict
+FWB XML fixture: reject-runtime-address-tables
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/ipv6-icmp/nft-test.fw (11 rules)
+PASS: ipv6-icmp (IPv6) generated and verified native rules
+RESULT: PASS ipv6-icmp
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/ipv6-ndp/nft-test.fw (17 rules)
+PASS: ipv6-ndp (IPv6) generated and verified native rules
+PASS: compiler emitted one dual-stack routing activation
+RESULT: PASS ipv6-ndp
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/ipv6-route-rollback/nft-test.fw (17 rules)
+PASS: ipv6-route-rollback (IPv6) generated and verified native rules
+RESULT: PASS ipv6-route-rollback
+PASS: reject-ipv6-route-link-local rejected by the specific native compiler guard
+RESULT: PASS reject-ipv6-route-link-local
+PASS: reject-ipv6-route-netmask rejected by the specific native compiler guard
+RESULT: PASS reject-ipv6-route-netmask
+PASS: reject-ipv6-route-mixed rejected by the specific native compiler guard
+RESULT: PASS reject-ipv6-route-mixed
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/udp-workhours/nft-test.fw (12 rules)
+PASS: udp-workhours (IPv4) generated and verified native rules
+RESULT: PASS udp-workhours
+PASS: reject-hashlimit-bad-mode rejected by the specific native compiler guard
+RESULT: PASS reject-hashlimit-bad-mode
+PASS: reject-hashlimit-icmp-port rejected by the specific native compiler guard
+RESULT: PASS reject-hashlimit-icmp-port
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/hashlimit-srcip/nft-test.fw (12 rules)
+PASS: hashlimit-srcip (IPv4) generated and verified native rules
+RESULT: PASS hashlimit-srcip
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/hashlimit-srcip-dstport/nft-test.fw (12 rules)
+PASS: hashlimit-srcip-dstport (IPv4) generated and verified native rules
+RESULT: PASS hashlimit-srcip-dstport
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/hashlimit-udp-srcip-dstport/nft-test.fw (12 rules)
+PASS: hashlimit-udp-srcip-dstport (IPv4) generated and verified native rules
+RESULT: PASS hashlimit-udp-srcip-dstport
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/ipv6-hashlimit-srcip/nft-test.fw (11 rules)
+PASS: ipv6-hashlimit-srcip (IPv6) generated and verified native rules
+RESULT: PASS ipv6-hashlimit-srcip
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/ipv6-hashlimit-srcip-dstport/nft-test.fw (11 rules)
+PASS: ipv6-hashlimit-srcip-dstport (IPv6) generated and verified native rules
+RESULT: PASS ipv6-hashlimit-srcip-dstport
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/user-service-outbound/nft-test.fw (10 rules)
+PASS: user-service-outbound (IPv4) generated and verified native rules
+PASS: native UserService expression: meta skuid 1000
+RESULT: PASS user-service-outbound
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/negated-user-service-outbound/nft-test.fw (10 rules)
+PASS: negated-user-service-outbound (IPv4) generated and verified native rules
+PASS: native UserService expression: meta skuid != 1000
+RESULT: PASS negated-user-service-outbound
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/policy-fragments/nft-test.fw (12 rules)
+PASS: policy-fragments (IPv4) generated and verified native rules
+RESULT: PASS policy-fragments
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/nat-fragments/nft-test.fw (12 rules)
+PASS: nat-fragments (IPv4) generated and verified native rules
+RESULT: PASS nat-fragments
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/negated-nat-odst/nft-test.fw (12 rules)
+PASS: negated-nat-odst (IPv4) generated and verified native rules
+PASS: negated NAT uses jump / positive match return / translation
+RESULT: PASS negated-nat-odst
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/multi-address-set/nft-test.fw (7 rules)
+PASS: multi-address-set (IPv4) generated and verified native rules
+PASS: multi-object Src/Dst stay one flat rule with inline sets
+RESULT: PASS multi-address-set
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/nat-multi-address-set/nft-test.fw (10 rules)
+PASS: nat-multi-address-set (IPv4) generated and verified native rules
+PASS: multi-object NAT Src/Dst stay one flat rule with inline sets
+RESULT: PASS nat-multi-address-set
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/nat-masquerade/nft-test.fw (10 rules)
+PASS: nat-masquerade (IPv4) generated and verified native rules
+PASS: ipt_use_masq flips SNAT into a native masquerade row
+RESULT: PASS nat-masquerade
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/mangle-tag/nft-test.fw (17 rules)
+PASS: mangle-tag (IPv4) generated and verified native rules
+PASS: Tag sets meta mark/ct mark inside the mangle table
+RESULT: PASS mangle-tag
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/rule-counter/nft-test.fw (13 rules)
+PASS: rule-counter (IPv4) generated and verified native rules
+FAIL: unexpected counter row: add rule ip filter OUTPUT  counter jump RULE_1
+RESULT: FAIL rule-counter
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/mark-match/nft-test.fw (13 rules)
+PASS: mark-match (IPv4) generated and verified native rules
+PASS: TagService matches meta mark in the filter table
+RESULT: PASS mark-match
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/mangle-classify/nft-test.fw (12 rules)
+PASS: mangle-classify (IPv4) generated and verified native rules
+PASS: Classify translates the TC handle into a native priority
+RESULT: PASS mangle-classify
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/routing-table/nft-test.fw (12 rules)
+PASS: routing-table (IPv4) generated and verified native rules
+PASS: named routing table ci_pbr compiled with rt_tables maintenance
+RESULT: PASS routing-table
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/routing-table-numeric/nft-test.fw (12 rules)
+PASS: routing-table-numeric (IPv4) generated and verified native rules
+PASS: named routing table compiles with its numeric table id
+RESULT: PASS routing-table-numeric
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/routing-adopt-foreign/nft-test.fw (12 rules)
+PASS: routing-adopt-foreign (IPv4) generated and verified native rules
+PASS: adopt_foreign_routes switches the activation into adoption mode
+RESULT: PASS routing-adopt-foreign
+PASS: reject-routing-table-duplicate rejected by the specific native compiler guard
+RESULT: PASS reject-routing-table-duplicate
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/routing-in-deleted-objects/nft-test.fw (12 rules)
+PASS: routing-in-deleted-objects (IPv4) generated and verified native rules
+PASS: Routing rule set parked in Deleted Objects is ignored by the compiler
+RESULT: PASS routing-in-deleted-objects
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/ip-rule/nft-test.fw (12 rules)
+PASS: ip-rule (IPv4) generated and verified native rules
+PASS: IPRule compiled into the strict ci_iprule lookup section
+RESULT: PASS ip-rule
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/ip-rule-ipv6/nft-test.fw (11 rules)
+PASS: ip-rule-ipv6 (IPv6) generated and verified native rules
+PASS: IPv6 IPRule compiled into the $IP -6 rule form
+RESULT: PASS ip-rule-ipv6
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/ip-rule-replace/nft-test.fw (12 rules)
+PASS: ip-rule-replace (IPv4) generated and verified native rules
+PASS: ip_rule_strategy=replace selects the flush helpers
+RESULT: PASS ip-rule-replace
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/ip-rule-set/nft-test.fw (12 rules)
+PASS: ip-rule-set (IPv4) generated and verified native rules
+PASS: the per-firewall IPRules rule set compiled into the ip rule section
+RESULT: PASS ip-rule-set
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/ip-rule-ruleset-family/nft-test.fw (12 rules)
+PASS: ip-rule-ruleset-family (IPv4) generated and verified native rules
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/ip-rule-ruleset-family-dual/nft-test.fw (12 rules)
+PASS: the rule set address family gates family-less fwmark ip rules
+RESULT: PASS ip-rule-ruleset-family
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/ip-rule-runtime-var/nft-test.fw (12 rules)
+PASS: ip-rule-runtime-var (IPv4) generated and verified native rules
+PASS: runtime-variable IPRule ships the helper, guard and state-safe expansion
+RESULT: PASS ip-rule-runtime-var
+PASS: reject-ip-rule-var-conflict rejected by the specific native compiler guard
+RESULT: PASS reject-ip-rule-var-conflict
+PASS: reject-ip-rule-var-badname rejected by the specific native compiler guard
+RESULT: PASS reject-ip-rule-var-badname
+PASS: reject-ip-rule-duplicate-priority rejected by the specific native compiler guard
+RESULT: PASS reject-ip-rule-duplicate-priority
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/nat-snat-runtime-var/nft-test.fw (10 rules)
+PASS: nat-snat-runtime-var (IPv4) generated and verified native rules
+PASS: runtime-variable SNAT stages through the guarded wrapper
+RESULT: PASS nat-snat-runtime-var
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/policy-src-runtime-var/nft-test.fw (13 rules)
+PASS: policy-src-runtime-var (IPv4) generated and verified native rules
+PASS: runtime-variable filter rule stages through the guarded wrapper
+RESULT: PASS policy-src-runtime-var
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/mangle-src-runtime-var/nft-test.fw (13 rules)
+PASS: mangle-src-runtime-var (IPv4) generated and verified native rules
+PASS: runtime-variable mangle rule stages through the guarded wrapper
+RESULT: PASS mangle-src-runtime-var
+PASS: reject-nat-runtime-var-conflict rejected by the specific native compiler guard
+RESULT: PASS reject-nat-runtime-var-conflict
+PASS: reject-nat-runtime-var-badname rejected by the specific native compiler guard
+RESULT: PASS reject-nat-runtime-var-badname
+PASS: reject-policy-runtime-var-conflict rejected by the specific native compiler guard
+RESULT: PASS reject-policy-runtime-var-conflict
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/ipv4-option-rr/nft-test.fw (12 rules)
+PASS: ipv4-option-rr (IPv4) generated and verified native rules
+RESULT: PASS ipv4-option-rr
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/ipv4-option-lsrr/nft-test.fw (12 rules)
+PASS: ipv4-option-lsrr (IPv4) generated and verified native rules
+RESULT: PASS ipv4-option-lsrr
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/ipv4-option-ssrr/nft-test.fw (12 rules)
+PASS: ipv4-option-ssrr (IPv4) generated and verified native rules
+RESULT: PASS ipv4-option-ssrr
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/ipv4-option-ra/nft-test.fw (12 rules)
+PASS: ipv4-option-ra (IPv4) generated and verified native rules
+RESULT: PASS ipv4-option-ra
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/ipv4-option-any/nft-test.fw (12 rules)
+PASS: ipv4-option-any (IPv4) generated and verified native rules
+RESULT: PASS ipv4-option-any
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/ipv4-option-combined/nft-test.fw (12 rules)
+PASS: ipv4-option-combined (IPv4) generated and verified native rules
+RESULT: PASS ipv4-option-combined
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/negated-ipv4-option-rr/nft-test.fw (14 rules)
+PASS: negated-ipv4-option-rr (IPv4) generated and verified native rules
+PASS: negated IP service uses jump / positive match return / accept
+RESULT: PASS negated-ipv4-option-rr
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/negated-ipv4-option-ra/nft-test.fw (14 rules)
+PASS: negated-ipv4-option-ra (IPv4) generated and verified native rules
+PASS: negated IP service uses jump / positive match return / accept
+RESULT: PASS negated-ipv4-option-ra
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/negated-ipv4-option-any/nft-test.fw (14 rules)
+PASS: negated-ipv4-option-any (IPv4) generated and verified native rules
+PASS: negated IP service uses jump / positive match return / accept
+RESULT: PASS negated-ipv4-option-any
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/negated-ipv4-option-combined/nft-test.fw (14 rules)
+PASS: negated-ipv4-option-combined (IPv4) generated and verified native rules
+PASS: negated IP service uses jump / positive match return / accept
+RESULT: PASS negated-ipv4-option-combined
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/negated-ipv4-fragment/nft-test.fw (14 rules)
+PASS: negated-ipv4-fragment (IPv4) generated and verified native rules
+PASS: negated IP service uses jump / positive match return / accept
+RESULT: PASS negated-ipv4-fragment
+PASS: reject-negated-ipv4-timestamp rejected by the specific native compiler guard
+RESULT: PASS reject-negated-ipv4-timestamp
+PASS: reject-policy-options rejected by the specific native compiler guard
+RESULT: PASS reject-policy-options
+PASS: reject-nat-options rejected by the specific native compiler guard
+RESULT: PASS reject-nat-options
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/ipv6-nat-lb-contiguous/nft-test.fw (12 rules)
+PASS: ipv6-nat-lb-contiguous (IPv6) generated and verified native rules
+PASS: ipv6-nat-lb-contiguous uses extension-header-safe IPv6 TCP matching in filter and NAT
+RESULT: PASS ipv6-nat-lb-contiguous
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/ipv6-nat-lb-sparse/nft-test.fw (12 rules)
+PASS: ipv6-nat-lb-sparse (IPv6) generated and verified native rules
+PASS: ipv6-nat-lb-sparse uses extension-header-safe IPv6 TCP matching in filter and NAT
+RESULT: PASS ipv6-nat-lb-sparse
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/packet-ipv6-nat-lb-contiguous/nft-test.fw (12 rules)
+PASS: packet-ipv6-nat-lb-contiguous (IPv6) generated and verified native rules
+RESULT: PASS packet-ipv6-nat-lb-contiguous
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/packet-ipv6-nat-lb-sparse/nft-test.fw (12 rules)
+PASS: packet-ipv6-nat-lb-sparse (IPv6) generated and verified native rules
+RESULT: PASS packet-ipv6-nat-lb-sparse
+PASS: reject-ipv6-nat-lb-network rejected by the specific native compiler guard
+RESULT: PASS reject-ipv6-nat-lb-network
+PASS: reject-ipv6-nat-lb-duplicate rejected by the specific native compiler guard
+RESULT: PASS reject-ipv6-nat-lb-duplicate
+PASS: reject-ipv6-nat-lb-port-translation rejected by the specific native compiler guard
+RESULT: PASS reject-ipv6-nat-lb-port-translation
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/nat-lb-contiguous/nft-test.fw (10 rules)
+PASS: nat-lb-contiguous (IPv4) generated and verified native rules
+RESULT: PASS nat-lb-contiguous
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/nat-lb-sparse/nft-test.fw (10 rules)
+PASS: nat-lb-sparse (IPv4) generated and verified native rules
+RESULT: PASS nat-lb-sparse
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/packet-nat-lb-sparse/nft-test.fw (10 rules)
+PASS: packet-nat-lb-sparse (IPv4) generated and verified native rules
+RESULT: PASS packet-nat-lb-sparse
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/packet-nat-lb-contiguous/nft-test.fw (10 rules)
+PASS: packet-nat-lb-contiguous (IPv4) generated and verified native rules
+RESULT: PASS packet-nat-lb-contiguous
+PASS: reject-nat-lb-network rejected by the specific native compiler guard
+RESULT: PASS reject-nat-lb-network
+PASS: reject-nat-lb-duplicate rejected by the specific native compiler guard
+RESULT: PASS reject-nat-lb-duplicate
+PASS: reject-nat-lb-port-translation rejected by the specific native compiler guard
+RESULT: PASS reject-nat-lb-port-translation
+PASS: reject-timezone rejected by the specific native compiler guard
+RESULT: PASS reject-timezone
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/prolog-after-flush/nft-test.fw (12 rules)
+PASS: prolog-after-flush compiles and surrounds the nftables transaction
+RESULT: PASS prolog-after-flush
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/packet-tcp-input/nft-test.fw (12 rules)
+PASS: packet-tcp-input (IPv4) generated and verified native rules
+RESULT: PASS packet-tcp-input
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/packet-udp-forward/nft-test.fw (12 rules)
+PASS: packet-udp-forward (IPv4) generated and verified native rules
+RESULT: PASS packet-udp-forward
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/packet-snat/nft-test.fw (10 rules)
+PASS: packet-snat (IPv4) generated and verified native rules
+RESULT: PASS packet-snat
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/packet-dnat/nft-test.fw (10 rules)
+PASS: packet-dnat (IPv4) generated and verified native rules
+RESULT: PASS packet-dnat
+PASS: dynamic-address-sets generated from real FWB AddressTable
+RESULT: PASS dynamic-address-sets
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/dynamic-interface/nft-test.fw (13 rules)
+PASS: dynamic-interface stages resolved copies outside the ruleset heredoc
+RESULT: PASS dynamic-interface
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/runtime-dns-name/nft-test.fw (12 rules)
+PASS: run-time DNSName stages one resolver-loop copy per record
+RESULT: PASS runtime-dns-name
+Native nftables structure OK: /home/runner/work/fwbuilder/fwbuilder/ci-logs/nft-project-fixtures/module-load-ignored/nft-test.fw (12 rules)
+PASS: load_modules option stays accepted and emits a no-op
+RESULT: PASS module-load-ignored
+PASS: reject-addressless-interface rejected by the specific native compiler guard
+RESULT: PASS reject-addressless-interface
+PASS: reject-runtime-address-tables rejected by the specific native compiler guard
+RESULT: PASS reject-runtime-address-tables
+PASS: dynamic IPv4/IPv6 network lookup selects correct family and interface
+FWB XML fixture matrix: 86 cases; 85 passed; 1 failed

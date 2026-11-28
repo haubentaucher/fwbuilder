@@ -1,0 +1,8 @@
+ *** Loading data ... done
+ Compiling ruleset NAT for 'nat' table
+ Compiling ruleset Policy for 'mangle' table
+ Detecting rule shadowing
+ Compiling ruleset Policy for 'filter' table
+ Detecting rule shadowing
+nft-test:Policy:0: error: Native nftables port-key hashlimit needs a TCP or UDP service
+Compile time: 
