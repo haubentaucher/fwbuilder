@@ -138,7 +138,10 @@
        <item row="6" column="0" colspan="2">
         <widget class="QLabel" name="label_runtime_vars">
          <property name="text">
-          <string>Runtime shell variables (nftables): the prolog of the generated script must fill these variables before activation, e.g. with the fwb_get_provider_ip helper. Example: provider_ip. Leave the corresponding translated address rule element empty when using a variable.</string>
+          <string>Runtime shell variables (nftables): the prolog must fill them before activation, e.g. with fwb_get_provider_ip. Leave the matching translated address element empty.</string>
+         </property>
+         <property name="toolTip">
+          <string>Shell variables that the prolog of the generated script must fill before activation, e.g. with the fwb_get_provider_ip helper. Example: provider_ip. Leave the corresponding translated address rule element empty when using a variable.</string>
          </property>
          <property name="wordWrap">
           <bool>true</bool>
@@ -148,7 +151,7 @@
        <item row="7" column="0">
         <widget class="QLabel" name="label_tsrc_runtime_var">
          <property name="text">
-          <string>Translated source address variable (SNAT only):</string>
+          <string>TSrc variable (SNAT only):</string>
          </property>
         </widget>
        </item>
@@ -162,7 +165,7 @@
        <item row="8" column="0">
         <widget class="QLabel" name="label_tdst_runtime_var">
          <property name="text">
-          <string>Translated destination address variable (DNAT only):</string>
+          <string>TDst variable (DNAT only):</string>
          </property>
         </widget>
        </item>

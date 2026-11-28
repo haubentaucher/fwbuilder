@@ -232,7 +232,10 @@
            <item row="3" column="0" colspan="2">
             <widget class="QLabel" name="label_runtime_vars">
              <property name="text">
-              <string>Runtime shell variables (nftables): the prolog of the generated script must fill these variables before activation, e.g. with the fwb_get_provider_ip helper. Example: provider_ip. Leave the corresponding address rule element empty when using a variable.</string>
+              <string>Runtime shell variables (nftables): the prolog must fill them before activation, e.g. with fwb_get_provider_ip. Leave the matching address element empty.</string>
+             </property>
+             <property name="toolTip">
+              <string>Shell variables that the prolog of the generated script must fill before activation, e.g. with the fwb_get_provider_ip helper. Example: provider_ip. Leave the corresponding address rule element empty when using a variable.</string>
              </property>
              <property name="wordWrap">
               <bool>true</bool>
@@ -242,7 +245,7 @@
            <item row="4" column="0">
             <widget class="QLabel" name="label_src_runtime_var">
              <property name="text">
-              <string>Source address variable:</string>
+              <string>Source variable:</string>
              </property>
             </widget>
            </item>
@@ -256,7 +259,7 @@
            <item row="5" column="0">
             <widget class="QLabel" name="label_dst_runtime_var">
              <property name="text">
-              <string>Destination address variable:</string>
+              <string>Destination variable:</string>
              </property>
             </widget>
            </item>
