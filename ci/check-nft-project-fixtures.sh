@@ -1007,10 +1007,14 @@ check_ip_rule_runtime_var() {
         'fwb_get_provider_ip eth0 192.168.1.10 || exit 1'
         "case \"\$provider_ip\" in \"\"|*:*) route_command_error"
         'runtime variable provider_ip is empty or not an IPv4 address'
-        "$spec_var=\"from \$provider_ip lookup main\" && \\\\"
-        "fwb_rule_prepare 4 120 \"\$$spec_var\" && \\\\"
-        "\$IP rule add pref 120 \$$spec_var && \\\\"
-        "fwb_rule_committed 4 120 \"\$$spec_var\" \\\\"
+        # Each .fw line below ends with ONE line-continuation
+        # backslash; inside double quotes that is one escaped pair,
+        # so the needles carry exactly two source backslashes, not
+        # four: four produce two and never match the generated file.
+        "$spec_var=\"from \$provider_ip lookup main\" && \\"
+        "fwb_rule_prepare 4 120 \"\$$spec_var\" && \\"
+        "\$IP rule add pref 120 \$$spec_var && \\"
+        "fwb_rule_committed 4 120 \"\$$spec_var\" \\"
     )
     local needle
     for needle in "${needles[@]}"; do
