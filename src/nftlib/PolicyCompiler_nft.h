@@ -1222,6 +1222,7 @@ public:
             virtual std::string _printChain(libfwbuilder::PolicyRule *r);
             virtual std::string _printTarget(libfwbuilder::PolicyRule *r);
             virtual std::string _printModules(libfwbuilder::PolicyRule *r);
+            virtual std::string _printCounter(libfwbuilder::PolicyRule *r);
             virtual std::string _printDirectionAndInterface(
                 libfwbuilder::PolicyRule *r);
             virtual std::string _printMultiport(libfwbuilder::PolicyRule *r);

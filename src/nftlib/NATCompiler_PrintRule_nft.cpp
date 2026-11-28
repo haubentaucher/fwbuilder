@@ -799,6 +799,19 @@ NATCompiler_nft::PrintRule::PrintRule(const std::string &name) :
     minus_n_tracker_initialized = false;
 }
 
+// Per-rule packet/byte counters. The rule options dialog exposes this
+// as the nft_counter switch ("Counter off"/"Counter on"); an enabled
+// rule carries the nftables counter statement between its matches and
+// the translation/verdict statement, so every translated packet and
+// byte is counted.
+string NATCompiler_nft::PrintRule::_printCounter(NATRule *rule)
+{
+    FWOptions *ruleopt = rule->getOptionsObject();
+    if (ruleopt != nullptr && ruleopt->getBool("nft_counter"))
+        return " counter ";
+    return "";
+}
+
 bool NATCompiler_nft::PrintRule::processNext()
 {
     NATCompiler_nft *ipt_comp = dynamic_cast<NATCompiler_nft*>(compiler);
@@ -918,6 +931,10 @@ bool NATCompiler_nft::PrintRule::processNext()
 
     cmdout << " ";
     cmdout << _printDstService(osrvrel);
+
+    // W4.6: optional per-rule packet/byte counters, placed after the
+    // matches and right before the translation/verdict statement.
+    cmdout << _printCounter(rule);
 
     // nftables verdict/translation syntax is not iptables -j syntax.
     // The rule processors decide the target the way they do for the

@@ -279,6 +279,38 @@ print('PASS: Tag sets meta mark/ct mark inside the mangle table')
 PY_MANGLE_TAG
 }
 
+# The nft_counter rule option adds the native counter statement exactly
+# where it was enabled: the filter verdict, the nat translation and the
+# mangle tag row. Every other rule must stay free of counter statements.
+# Direction "Both" rules fan out over several chains, so the check does
+# not pin the row count; every counter row must belong to one of the
+# three enabled rules instead.
+check_rule_counter() {
+    local name=$1
+    if ! check_positive "$name" 4 'counter drop' 'counter snat to' 'counter meta mark set'; then
+        return 1
+    fi
+    python3 - "$work/$name.ruleset.nft" <<'PY_RULE_COUNTER'
+import sys
+from pathlib import Path
+
+lines = Path(sys.argv[1]).read_text().splitlines()
+counter = [line for line in lines if 'counter' in line]
+if not counter:
+    sys.exit('FAIL: no counter rows at all')
+expected = (
+    ('add rule ip filter ', 'counter drop'),
+    ('add rule ip nat ', 'counter snat to'),
+    ('add rule ip mangle ', 'counter meta mark set'),
+)
+for line in counter:
+    if not any(line.startswith(prefix) and needle in line
+               for prefix, needle in expected):
+        sys.exit('FAIL: unexpected counter row: ' + line)
+print('PASS: nft_counter adds native counter rows to filter, nat and mangle')
+PY_RULE_COUNTER
+}
+
 # Matching a TagService only reads the mark: flat filter rows, and the
 # compiled script must not declare a mangle table at all.
 check_mark_match() {
@@ -1302,6 +1334,7 @@ run_case multi-address-set check_multi_address_set multi-address-set
 run_case nat-multi-address-set check_nat_multi_address_set nat-multi-address-set
 run_case nat-masquerade check_nat_masquerade nat-masquerade
 run_case mangle-tag check_mangle_tag mangle-tag
+run_case rule-counter check_rule_counter rule-counter
 run_case mark-match check_mark_match mark-match
 run_case mangle-classify check_mangle_classify mangle-classify
 run_case routing-table check_routing_table

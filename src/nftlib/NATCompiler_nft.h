@@ -538,6 +538,7 @@ namespace fwcompiler
             virtual std::string _printProtocol(libfwbuilder::Service *srv);
             virtual std::string _printSrcService(libfwbuilder::RuleElementOSrv  *o);
             virtual std::string _printDstService(libfwbuilder::RuleElementOSrv  *o);
+            virtual std::string _printCounter(libfwbuilder::NATRule *r);
 
             virtual std::string _printICMP(libfwbuilder::ICMPService *srv);
             virtual std::string _printIP(libfwbuilder::IPService *srv,

@@ -229,7 +229,31 @@
              </property>
             </widget>
            </item>
-           <item row="3" column="0" colspan="2">
+           <item row="3" column="0">
+            <widget class="QLabel" name="label_counter">
+             <property name="text">
+              <string>Counter:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="1">
+            <widget class="QComboBox" name="nft_counter">
+             <property name="toolTip">
+              <string>Count packets and bytes matching this rule by adding the nftables counter statement to it.</string>
+             </property>
+             <item>
+              <property name="text">
+               <string>Counter off</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Counter on</string>
+              </property>
+             </item>
+            </widget>
+           </item>
+           <item row="4" column="0" colspan="2">
             <widget class="QLabel" name="label_runtime_vars">
              <property name="text">
               <string>Runtime shell variables (nftables): the prolog must fill them before activation, e.g. with fwb_get_provider_ip. Leave the matching address element empty.</string>
@@ -242,35 +266,35 @@
              </property>
             </widget>
            </item>
-           <item row="4" column="0">
+           <item row="5" column="0">
             <widget class="QLabel" name="label_src_runtime_var">
              <property name="text">
               <string>Source variable:</string>
              </property>
             </widget>
            </item>
-           <item row="4" column="1">
+           <item row="5" column="1">
             <widget class="QLineEdit" name="src_runtime_var_edit">
              <property name="toolTip">
               <string>Shell variable name (without $) that holds the source IPv4 address at activation time, e.g. provider_ip. Leave Source empty when using it.</string>
              </property>
             </widget>
            </item>
-           <item row="5" column="0">
+           <item row="6" column="0">
             <widget class="QLabel" name="label_dst_runtime_var">
              <property name="text">
               <string>Destination variable:</string>
              </property>
             </widget>
            </item>
-           <item row="5" column="1">
+           <item row="6" column="1">
             <widget class="QLineEdit" name="dst_runtime_var_edit">
              <property name="toolTip">
               <string>Shell variable name (without $) that holds the destination IPv4 address at activation time, e.g. provider_ip. Leave Destination empty when using it.</string>
              </property>
             </widget>
            </item>
-           <item row="6" column="0">
+           <item row="7" column="0">
             <spacer name="verticalSpacer_3">
              <property name="orientation">
               <enum>Qt::Vertical</enum>

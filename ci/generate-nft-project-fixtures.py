@@ -602,6 +602,19 @@ def _set_rule_options(rule, options):
         ET.SubElement(opts, tag('Option'), {'name': name}).text = options[name]
 
 
+def _add_rule_option(rule, name, value):
+    """Add one option to the rule's PolicyRuleOptions, keeping the others.
+
+    _set_rule_options replaces the whole set, so baseline options such as
+    the fallback deny's stateless flag must be preserved through this
+    helper instead.
+    """
+    opts = only(rule, './' + tag('PolicyRuleOptions'))
+    if opts.findall("./%s[@name='%s']" % (tag('Option'), name)):
+        raise ValueError('option %s already set' % name)
+    ET.SubElement(opts, tag('Option'), {'name': name}).text = value
+
+
 def _add_tag_service(root, service_id, tagcode, comment):
     group = only(root, ".//%s[@id='id1565X1251']" % tag('ServiceGroup'))
     if group.get('name') != 'TagServices':
@@ -655,6 +668,36 @@ def case_mangle_tag(tree):
         'tagobject_id': 'fwb-ci-tag-64',
         'ipt_mark_connections': 'True',
     })
+
+
+def case_rule_counter(tree):
+    """The nft_counter option adds the native counter statement per rule.
+
+    Counting must work in every table the backend emits: the filter
+    verdict of the fallback deny (counter before drop), the SNAT
+    translation (counter before snat) and the mangle tagging row
+    (counter before meta mark set). Rules without the option must stay
+    free of counter statements, so the fallback deny keeps its baseline
+    stateless flag while the counter option is only added.
+    """
+    root, fw, pr, nr = prepare(tree)
+    policy = only(fw, './%s' % tag('Policy'))
+    fallback = only(policy, "./%s[@id='id2830X30989']" % tag('PolicyRule'))
+    _promote_before_fallback(policy, pr, fallback)
+    _add_tag_service(root, 'fwb-ci-tag-65', '65', 'CI packet mark 65')
+    pr.set('action', 'Continue')
+    pr.set('direction', 'Both')
+    pr.set('comment', 'CI: count and mark every packet with fwmark 65')
+    _widen_rule_element_to_any(pr, 'Src')
+    _widen_rule_element_to_any(pr, 'Dst')
+    _set_rule_options(pr, {
+        'tagging': 'True',
+        'tagobject_id': 'fwb-ci-tag-65',
+        'nft_counter': '1',
+    })
+    _add_rule_option(fallback, 'nft_counter', '1')
+    natopts = only(nr, './' + tag('NATRuleOptions'))
+    ET.SubElement(natopts, tag('Option'), {'name': 'nft_counter'}).text = '1'
 
 
 def case_mark_match(tree):
@@ -1771,6 +1814,7 @@ CASES = {
     'nat-multi-address-set': case_nat_multi_address_set,
     'nat-masquerade': case_nat_masquerade,
     'mangle-tag': case_mangle_tag,
+    'rule-counter': case_rule_counter,
     'mark-match': case_mark_match,
     'mangle-classify': case_mangle_classify,
     'routing-table': case_routing_table,

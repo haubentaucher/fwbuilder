@@ -1627,6 +1627,19 @@ bool  PolicyCompiler_nft::PrintRule::processNext()
     return true;
 }
 
+// Per-rule packet/byte counters. The rule options dialog exposes this
+// as the nft_counter switch ("Counter off"/"Counter on"); an enabled
+// rule carries the nftables counter statement right before its verdict,
+// log or mark statement, the usual nft ordering (e.g. "limit rate ...
+// counter ... drop"). An ordinary statement, so it composes freely.
+string PolicyCompiler_nft::PrintRule::_printCounter(PolicyRule *rule)
+{
+    FWOptions *ruleopt = rule->getOptionsObject();
+    if (ruleopt != nullptr && ruleopt->getBool("nft_counter"))
+        return " counter";
+    return "";
+}
+
 string PolicyCompiler_nft::PrintRule::PolicyRuleToString(PolicyRule *rule)
 {
     FWOptions *ruleopt = rule->getOptionsObject();
@@ -1640,6 +1653,7 @@ string PolicyCompiler_nft::PrintRule::PolicyRuleToString(PolicyRule *rule)
         command_line << _startRuleLine();
         command_line << _printChain(rule);
         command_line << _printDirectionAndInterface(rule);
+        command_line << _printCounter(rule);
         command_line << " " << rule->getStr("nft_vmap_expression") << " ";
         command_line << _endRuleLine();
         return command_line.str();
@@ -1785,6 +1799,11 @@ string PolicyCompiler_nft::PrintRule::PolicyRuleToString(PolicyRule *rule)
     command_line << _printTimeInterval(rule);
 
     command_line << _printModules(rule);
+
+    // W4.6: optional per-rule packet/byte counters, placed after the
+    // matches and right before the verdict/log/mark statement.
+    command_line << _printCounter(rule);
+
     command_line << _printTarget(rule);
 
     command_line << _endRuleLine();

@@ -128,6 +128,23 @@ void NATRuleOptionsDialog::loadFWObject(FWObject *o)
                             "nat_tdst_runtime_var");
     }
 
+    // W4.6: per-rule packet/byte counters; the nftables compiler turns
+    // the option into the native counter statement before the
+    // translation. The iptables backend has no equivalent per-rule
+    // switch, so the widgets stay hidden there.
+    m_dialog->label_counter->setVisible(platform=="nftables");
+    m_dialog->nft_counter->setVisible(platform=="nftables");
+    if (platform=="nftables")
+    {
+        QStringList counterMapping;
+        counterMapping.push_back(QObject::tr("Counter off"));
+        counterMapping.push_back("0");
+        counterMapping.push_back(QObject::tr("Counter on"));
+        counterMapping.push_back("1");
+        data.registerOption(m_dialog->nft_counter, ropt,
+                            "nft_counter", counterMapping);
+    }
+
     if (platform=="iptables")
     {
         data.registerOption(m_dialog->ipt_nat_random, ropt,

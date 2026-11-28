@@ -135,7 +135,31 @@
          </property>
         </widget>
        </item>
-       <item row="6" column="0" colspan="2">
+       <item row="6" column="0">
+        <widget class="QLabel" name="label_counter">
+         <property name="text">
+          <string>Counter:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="1">
+        <widget class="QComboBox" name="nft_counter">
+         <property name="toolTip">
+          <string>Count packets and bytes matching this rule by adding the nftables counter statement to it.</string>
+         </property>
+         <item>
+          <property name="text">
+           <string>Counter off</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Counter on</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item row="7" column="0" colspan="2">
         <widget class="QLabel" name="label_runtime_vars">
          <property name="text">
           <string>Runtime shell variables (nftables): the prolog must fill them before activation, e.g. with fwb_get_provider_ip. Leave the matching translated address element empty.</string>
@@ -148,35 +172,35 @@
          </property>
         </widget>
        </item>
-       <item row="7" column="0">
+       <item row="8" column="0">
         <widget class="QLabel" name="label_tsrc_runtime_var">
          <property name="text">
           <string>TSrc variable (SNAT only):</string>
          </property>
         </widget>
        </item>
-       <item row="7" column="1">
+       <item row="8" column="1">
         <widget class="QLineEdit" name="tsrc_runtime_var_edit">
          <property name="toolTip">
           <string>Shell variable name (without $) that holds the translated source IPv4 address at activation time, e.g. provider_ip. Only for SNAT rules with empty Translated Source.</string>
          </property>
         </widget>
        </item>
-       <item row="8" column="0">
+       <item row="9" column="0">
         <widget class="QLabel" name="label_tdst_runtime_var">
          <property name="text">
           <string>TDst variable (DNAT only):</string>
          </property>
         </widget>
        </item>
-       <item row="8" column="1">
+       <item row="9" column="1">
         <widget class="QLineEdit" name="tdst_runtime_var_edit">
          <property name="toolTip">
           <string>Shell variable name (without $) that holds the translated destination IPv4 address at activation time, e.g. provider_ip. Only for DNAT rules with empty Translated Destination.</string>
          </property>
         </widget>
        </item>
-       <item row="9" column="1">
+       <item row="10" column="1">
         <spacer name="verticalSpacer">
          <property name="orientation">
           <enum>Qt::Vertical</enum>
